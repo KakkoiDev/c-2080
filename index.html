@@ -2180,11 +2180,19 @@ Diagnostics:
 
   <h3>Project file: <code>./compile_commands.json</code></h3>
   <p>clangd reads this for accurate cross-file analysis. Generate it with one of:</p>
-<pre><code><span class="cm"># with a Makefile (bear records each clang invocation)</span>
+<pre><code><span class="cm"># with a Makefile: bear records each clang invocation</span>
 bear -- make
 
-<span class="cm"># single-file project (write the file directly)</span>
-echo <span class="st">'[{"directory":"'"$(pwd)"'","command":"clang -std=c99 -Wall main.c","file":"main.c"}]'</span> &gt; compile_commands.json</code></pre>
+<span class="cm"># single-file project: write the file directly via heredoc</span>
+cat &gt; compile_commands.json &lt;&lt;EOF
+[
+  {
+    <span class="st">"directory"</span>: <span class="st">"$(pwd)"</span>,
+    <span class="st">"command"</span>: <span class="st">"clang -std=c99 -Wall main.c"</span>,
+    <span class="st">"file"</span>: <span class="st">"main.c"</span>
+  }
+]
+EOF</code></pre>
 
   <h3>Project file: <code>./.clang-format</code></h3>
   <p>Save this in your repo root. <code>clang-format</code> picks it up automatically.</p>
