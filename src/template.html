@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C: The 20/80 (c-2080)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap');
+
+  :root {
+    --bg: #0d0e0f;
+    --surface: #141618;
+    --border: #222426;
+    --accent: #e8a020;
+    --accent2: #4fc3a1;
+    --accent3: #c06060;
+    --text: #d4cfc8;
+    --muted: #666;
+    --code-bg: #0a0b0c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-ligatures: none;
+    font-size: 16px;
+    line-height: 1.7;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 60px 24px 120px;
+  }
+
+  header {
+    border-left: 4px solid var(--accent);
+    padding-left: 20px;
+    margin-bottom: 64px;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    color: #fff;
+    letter-spacing: -1px;
+    line-height: 1.1;
+  }
+
+  header h1 em {
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  header p {
+    color: var(--muted);
+    margin-top: 12px;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 24px 28px;
+    margin-bottom: 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 32px;
+  }
+
+  .toc-title {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .toc a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--accent); }
+  .toc a::before { content: '→ '; }
+
+  h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    color: #fff;
+    margin: 72px 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  h2:first-of-type { margin-top: 0; }
+
+  h2 .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    border: 1px solid var(--accent);
+    padding: 2px 8px;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    color: var(--accent2);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 32px 0 12px;
+  }
+
+  p { margin-bottom: 14px; color: var(--text); }
+
+  .rule {
+    border-left: 2px solid var(--accent);
+    padding: 12px 18px;
+    background: rgba(232, 160, 32, 0.05);
+    margin: 20px 0;
+    font-size: 14px;
+  }
+
+  .warn {
+    border-left: 2px solid var(--accent3);
+    padding: 12px 18px;
+    background: rgba(192, 96, 96, 0.06);
+    margin: 20px 0;
+    font-size: 14px;
+    color: #d4a0a0;
+  }
+
+  .tip {
+    border-left: 2px solid var(--accent2);
+    padding: 12px 18px;
+    background: rgba(79, 195, 161, 0.05);
+    margin: 20px 0;
+    font-size: 14px;
+    color: #a0d4c4;
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 20px 22px;
+    overflow-x: auto;
+    margin: 18px 0;
+    font-size: 14.5px;
+    line-height: 1.65;
+  }
+
+  code { font-family: 'JetBrains Mono', monospace; }
+
+  pre code { color: #c8c0b8; }
+
+  /* Prism token theme - matches the c-2080 palette */
+  pre[class*="language-"], code[class*="language-"] {
+    background: transparent;
+    color: #c8c0b8;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-ligatures: none;
+    text-shadow: none;
+  }
+  .token.comment, .token.prolog, .token.doctype, .token.cdata {
+    color: #556;
+    font-style: italic;
+  }
+  .token.punctuation { color: #c8c0b8; }
+  .token.property, .token.tag, .token.constant, .token.symbol, .token.deleted {
+    color: #c06060;
+  }
+  .token.boolean, .token.number {
+    color: #c48860;
+  }
+  .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted {
+    color: #a0c888;
+  }
+  .token.operator, .token.entity, .token.url, .token.variable {
+    color: #a080d0;
+  }
+  .token.atrule, .token.attr-value, .token.keyword {
+    color: #e8a020;
+  }
+  .token.function, .token.class-name {
+    color: #88b8d8;
+  }
+  .token.regex, .token.important { color: #e8a020; }
+  .token.bold { font-weight: bold; }
+  .token.italic { font-style: italic; }
+  .token.macro, .token.macro .token.directive-hash, .token.macro .token.expression {
+    color: #a080d0;
+  }
+  .token.class-name, .language-c .token.keyword.type, .token.type {
+    color: #4fc3a1;
+  }
+
+  .pattern-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 48px;
+    overflow: hidden;
+  }
+
+  .pattern-card-header {
+    background: #181a1c;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .pattern-card-header .tag {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 2px 8px;
+  }
+
+  .pattern-card-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 1rem;
+    letter-spacing: 0;
+    text-transform: none;
+    font-family: 'DM Serif Display', serif;
+  }
+
+  .pattern-card-body { padding: 22px 22px 8px; }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .summary-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+  }
+
+  .summary-item .label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .summary-item ul {
+    list-style: none;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .summary-item ul li::before { content: '· '; color: var(--accent2); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  th, td {
+    text-align: left;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  td code, th code { font-size: 13px; }
+
+  ul.tight {
+    list-style: none;
+    margin: 12px 0;
+  }
+  ul.tight li {
+    padding: 4px 0;
+    color: var(--text);
+  }
+  ul.tight li::before { content: '· '; color: var(--accent2); }
+
+  ol.steps {
+    margin: 12px 0 12px 22px;
+    color: var(--text);
+  }
+  ol.steps li { padding: 4px 0; }
+  ol.steps li strong { color: var(--accent2); }
+
+  @media (max-width: 600px) {
+    .toc { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>C: The <em>20/80</em></h1>
+  <p>The 20% of C that gets you 80% of results · Modern patterns included</p>
+</header>
+
+<nav class="toc">
+  <div class="toc-title">Contents</div>
+  {{TOC}}
+</nav>
+
+{{CONTENT}}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+</body>
+</html>
