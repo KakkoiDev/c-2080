@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C: The 20/80 (c-2080)</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700;900&family=DM+Serif+Display:ital@0;1&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap');
 
   :root {
     --bg: #0d0e0f;
@@ -24,8 +24,9 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inconsolata', monospace;
-    font-size: 15px;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-ligatures: none;
+    font-size: 16px;
     line-height: 1.7;
     max-width: 860px;
     margin: 0 auto;
@@ -103,7 +104,7 @@
   }
 
   h2 .num {
-    font-family: 'Inconsolata', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     color: var(--accent);
     letter-spacing: 0.1em;
@@ -157,11 +158,11 @@
     padding: 20px 22px;
     overflow-x: auto;
     margin: 18px 0;
-    font-size: 13.5px;
-    line-height: 1.6;
+    font-size: 14.5px;
+    line-height: 1.65;
   }
 
-  code { font-family: 'Inconsolata', monospace; }
+  code { font-family: 'JetBrains Mono', monospace; }
 
   pre code { color: #c8c0b8; }
 
@@ -249,7 +250,7 @@
     width: 100%;
     border-collapse: collapse;
     margin: 18px 0;
-    font-size: 13.5px;
+    font-size: 14px;
     background: var(--surface);
     border: 1px solid var(--border);
   }
@@ -268,7 +269,7 @@
     font-weight: 700;
   }
 
-  td code, th code { font-size: 12.5px; }
+  td code, th code { font-size: 13px; }
 
   ul.tight {
     list-style: none;
