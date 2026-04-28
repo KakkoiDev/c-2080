@@ -166,14 +166,48 @@
 
   pre code { color: #c8c0b8; }
 
-  .kw  { color: #e8a020; } /* keywords */
-  .ty  { color: #4fc3a1; } /* types */
-  .cm  { color: #556; font-style: italic; } /* comments */
-  .st  { color: #a0c888; } /* strings */
-  .nu  { color: #c48860; } /* numbers */
-  .fn  { color: #88b8d8; } /* function names */
-  .pp  { color: #a080d0; } /* preprocessor */
-  .err { color: #c06060; } /* errors/bad */
+  /* Prism token theme - matches the c-2080 palette */
+  pre[class*="language-"], code[class*="language-"] {
+    background: transparent;
+    color: #c8c0b8;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-ligatures: none;
+    text-shadow: none;
+  }
+  .token.comment, .token.prolog, .token.doctype, .token.cdata {
+    color: #556;
+    font-style: italic;
+  }
+  .token.punctuation { color: #c8c0b8; }
+  .token.property, .token.tag, .token.constant, .token.symbol, .token.deleted {
+    color: #c06060;
+  }
+  .token.boolean, .token.number {
+    color: #c48860;
+  }
+  .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted {
+    color: #a0c888;
+  }
+  .token.operator, .token.entity, .token.url, .token.variable {
+    color: #a080d0;
+  }
+  .token.atrule, .token.attr-value, .token.keyword {
+    color: #e8a020;
+  }
+  .token.function, .token.class-name {
+    color: #88b8d8;
+  }
+  .token.regex, .token.important { color: #e8a020; }
+  .token.bold { font-weight: bold; }
+  .token.italic { font-style: italic; }
+  /* Macro / preprocessor (C) */
+  .token.macro, .token.macro .token.directive-hash, .token.macro .token.expression {
+    color: #a080d0;
+  }
+  /* Type names (C) */
+  .token.class-name, .language-c .token.keyword.type, .token.type {
+    color: #4fc3a1;
+  }
 
   .pattern-card {
     background: var(--surface);
@@ -349,35 +383,35 @@
   <p>C has no runtime. Every variable is either on the <strong>stack</strong> (automatic, freed when function returns) or the <strong>heap</strong> (manual, lives until you free it). This is everything.</p>
 
   <h3>The types you'll actually use</h3>
-<pre><code><span class="pp">#include &lt;stdint.h&gt;</span>   <span class="cm">// fixed-width types - use these always</span>
-<span class="pp">#include &lt;stddef.h&gt;</span>   <span class="cm">// size_t, NULL, ptrdiff_t</span>
-<span class="pp">#include &lt;stdbool.h&gt;</span>  <span class="cm">// bool, true, false</span>
+<pre><code class="language-c">#include &lt;stdint.h&gt;   // fixed-width types - use these always
+#include &lt;stddef.h&gt;   // size_t, NULL, ptrdiff_t
+#include &lt;stdbool.h&gt;  // bool, true, false
 
-<span class="ty">int8_t</span>   a;   <span class="cm">// signed  8-bit  (-128..127)</span>
-<span class="ty">uint8_t</span>  b;   <span class="cm">// unsigned 8-bit  (0..255)  - byte</span>
-<span class="ty">int32_t</span>  c;   <span class="cm">// signed 32-bit  - default int choice</span>
-<span class="ty">int64_t</span>  d;   <span class="cm">// signed 64-bit</span>
-<span class="ty">uint64_t</span> e;   <span class="cm">// unsigned 64-bit</span>
-<span class="ty">size_t</span>   n;   <span class="cm">// for sizes and counts (pointer-sized)</span>
-<span class="ty">float</span>    f;   <span class="cm">// 32-bit float</span>
-<span class="ty">double</span>   g;   <span class="cm">// 64-bit float</span>
-<span class="ty">bool</span>     ok;  <span class="cm">// true / false</span></code></pre>
+int8_t   a;   // signed  8-bit  (-128..127)
+uint8_t  b;   // unsigned 8-bit  (0..255)  - byte
+int32_t  c;   // signed 32-bit  - default int choice
+int64_t  d;   // signed 64-bit
+uint64_t e;   // unsigned 64-bit
+size_t   n;   // for sizes and counts (pointer-sized)
+float    f;   // 32-bit float
+double   g;   // 64-bit float
+bool     ok;  // true / false</code></pre>
 
   <div class="rule">Avoid plain <code>int</code>, <code>long</code>, <code>short</code> - their sizes are platform-defined. Use <code>int32_t</code>, <code>int64_t</code>, etc. for anything you care about.</div>
 
   <h3>Stack vs Heap at a glance</h3>
-<pre><code><span class="kw">void</span> <span class="fn">example</span>(<span class="kw">void</span>) {
-    <span class="cm">// STACK - automatic, zero overhead, dies with function</span>
-    <span class="ty">int32_t</span> x = <span class="nu">42</span>;
-    <span class="ty">float</span>   buf[<span class="nu">256</span>];   <span class="cm">// 1 KB on stack - fine</span>
+<pre><code class="language-c">void example(void) {
+    // STACK - automatic, zero overhead, dies with function
+    int32_t x = 42;
+    float   buf[256];   // 1 KB on stack - fine
 
-    <span class="cm">// HEAP - manual, survives the function</span>
-    <span class="ty">int32_t</span> *data = <span class="fn">malloc</span>(<span class="nu">1024</span> * <span class="kw">sizeof</span>(<span class="ty">int32_t</span>)); <span class="cm">// 4 KB</span>
-    <span class="kw">if</span> (!data) { <span class="cm">/* always check! */</span> <span class="kw">return</span>; }
+    // HEAP - manual, survives the function
+    int32_t *data = malloc(1024 * sizeof(int32_t)); // 4 KB
+    if (!data) { /* always check! */ return; }
 
-    data[<span class="nu">0</span>] = <span class="nu">7</span>;
-    <span class="fn">free</span>(data);  <span class="cm">// you MUST free it - there's no GC</span>
-    data = <span class="kw">NULL</span>; <span class="cm">// null it out to catch use-after-free</span>
+    data[0] = 7;
+    free(data);  // you MUST free it - there's no GC
+    data = NULL; // null it out to catch use-after-free
 }</code></pre>
 
   <div class="warn">Never put large arrays on the stack (&gt;~16 KB). Stack overflows are silent and deadly. Use the heap or static storage for big data.</div>
@@ -391,83 +425,83 @@
 
   <p>A pointer is just an integer holding a memory address. That's the whole mystery.</p>
 
-<pre><code><span class="ty">int32_t</span>  x   = <span class="nu">10</span>;     <span class="cm">// x is the value</span>
-<span class="ty">int32_t</span> *p   = &amp;x;    <span class="cm">// p holds the ADDRESS of x</span>
-<span class="ty">int32_t</span>  val = *p;    <span class="cm">// *p dereferences - reads through address</span>
-*p = <span class="nu">20</span>;              <span class="cm">// write through pointer - x is now 20</span></code></pre>
+<pre><code class="language-c">int32_t  x   = 10;     // x is the value
+int32_t *p   = &amp;x;    // p holds the ADDRESS of x
+int32_t  val = *p;    // *p dereferences - reads through address
+*p = 20;              // write through pointer - x is now 20</code></pre>
 
   <h3>The three faces of <code>*</code></h3>
   <p>The asterisk has three unrelated jobs in C. Reading code is easier once you can spot which one you're looking at.</p>
-<pre><code><span class="ty">int32_t</span> *p;             <span class="cm">// 1. DECLARATION: p is a pointer to int32_t</span>
-<span class="ty">int32_t</span>  v = *p;        <span class="cm">// 2. EXPRESSION: dereference, read through p</span>
-<span class="ty">int32_t</span>  z = a * b;     <span class="cm">// 3. OPERATOR: multiplication, unrelated</span>
+<pre><code class="language-c">int32_t *p;             // 1. DECLARATION: p is a pointer to int32_t
+int32_t  v = *p;        // 2. EXPRESSION: dereference, read through p
+int32_t  z = a * b;     // 3. OPERATOR: multiplication, unrelated
 
-<span class="cm">// In a declaration, * binds to the variable, not the type:</span>
-<span class="ty">int32_t</span> *a, *b;         <span class="cm">// both a and b are pointers</span>
-<span class="ty">int32_t</span> *a,  b;         <span class="cm">// a is a pointer, b is just int32_t</span></code></pre>
+// In a declaration, * binds to the variable, not the type:
+int32_t *a, *b;         // both a and b are pointers
+int32_t *a,  b;         // a is a pointer, b is just int32_t</code></pre>
   <div class="rule">Convention: write <code>int32_t *p</code> with the asterisk hugging the name. It makes the second case above immediately obvious.</div>
 
   <h3><code>&amp;</code> - address-of</h3>
   <p><code>&amp;</code> returns the address of an lvalue. It is the mirror of <code>*</code>: <code>*(&amp;x) == x</code>.</p>
-<pre><code><span class="ty">int32_t</span>  x = <span class="nu">42</span>;
-<span class="ty">int32_t</span> *p = &amp;x;          <span class="cm">// fine: x has an address</span>
+<pre><code class="language-c">int32_t  x = 42;
+int32_t *p = &amp;x;          // fine: x has an address
 
-<span class="cm">// Cannot take address of:</span>
-<span class="cm">//   - a literal:        &amp;42         (error)</span>
-<span class="cm">//   - an rvalue:        &amp;(a + b)    (error)</span>
-<span class="cm">//   - a register var:   &amp;reg_var    (error if marked register)</span></code></pre>
+// Cannot take address of:
+//   - a literal:        &amp;42         (error)
+//   - an rvalue:        &amp;(a + b)    (error)
+//   - a register var:   &amp;reg_var    (error if marked register)</code></pre>
 
   <div class="warn">Dereferencing a <code>NULL</code>, freed, or uninitialized pointer is undefined behaviour. In practice you get a segfault if you're lucky and silent memory corruption if you're not. Build with <code>-fsanitize=address</code> during development.</div>
 
   <h3>Why pointers exist</h3>
   <p>1. Pass large data without copying. 2. Let a function mutate a caller's variable. 3. Point into heap memory. 4. Build data structures.</p>
 
-<pre><code><span class="cm">// Without pointer: caller's value unchanged</span>
-<span class="kw">void</span> <span class="fn">bad_add</span>(<span class="ty">int32_t</span> n) { n += <span class="nu">1</span>; }
+<pre><code class="language-c">// Without pointer: caller's value unchanged
+void bad_add(int32_t n) { n += 1; }
 
-<span class="cm">// With pointer: caller's value IS changed</span>
-<span class="kw">void</span> <span class="fn">good_add</span>(<span class="ty">int32_t</span> *n) { *n += <span class="nu">1</span>; }
+// With pointer: caller's value IS changed
+void good_add(int32_t *n) { *n += 1; }
 
-<span class="ty">int32_t</span> val = <span class="nu">5</span>;
-<span class="fn">good_add</span>(&amp;val);  <span class="cm">// val is now 6</span></code></pre>
+int32_t val = 5;
+good_add(&amp;val);  // val is now 6</code></pre>
 
   <h3>Pointer arithmetic</h3>
-<pre><code><span class="ty">int32_t</span> arr[<span class="nu">4</span>] = {<span class="nu">10</span>, <span class="nu">20</span>, <span class="nu">30</span>, <span class="nu">40</span>};
-<span class="ty">int32_t</span> *p = arr;       <span class="cm">// points to arr[0]</span>
-<span class="ty">int32_t</span>  a = *(p + <span class="nu">2</span>); <span class="cm">// same as arr[2] == 30</span>
-p++;                    <span class="cm">// p now points to arr[1]</span></code></pre>
+<pre><code class="language-c">int32_t arr[4] = {10, 20, 30, 40};
+int32_t *p = arr;       // points to arr[0]
+int32_t  a = *(p + 2); // same as arr[2] == 30
+p++;                    // p now points to arr[1]</code></pre>
 
   <div class="tip"><code>arr[i]</code> is literally syntactic sugar for <code>*(arr + i)</code>. Arrays and pointers are deeply the same thing in C.</div>
 
   <h3>Pointer to pointer <code>**</code></h3>
   <p>Three real-world cases where you need a double pointer.</p>
 
-<pre><code><span class="cm">// 1. Output parameter - function allocates, returns via arg</span>
-<span class="kw">void</span> <span class="fn">alloc_buf</span>(<span class="ty">uint8_t</span> **out, <span class="ty">size_t</span> n) {
-    *out = <span class="fn">malloc</span>(n);
+<pre><code class="language-c">// 1. Output parameter - function allocates, returns via arg
+void alloc_buf(uint8_t **out, size_t n) {
+    *out = malloc(n);
 }
-<span class="ty">uint8_t</span> *buf = <span class="kw">NULL</span>;
-<span class="fn">alloc_buf</span>(&amp;buf, <span class="nu">1024</span>);
+uint8_t *buf = NULL;
+alloc_buf(&amp;buf, 1024);
 
-<span class="cm">// 2. argv - array of strings (each string is a char*)</span>
-<span class="kw">int</span> <span class="fn">main</span>(<span class="ty">int</span> argc, <span class="ty">char</span> **argv) {
-    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i &lt; argc; i++) {
-        <span class="fn">printf</span>(<span class="st">"%s\n"</span>, argv[i]);  <span class="cm">// argv[i] is char*</span>
+// 2. argv - array of strings (each string is a char*)
+int main(int argc, char **argv) {
+    for (int i = 0; i &lt; argc; i++) {
+        printf("%s\n", argv[i]);  // argv[i] is char*
     }
-    <span class="kw">return</span> <span class="nu">0</span>;
+    return 0;
 }
 
-<span class="cm">// 3. Pointer-to-pointer to update a list head from a helper</span>
-<span class="kw">typedef struct</span> <span class="ty">Node</span> { <span class="ty">int32_t</span> v; <span class="kw">struct</span> <span class="ty">Node</span> *next; } <span class="ty">Node</span>;
+// 3. Pointer-to-pointer to update a list head from a helper
+typedef struct Node { int32_t v; struct Node *next; } Node;
 
-<span class="kw">void</span> <span class="fn">push_front</span>(<span class="ty">Node</span> **head, <span class="ty">int32_t</span> v) {
-    <span class="ty">Node</span> *n = <span class="fn">malloc</span>(<span class="kw">sizeof</span>(*n));
+void push_front(Node **head, int32_t v) {
+    Node *n = malloc(sizeof(*n));
     n-&gt;v = v; n-&gt;next = *head;
-    *head = n;                          <span class="cm">// caller's head now points to n</span>
+    *head = n;                          // caller's head now points to n
 }
 
-<span class="ty">Node</span> *list = <span class="kw">NULL</span>;
-<span class="fn">push_front</span>(&amp;list, <span class="nu">42</span>);</code></pre>
+Node *list = NULL;
+push_front(&amp;list, 42);</code></pre>
 
   <div class="tip">Read <code>**</code> right-to-left: <code>char **argv</code> = "argv is a pointer to a pointer to char" = "an array of strings". Same pattern works for any output-parameter or container-of-pointers situation.</div>
 </section>
@@ -481,15 +515,15 @@ p++;                    <span class="cm">// p now points to arr[1]</span></code>
   <p>An array is a contiguous run of elements. In C it is <em>not</em> a pointer, but it silently turns into one almost everywhere you use it. Knowing exactly when that happens is the difference between code that works and code that quietly reads garbage.</p>
 
   <h3>Declaration vs decay</h3>
-<pre><code><span class="ty">int32_t</span> arr[<span class="nu">5</span>] = {<span class="nu">10</span>, <span class="nu">20</span>, <span class="nu">30</span>, <span class="nu">40</span>, <span class="nu">50</span>};
+<pre><code class="language-c">int32_t arr[5] = {10, 20, 30, 40, 50};
 
-<span class="cm">// At the point of declaration, arr is an ARRAY of 5 int32_t.</span>
-<span class="kw">sizeof</span>(arr);              <span class="cm">// 20 bytes (5 * 4) - knows the size</span>
-<span class="kw">sizeof</span>(arr) / <span class="kw">sizeof</span>(arr[<span class="nu">0</span>]); <span class="cm">// 5 - element count</span>
+// At the point of declaration, arr is an ARRAY of 5 int32_t.
+sizeof(arr);              // 20 bytes (5 * 4) - knows the size
+sizeof(arr) / sizeof(arr[0]); // 5 - element count
 
-<span class="cm">// In almost any expression, arr decays to a pointer to its first element.</span>
-<span class="ty">int32_t</span> *p = arr;        <span class="cm">// implicit decay: arr -> &amp;arr[0]</span>
-<span class="kw">sizeof</span>(p);                <span class="cm">// 8 bytes (a pointer) - size info LOST</span></code></pre>
+// In almost any expression, arr decays to a pointer to its first element.
+int32_t *p = arr;        // implicit decay: arr -> &amp;arr[0]
+sizeof(p);                // 8 bytes (a pointer) - size info LOST</code></pre>
 
   <div class="rule"><code>sizeof</code> on a declared array gives total bytes. <code>sizeof</code> on a pointer gives the pointer's own size (8 on 64-bit). The compiler cannot recover the element count from a pointer.</div>
 
@@ -501,79 +535,79 @@ p++;                    <span class="cm">// p now points to arr[1]</span></code>
     <li>String literal used to initialize a <code>char</code> array</li>
   </ul>
 
-<pre><code><span class="ty">int32_t</span> arr[<span class="nu">5</span>];
+<pre><code class="language-c">int32_t arr[5];
 
-<span class="kw">sizeof</span>(arr);   <span class="cm">// no decay: 20</span>
-&amp;arr;           <span class="cm">// no decay: type is int32_t (*)[5] - pointer to array of 5</span>
-arr + <span class="nu">1</span>;        <span class="cm">// decays: pointer arithmetic, type int32_t*</span>
-arr[<span class="nu">2</span>];         <span class="cm">// decays then derefs: equivalent to *(arr + 2)</span></code></pre>
+sizeof(arr);   // no decay: 20
+&amp;arr;           // no decay: type is int32_t (*)[5] - pointer to array of 5
+arr + 1;        // decays: pointer arithmetic, type int32_t*
+arr[2];         // decays then derefs: equivalent to *(arr + 2)</code></pre>
 
   <h3>Array as a function parameter</h3>
   <p>This trips everyone up. These three signatures are <em>identical</em> to the compiler:</p>
-<pre><code><span class="kw">void</span> <span class="fn">f</span>(<span class="ty">int32_t</span> arr[<span class="nu">10</span>]);   <span class="cm">// looks like an array</span>
-<span class="kw">void</span> <span class="fn">f</span>(<span class="ty">int32_t</span> arr[]);     <span class="cm">// also looks like an array</span>
-<span class="kw">void</span> <span class="fn">f</span>(<span class="ty">int32_t</span> *arr);      <span class="cm">// the truth</span>
+<pre><code class="language-c">void f(int32_t arr[10]);   // looks like an array
+void f(int32_t arr[]);     // also looks like an array
+void f(int32_t *arr);      // the truth
 
-<span class="kw">void</span> <span class="fn">f</span>(<span class="ty">int32_t</span> arr[<span class="nu">10</span>]) {
-    <span class="kw">sizeof</span>(arr);            <span class="cm">// 8 (a pointer) - the [10] is a LIE</span>
+void f(int32_t arr[10]) {
+    sizeof(arr);            // 8 (a pointer) - the [10] is a LIE
 }</code></pre>
 
   <div class="warn">A function never receives an array. It receives a pointer. The bracketed size is documentation for humans; the compiler ignores it. To pass length, pass it explicitly as a separate parameter, or use a slice struct (<a href="#slices">Pattern: Slices</a>).</div>
 
   <h3>The C99 <code>static</code> hint</h3>
-<pre><code><span class="cm">// "arr will be at least 4 elements" - a contract, not a check</span>
-<span class="kw">void</span> <span class="fn">sum4</span>(<span class="ty">int32_t</span> arr[<span class="kw">static</span> <span class="nu">4</span>]) {
-    <span class="cm">// compiler may use this for optimization / warnings</span>
-    <span class="cm">// some compilers warn if you call it with NULL or fewer elements</span>
+<pre><code class="language-c">// "arr will be at least 4 elements" - a contract, not a check
+void sum4(int32_t arr[static 4]) {
+    // compiler may use this for optimization / warnings
+    // some compilers warn if you call it with NULL or fewer elements
 }</code></pre>
 
   <h3>Iterating safely</h3>
-<pre><code><span class="ty">int32_t</span> arr[] = {<span class="nu">10</span>, <span class="nu">20</span>, <span class="nu">30</span>, <span class="nu">40</span>};
-<span class="ty">size_t</span>  n   = <span class="kw">sizeof</span>(arr) / <span class="kw">sizeof</span>(arr[<span class="nu">0</span>]);
+<pre><code class="language-c">int32_t arr[] = {10, 20, 30, 40};
+size_t  n   = sizeof(arr) / sizeof(arr[0]);
 
-<span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; n; i++) {
-    <span class="fn">printf</span>(<span class="st">"%d\n"</span>, arr[i]);
+for (size_t i = 0; i &lt; n; i++) {
+    printf("%d\n", arr[i]);
 }
 
-<span class="cm">// Common helper macro - works ONLY where arr has not decayed</span>
-<span class="pp">#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))</span>
+// Common helper macro - works ONLY where arr has not decayed
+#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
-<span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; <span class="fn">ARRAY_LEN</span>(arr); i++) { <span class="cm">/* ... */</span> }</code></pre>
+for (size_t i = 0; i &lt; ARRAY_LEN(arr); i++) { /* ... */ }</code></pre>
 
   <div class="warn"><code>ARRAY_LEN</code> silently returns the wrong value if <code>arr</code> is actually a pointer (function parameter, dynamic allocation). Use it only on declared arrays whose definition is in scope.</div>
 
   <h3>VLAs - skip them</h3>
-<pre><code><span class="cm">// Variable Length Array: size known at runtime, lives on stack</span>
-<span class="kw">void</span> <span class="fn">process</span>(<span class="ty">size_t</span> n) {
-    <span class="ty">int32_t</span> buf[n];           <span class="cm">// C99 VLA - tempting, dangerous</span>
-    <span class="cm">// stack overflow if n is large or attacker-controlled</span>
-    <span class="cm">// no way to handle the failure - it's just a crash</span>
+<pre><code class="language-c">// Variable Length Array: size known at runtime, lives on stack
+void process(size_t n) {
+    int32_t buf[n];           // C99 VLA - tempting, dangerous
+    // stack overflow if n is large or attacker-controlled
+    // no way to handle the failure - it's just a crash
 }</code></pre>
 
   <div class="rule">VLAs are optional in C11 and later. They have unpredictable stack costs and no failure path. Use a fixed-size buffer for small bounded sizes; <code>malloc</code> or an arena for anything dynamic. Many code bases ban VLAs outright.</div>
 
   <h3>Multi-dimensional arrays</h3>
-<pre><code><span class="cm">// Row-major in memory: grid[0][0], grid[0][1], ..., grid[1][0], ...</span>
-<span class="ty">int32_t</span> grid[<span class="nu">3</span>][<span class="nu">4</span>];
+<pre><code class="language-c">// Row-major in memory: grid[0][0], grid[0][1], ..., grid[1][0], ...
+int32_t grid[3][4];
 
-grid[<span class="nu">2</span>][<span class="nu">1</span>] = <span class="nu">7</span>;             <span class="cm">// row 2, column 1</span>
+grid[2][1] = 7;             // row 2, column 1
 
-<span class="cm">// As a parameter: only the FIRST dimension may be omitted</span>
-<span class="kw">void</span> <span class="fn">draw</span>(<span class="ty">int32_t</span> g[][<span class="nu">4</span>], <span class="ty">size_t</span> rows);
+// As a parameter: only the FIRST dimension may be omitted
+void draw(int32_t g[][4], size_t rows);
 
-<span class="cm">// In practice: flatten to 1D and compute the index yourself</span>
-<span class="kw">void</span> <span class="fn">draw_flat</span>(<span class="ty">int32_t</span> *g, <span class="ty">size_t</span> rows, <span class="ty">size_t</span> cols) {
-    <span class="kw">for</span> (<span class="ty">size_t</span> y = <span class="nu">0</span>; y &lt; rows; y++)
-        <span class="kw">for</span> (<span class="ty">size_t</span> x = <span class="nu">0</span>; x &lt; cols; x++)
-            g[y * cols + x] = <span class="nu">0</span>;
+// In practice: flatten to 1D and compute the index yourself
+void draw_flat(int32_t *g, size_t rows, size_t cols) {
+    for (size_t y = 0; y &lt; rows; y++)
+        for (size_t x = 0; x &lt; cols; x++)
+            g[y * cols + x] = 0;
 }</code></pre>
 
   <div class="tip">Flat 1D arrays plus manual indexing give you the same memory layout as a 2D array, but pass and resize cleanly and play well with arenas. The CPU sees identical bytes; only the source looks different.</div>
 
   <h3>Out-of-bounds is undefined</h3>
-<pre><code><span class="ty">int32_t</span> arr[<span class="nu">4</span>] = {<span class="nu">0</span>};
-arr[<span class="nu">4</span>] = <span class="nu">99</span>;     <span class="cm">// UB: index 4 is one PAST the end</span>
-arr[-<span class="nu">1</span>] = <span class="nu">99</span>;    <span class="cm">// UB: before the array</span></code></pre>
+<pre><code class="language-c">int32_t arr[4] = {0};
+arr[4] = 99;     // UB: index 4 is one PAST the end
+arr[-1] = 99;    // UB: before the array</code></pre>
 
   <div class="warn">Reading or writing outside an array is undefined behaviour, even by one element. The hardware will not stop you. Build with <code>-fsanitize=address</code> in dev and the bug surfaces at the offending line; without it, you corrupt a neighbour and the symptom appears anywhere.</div>
 </section>
@@ -585,39 +619,39 @@ arr[-<span class="nu">1</span>] = <span class="nu">99</span>;    <span class="cm
   <h2><span class="num">04</span> Structs & Composition</h2>
   <p>C has no classes. Structs are your objects. Composition over inheritance.</p>
 
-<pre><code><span class="kw">typedef struct</span> {
-    <span class="ty">float</span> x, y;
-} <span class="ty">Vec2</span>;
+<pre><code class="language-c">typedef struct {
+    float x, y;
+} Vec2;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">Vec2</span>    pos;      <span class="cm">// embedded struct</span>
-    <span class="ty">Vec2</span>    vel;
-    <span class="ty">float</span>   radius;
-    <span class="ty">bool</span>    active;
-} <span class="ty">Ball</span>;
+typedef struct {
+    Vec2    pos;      // embedded struct
+    Vec2    vel;
+    float   radius;
+    bool    active;
+} Ball;
 
-<span class="cm">// Designated initializers (C99+) - use these, they're clear</span>
-<span class="ty">Ball</span> b = {
-    .pos    = {<span class="nu">100.0f</span>, <span class="nu">200.0f</span>},
-    .vel    = {<span class="nu">3.0f</span>,   <span class="nu">-1.5f</span>},
-    .radius = <span class="nu">16.0f</span>,
-    .active = <span class="kw">true</span>,
+// Designated initializers (C99+) - use these, they're clear
+Ball b = {
+    .pos    = {100.0f, 200.0f},
+    .vel    = {3.0f,   -1.5f},
+    .radius = 16.0f,
+    .active = true,
 };
 
-<span class="cm">// Accessing fields through pointer</span>
-<span class="ty">Ball</span> *bp = &amp;b;
-bp-&gt;radius = <span class="nu">20.0f</span>;   <span class="cm">// arrow = dereference + access</span>
-(*bp).radius = <span class="nu">20.0f</span>; <span class="cm">// same thing, uglier</span></code></pre>
+// Accessing fields through pointer
+Ball *bp = &amp;b;
+bp-&gt;radius = 20.0f;   // arrow = dereference + access
+(*bp).radius = 20.0f; // same thing, uglier</code></pre>
 
   <h3>Function "methods" on structs</h3>
-<pre><code><span class="cm">// Convention: first arg is pointer to the struct</span>
-<span class="kw">void</span>  <span class="fn">ball_update</span>(<span class="ty">Ball</span> *b, <span class="ty">float</span> dt);
-<span class="kw">void</span>  <span class="fn">ball_draw</span>  (<span class="kw">const</span> <span class="ty">Ball</span> *b);  <span class="cm">// const = won't mutate</span>
-<span class="ty">bool</span>  <span class="fn">ball_alive</span> (<span class="kw">const</span> <span class="ty">Ball</span> *b);
+<pre><code class="language-c">// Convention: first arg is pointer to the struct
+void  ball_update(Ball *b, float dt);
+void  ball_draw  (const Ball *b);  // const = won't mutate
+bool  ball_alive (const Ball *b);
 
-<span class="cm">// Call-site reads naturally</span>
-<span class="fn">ball_update</span>(&amp;b, <span class="nu">0.016f</span>);
-<span class="fn">ball_draw</span>(&amp;b);</code></pre>
+// Call-site reads naturally
+ball_update(&amp;b, 0.016f);
+ball_draw(&amp;b);</code></pre>
 </section>
 
 <hr class="divider">
@@ -629,124 +663,124 @@ bp-&gt;radius = <span class="nu">20.0f</span>;   <span class="cm">// arrow = der
   <p>Enums give you typed names instead of magic numbers. Unions let one piece of memory hold one of several types. Combined, they encode <em>sum types</em>: "this thing is exactly one of these variants". This is the C answer to Rust's <code>enum</code> and Haskell's algebraic data types.</p>
 
   <h3>Plain enums</h3>
-<pre><code><span class="kw">typedef enum</span> {
-    DIR_UP    = <span class="nu">0</span>,
-    DIR_RIGHT = <span class="nu">1</span>,
-    DIR_DOWN  = <span class="nu">2</span>,
-    DIR_LEFT  = <span class="nu">3</span>,
-    DIR_COUNT          <span class="cm">// = 4 - automatic, useful sentinel</span>
-} <span class="ty">Direction</span>;
+<pre><code class="language-c">typedef enum {
+    DIR_UP    = 0,
+    DIR_RIGHT = 1,
+    DIR_DOWN  = 2,
+    DIR_LEFT  = 3,
+    DIR_COUNT          // = 4 - automatic, useful sentinel
+} Direction;
 
-<span class="ty">Direction</span> d = <span class="ty">DIR_UP</span>;
+Direction d = DIR_UP;
 
-<span class="kw">switch</span> (d) {
-    <span class="kw">case</span> <span class="ty">DIR_UP</span>:    <span class="cm">/* ... */</span> <span class="kw">break</span>;
-    <span class="kw">case</span> <span class="ty">DIR_DOWN</span>:  <span class="cm">/* ... */</span> <span class="kw">break</span>;
-    <span class="kw">case</span> <span class="ty">DIR_LEFT</span>:
-    <span class="kw">case</span> <span class="ty">DIR_RIGHT</span>: <span class="cm">/* ... */</span> <span class="kw">break</span>;
-    <span class="cm">// no default - compiler warns about missing cases with -Wswitch-enum</span>
+switch (d) {
+    case DIR_UP:    /* ... */ break;
+    case DIR_DOWN:  /* ... */ break;
+    case DIR_LEFT:
+    case DIR_RIGHT: /* ... */ break;
+    // no default - compiler warns about missing cases with -Wswitch-enum
 }</code></pre>
 
   <div class="rule">An enum value is an <code>int</code>-sized constant. You can mix it with integer arithmetic - <code>d + 1</code> compiles - but treat enum values as <em>opaque names</em>, not numbers. Use <code>DIR_COUNT</code> as the loop bound instead of hard-coding 4.</div>
 
   <h3>Bit flags</h3>
-<pre><code><span class="kw">typedef enum</span> {
-    PERM_READ  = <span class="nu">1</span> &lt;&lt; <span class="nu">0</span>,   <span class="cm">// 0b0001</span>
-    PERM_WRITE = <span class="nu">1</span> &lt;&lt; <span class="nu">1</span>,   <span class="cm">// 0b0010</span>
-    PERM_EXEC  = <span class="nu">1</span> &lt;&lt; <span class="nu">2</span>,   <span class="cm">// 0b0100</span>
-    PERM_OWNER = <span class="nu">1</span> &lt;&lt; <span class="nu">3</span>,   <span class="cm">// 0b1000</span>
-} <span class="ty">Perm</span>;
+<pre><code class="language-c">typedef enum {
+    PERM_READ  = 1 &lt;&lt; 0,   // 0b0001
+    PERM_WRITE = 1 &lt;&lt; 1,   // 0b0010
+    PERM_EXEC  = 1 &lt;&lt; 2,   // 0b0100
+    PERM_OWNER = 1 &lt;&lt; 3,   // 0b1000
+} Perm;
 
-<span class="ty">uint32_t</span> perms = <span class="ty">PERM_READ</span> | <span class="ty">PERM_WRITE</span>;   <span class="cm">// combine</span>
+uint32_t perms = PERM_READ | PERM_WRITE;   // combine
 
-<span class="kw">if</span> (perms &amp; <span class="ty">PERM_WRITE</span>) { <span class="cm">/* writable */</span> }   <span class="cm">// test</span>
-perms |=  <span class="ty">PERM_EXEC</span>;                          <span class="cm">// set</span>
-perms &amp;= ~<span class="ty">PERM_WRITE</span>;                         <span class="cm">// clear</span>
-perms ^=  <span class="ty">PERM_READ</span>;                          <span class="cm">// toggle</span></code></pre>
+if (perms &amp; PERM_WRITE) { /* writable */ }   // test
+perms |=  PERM_EXEC;                          // set
+perms &amp;= ~PERM_WRITE;                         // clear
+perms ^=  PERM_READ;                          // toggle</code></pre>
 
   <div class="tip">Always store flag combinations in an unsigned integer (<code>uint32_t</code>) rather than the enum type. The combined value is not a valid enum constant; signed bit ops can also surprise you on <code>~</code> and shifts.</div>
 
   <h3>Tagged unions (sum types)</h3>
   <p>The single most useful pattern enums and unions enable. Pair a discriminator (<code>tag</code>) with a union of payloads. Read the tag first, then read the matching union arm.</p>
 
-<pre><code><span class="kw">typedef enum</span> {
+<pre><code class="language-c">typedef enum {
     EVENT_KEY,
     EVENT_MOUSE,
     EVENT_RESIZE,
     EVENT_QUIT,
-} <span class="ty">EventKind</span>;
+} EventKind;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">EventKind</span> kind;
-    <span class="kw">union</span> {
-        <span class="kw">struct</span> { <span class="ty">int32_t</span> code; <span class="ty">bool</span> down; }       key;
-        <span class="kw">struct</span> { <span class="ty">int32_t</span> x, y; <span class="ty">uint8_t</span> button; } mouse;
-        <span class="kw">struct</span> { <span class="ty">int32_t</span> w, h; }                  resize;
-        <span class="cm">// EVENT_QUIT carries no payload - no arm needed</span>
+typedef struct {
+    EventKind kind;
+    union {
+        struct { int32_t code; bool down; }       key;
+        struct { int32_t x, y; uint8_t button; } mouse;
+        struct { int32_t w, h; }                  resize;
+        // EVENT_QUIT carries no payload - no arm needed
     };
-} <span class="ty">Event</span>;
+} Event;
 
-<span class="kw">void</span> <span class="fn">handle</span>(<span class="kw">const</span> <span class="ty">Event</span> *e) {
-    <span class="kw">switch</span> (e-&gt;kind) {
-    <span class="kw">case</span> <span class="ty">EVENT_KEY</span>:
-        <span class="fn">printf</span>(<span class="st">"key %d %s\n"</span>, e-&gt;key.code, e-&gt;key.down ? <span class="st">"down"</span> : <span class="st">"up"</span>);
-        <span class="kw">break</span>;
-    <span class="kw">case</span> <span class="ty">EVENT_MOUSE</span>:
-        <span class="fn">printf</span>(<span class="st">"mouse %d,%d btn=%u\n"</span>, e-&gt;mouse.x, e-&gt;mouse.y, e-&gt;mouse.button);
-        <span class="kw">break</span>;
-    <span class="kw">case</span> <span class="ty">EVENT_RESIZE</span>:
-        <span class="fn">printf</span>(<span class="st">"resize %dx%d\n"</span>, e-&gt;resize.w, e-&gt;resize.h);
-        <span class="kw">break</span>;
-    <span class="kw">case</span> <span class="ty">EVENT_QUIT</span>:
-        <span class="kw">return</span>;
+void handle(const Event *e) {
+    switch (e-&gt;kind) {
+    case EVENT_KEY:
+        printf("key %d %s\n", e-&gt;key.code, e-&gt;key.down ? "down" : "up");
+        break;
+    case EVENT_MOUSE:
+        printf("mouse %d,%d btn=%u\n", e-&gt;mouse.x, e-&gt;mouse.y, e-&gt;mouse.button);
+        break;
+    case EVENT_RESIZE:
+        printf("resize %dx%d\n", e-&gt;resize.w, e-&gt;resize.h);
+        break;
+    case EVENT_QUIT:
+        return;
     }
 }</code></pre>
 
   <p>Building one:</p>
-<pre><code><span class="ty">Event</span> e = {
-    .kind  = <span class="ty">EVENT_KEY</span>,
-    .key   = { .code = <span class="nu">27</span>, .down = <span class="kw">true</span> },   <span class="cm">// designated init for the active arm</span>
+<pre><code class="language-c">Event e = {
+    .kind  = EVENT_KEY,
+    .key   = { .code = 27, .down = true },   // designated init for the active arm
 };</code></pre>
 
   <div class="rule">Read only the union arm that matches the current tag. Reading any other arm is undefined behaviour (it crosses C's "type-punning through union" line in older standards). Always go: read tag, switch, then access the corresponding member.</div>
 
   <h3>Memory size</h3>
-<pre><code><span class="cm">// A union is as large as its biggest arm</span>
-<span class="kw">union</span> <span class="ty">Big</span> {
-    <span class="ty">uint8_t</span>  small[<span class="nu">4</span>];     <span class="cm">// 4 bytes</span>
-    <span class="ty">double</span>   d;            <span class="cm">// 8 bytes</span>
-    <span class="ty">char</span>     buf[<span class="nu">32</span>];      <span class="cm">// 32 bytes</span>
+<pre><code class="language-c">// A union is as large as its biggest arm
+union Big {
+    uint8_t  small[4];     // 4 bytes
+    double   d;            // 8 bytes
+    char     buf[32];      // 32 bytes
 };
-<span class="kw">sizeof</span>(<span class="kw">union</span> <span class="ty">Big</span>);            <span class="cm">// 32 (rounded up for alignment)</span>
+sizeof(union Big);            // 32 (rounded up for alignment)
 
-<span class="cm">// Tagged union pays one tag plus the biggest arm plus padding</span>
-<span class="kw">sizeof</span>(<span class="ty">Event</span>);                  <span class="cm">// ~24 on 64-bit, mostly the mouse arm</span></code></pre>
+// Tagged union pays one tag plus the biggest arm plus padding
+sizeof(Event);                  // ~24 on 64-bit, mostly the mouse arm</code></pre>
 
   <div class="warn">Tagged unions trade memory for clarity. If your variants differ wildly in size and the small variants dominate, consider <em>type-erased pointers</em> instead: store a tag plus a <code>void*</code> to a heap-allocated payload. The downside is one indirection per access.</div>
 
   <h3>Anonymous unions and structs (C11)</h3>
-<pre><code><span class="cm">// C11+: skip the .as / .key prefix entirely</span>
-<span class="kw">typedef struct</span> {
-    <span class="ty">EventKind</span> kind;
-    <span class="kw">union</span> {                  <span class="cm">// no name -&gt; members are reachable on the parent</span>
-        <span class="kw">struct</span> { <span class="ty">int32_t</span> code; <span class="ty">bool</span> down; };  <span class="cm">// also anonymous</span>
-        <span class="kw">struct</span> { <span class="ty">int32_t</span> x, y; <span class="ty">uint8_t</span> button; };
+<pre><code class="language-c">// C11+: skip the .as / .key prefix entirely
+typedef struct {
+    EventKind kind;
+    union {                  // no name -&gt; members are reachable on the parent
+        struct { int32_t code; bool down; };  // also anonymous
+        struct { int32_t x, y; uint8_t button; };
     };
-} <span class="ty">Ev2</span>;
+} Ev2;
 
-<span class="ty">Ev2</span> e;
-e.code = <span class="nu">27</span>;   <span class="cm">// no e.key.code</span></code></pre>
+Ev2 e;
+e.code = 27;   // no e.key.code</code></pre>
 
   <div class="tip">Anonymous unions are clean but every member name lives in the same namespace - <code>code</code>, <code>down</code>, <code>x</code>, <code>y</code> all have to be unique across all arms. Switch to named arms (<code>e-&gt;key.code</code>) when collisions appear.</div>
 
   <h3>Type punning - do this with <code>memcpy</code></h3>
-<pre><code><span class="cm">// You have float bits, you want to inspect them as a uint32_t</span>
-<span class="ty">float</span>    f = <span class="nu">3.14f</span>;
-<span class="ty">uint32_t</span> u;
-<span class="fn">memcpy</span>(&amp;u, &amp;f, <span class="kw">sizeof</span>(u));   <span class="cm">// well-defined, optimizes to a register move</span>
+<pre><code class="language-c">// You have float bits, you want to inspect them as a uint32_t
+float    f = 3.14f;
+uint32_t u;
+memcpy(&amp;u, &amp;f, sizeof(u));   // well-defined, optimizes to a register move
 
-<span class="cm">// DO NOT do this - violates strict aliasing, may be miscompiled at -O2:</span>
-<span class="cm">// uint32_t bad = *(uint32_t*)&amp;f;</span></code></pre>
+// DO NOT do this - violates strict aliasing, may be miscompiled at -O2:
+// uint32_t bad = *(uint32_t*)&amp;f;</code></pre>
 
   <div class="warn"><code>memcpy</code> between same-sized objects is the portable, defined way to reinterpret bytes. Casting through a different pointer type is undefined behaviour under the strict-aliasing rules - see <a href="#ub">Undefined Behavior</a>.</div>
 </section>
@@ -758,42 +792,42 @@ e.code = <span class="nu">27</span>;   <span class="cm">// no e.key.code</span><
   <h2><span class="num">06</span> Strings</h2>
   <p>C strings are null-terminated arrays of <code>char</code>. They are the biggest source of bugs in C. Know the rules.</p>
 
-<pre><code><span class="pp">#include &lt;string.h&gt;</span>
+<pre><code class="language-c">#include &lt;string.h&gt;
 
-<span class="cm">// String literal - lives in read-only memory, do NOT write to it</span>
-<span class="kw">const</span> <span class="ty">char</span> *s1 = <span class="st">"hello"</span>;
+// String literal - lives in read-only memory, do NOT write to it
+const char *s1 = "hello";
 
-<span class="cm">// Mutable copy on stack - you CAN write to this</span>
-<span class="ty">char</span> buf[<span class="nu">64</span>] = <span class="st">"hello"</span>;
+// Mutable copy on stack - you CAN write to this
+char buf[64] = "hello";
 
-<span class="cm">// NEVER use strcpy/strcat - use the safe n-versions</span>
-<span class="fn">strncpy</span>(buf, <span class="st">"world"</span>, <span class="kw">sizeof</span>(buf) - <span class="nu">1</span>);
-buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span class="st">'\0'</span>;  <span class="cm">// always null-terminate</span>
+// NEVER use strcpy/strcat - use the safe n-versions
+strncpy(buf, "world", sizeof(buf) - 1);
+buf[sizeof(buf) - 1] = '\0';  // always null-terminate
 
-<span class="cm">// Better: use snprintf for building strings</span>
-<span class="ty">char</span> msg[<span class="nu">128</span>];
-<span class="fn">snprintf</span>(msg, <span class="kw">sizeof</span>(msg), <span class="st">"Player %d: score=%d"</span>, id, score);
+// Better: use snprintf for building strings
+char msg[128];
+snprintf(msg, sizeof(msg), "Player %d: score=%d", id, score);
 
-<span class="cm">// Useful string functions</span>
-<span class="ty">size_t</span> len = <span class="fn">strlen</span>(s1);         <span class="cm">// length (not counting \0)</span>
-<span class="ty">int</span>    cmp = <span class="fn">strcmp</span>(s1, <span class="st">"hi"</span>);   <span class="cm">// 0 if equal</span></code></pre>
+// Useful string functions
+size_t len = strlen(s1);         // length (not counting \0)
+int    cmp = strcmp(s1, "hi");   // 0 if equal</code></pre>
 
   <div class="warn">Never compare strings with <code>==</code>. That compares pointer addresses, not content. Always use <code>strcmp</code>.</div>
 
   <h3>Modern: String View (non-owning slice)</h3>
-<pre><code><span class="cm">// A string that doesn't own its memory - great for parsing</span>
-<span class="kw">typedef struct</span> {
-    <span class="kw">const</span> <span class="ty">char</span> *data;
-    <span class="ty">size_t</span>      len;
-} <span class="ty">Str</span>;
+<pre><code class="language-c">// A string that doesn't own its memory - great for parsing
+typedef struct {
+    const char *data;
+    size_t      len;
+} Str;
 
-<span class="pp">#define STR(literal) ((Str){ (literal), sizeof(literal)-1 })</span>
-<span class="pp">#define STR_FMT      "%.*s"</span>
-<span class="pp">#define STR_ARG(s)   (int)(s).len, (s).data</span>
+#define STR(literal) ((Str){ (literal), sizeof(literal)-1 })
+#define STR_FMT      "%.*s"
+#define STR_ARG(s)   (int)(s).len, (s).data
 
-<span class="ty">Str</span> name = <span class="fn">STR</span>(<span class="st">"Alice"</span>);
-<span class="fn">printf</span>(<span class="st">"Hello, "</span> STR_FMT <span class="st">"!\n"</span>, <span class="fn">STR_ARG</span>(name));
-<span class="cm">// → Hello, Alice!</span></code></pre>
+Str name = STR("Alice");
+printf("Hello, " STR_FMT "!\n", STR_ARG(name));
+// → Hello, Alice!</code></pre>
 </section>
 
 <hr class="divider">
@@ -802,39 +836,39 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
 <section id="functions">
   <h2><span class="num">07</span> Functions & Headers</h2>
 
-<pre><code><span class="cm">// mylib.h - declarations only</span>
-<span class="pp">#pragma once</span>           <span class="cm">// include guard (supported everywhere)</span>
-<span class="pp">#include &lt;stdint.h&gt;</span>
+<pre><code class="language-c">// mylib.h - declarations only
+#pragma once           // include guard (supported everywhere)
+#include &lt;stdint.h&gt;
 
-<span class="kw">typedef struct</span> <span class="ty">MyLib</span> <span class="ty">MyLib</span>;  <span class="cm">// forward declare</span>
+typedef struct MyLib MyLib;  // forward declare
 
-<span class="ty">MyLib</span>  *<span class="fn">mylib_create</span>(<span class="ty">size_t</span> capacity);
-<span class="kw">void</span>    <span class="fn">mylib_destroy</span>(<span class="ty">MyLib</span> *lib);
-<span class="ty">int32_t</span> <span class="fn">mylib_process</span>(<span class="ty">MyLib</span> *lib, <span class="kw">const</span> <span class="ty">uint8_t</span> *data, <span class="ty">size_t</span> n);</code></pre>
+MyLib  *mylib_create(size_t capacity);
+void    mylib_destroy(MyLib *lib);
+int32_t mylib_process(MyLib *lib, const uint8_t *data, size_t n);</code></pre>
 
-<pre><code><span class="cm">// mylib.c - definitions</span>
-<span class="pp">#include "mylib.h"</span>
-<span class="pp">#include &lt;stdlib.h&gt;</span>
+<pre><code class="language-c">// mylib.c - definitions
+#include "mylib.h"
+#include &lt;stdlib.h&gt;
 
-<span class="kw">struct</span> <span class="ty">MyLib</span> {
-    <span class="ty">uint8_t</span> *buf;
-    <span class="ty">size_t</span>   cap;
-    <span class="ty">size_t</span>   len;
+struct MyLib {
+    uint8_t *buf;
+    size_t   cap;
+    size_t   len;
 };
 
-<span class="ty">MyLib</span> *<span class="fn">mylib_create</span>(<span class="ty">size_t</span> capacity) {
-    <span class="ty">MyLib</span> *lib = <span class="fn">calloc</span>(<span class="nu">1</span>, <span class="kw">sizeof</span>(*lib));  <span class="cm">// calloc = malloc + zero</span>
-    <span class="kw">if</span> (!lib) <span class="kw">return</span> <span class="kw">NULL</span>;
-    lib-&gt;buf = <span class="fn">malloc</span>(capacity);
-    <span class="kw">if</span> (!lib-&gt;buf) { <span class="fn">free</span>(lib); <span class="kw">return</span> <span class="kw">NULL</span>; }
+MyLib *mylib_create(size_t capacity) {
+    MyLib *lib = calloc(1, sizeof(*lib));  // calloc = malloc + zero
+    if (!lib) return NULL;
+    lib-&gt;buf = malloc(capacity);
+    if (!lib-&gt;buf) { free(lib); return NULL; }
     lib-&gt;cap = capacity;
-    <span class="kw">return</span> lib;
+    return lib;
 }
 
-<span class="kw">void</span> <span class="fn">mylib_destroy</span>(<span class="ty">MyLib</span> *lib) {
-    <span class="kw">if</span> (!lib) <span class="kw">return</span>;
-    <span class="fn">free</span>(lib-&gt;buf);
-    <span class="fn">free</span>(lib);
+void mylib_destroy(MyLib *lib) {
+    if (!lib) return;
+    free(lib-&gt;buf);
+    free(lib);
 }</code></pre>
 
   <div class="rule">Put only <em>declarations</em> in headers. Definitions (function bodies, global variable storage) go in .c files. <code>#pragma once</code> prevents double-inclusion.</div>
@@ -849,101 +883,101 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
   <p>A function pointer holds the address of executable code. It lets you choose at runtime which function to call. That's the entire mechanism behind callbacks, plugin tables, dispatch in interpreters, and C's stand-in for virtual methods.</p>
 
   <h3>The syntax</h3>
-<pre><code><span class="cm">// A function</span>
-<span class="ty">int32_t</span> <span class="fn">add</span>(<span class="ty">int32_t</span> a, <span class="ty">int32_t</span> b) { <span class="kw">return</span> a + b; }
+<pre><code class="language-c">// A function
+int32_t add(int32_t a, int32_t b) { return a + b; }
 
-<span class="cm">// A pointer that can hold its address</span>
-<span class="ty">int32_t</span> (*op)(<span class="ty">int32_t</span>, <span class="ty">int32_t</span>);
+// A pointer that can hold its address
+int32_t (*op)(int32_t, int32_t);
 
-op = add;          <span class="cm">// no &amp; needed, function names decay like arrays</span>
-op = &amp;add;         <span class="cm">// also legal, identical effect</span>
+op = add;          // no &amp; needed, function names decay like arrays
+op = &amp;add;         // also legal, identical effect
 
-<span class="ty">int32_t</span> r = op(<span class="nu">2</span>, <span class="nu">3</span>);    <span class="cm">// 5 - call through the pointer</span>
-<span class="ty">int32_t</span> q = (*op)(<span class="nu">2</span>, <span class="nu">3</span>);  <span class="cm">// also 5 - the deref is implicit</span></code></pre>
+int32_t r = op(2, 3);    // 5 - call through the pointer
+int32_t q = (*op)(2, 3);  // also 5 - the deref is implicit</code></pre>
 
   <div class="rule">Always <code>typedef</code> non-trivial function-pointer types. The bare syntax stacks parens and asterisks until it is unreadable. A typedef hides the noise and the call site reads like a normal function call.</div>
 
-<pre><code><span class="cm">// Typedef the type itself, not a pointer to it - keeps the * at use sites visible</span>
-<span class="kw">typedef</span> <span class="ty">int32_t</span> <span class="ty">BinaryOp</span>(<span class="ty">int32_t</span>, <span class="ty">int32_t</span>);
+<pre><code class="language-c">// Typedef the type itself, not a pointer to it - keeps the * at use sites visible
+typedef int32_t BinaryOp(int32_t, int32_t);
 
-<span class="ty">BinaryOp</span> *op = add;
-op(<span class="nu">2</span>, <span class="nu">3</span>);</code></pre>
+BinaryOp *op = add;
+op(2, 3);</code></pre>
 
   <h3>Callbacks: <code>qsort</code></h3>
-<pre><code><span class="pp">#include &lt;stdlib.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdlib.h&gt;
 
-<span class="kw">static</span> <span class="ty">int</span> <span class="fn">cmp_int32</span>(<span class="kw">const</span> <span class="kw">void</span> *a, <span class="kw">const</span> <span class="kw">void</span> *b) {
-    <span class="ty">int32_t</span> x = *(<span class="kw">const</span> <span class="ty">int32_t</span>*)a;
-    <span class="ty">int32_t</span> y = *(<span class="kw">const</span> <span class="ty">int32_t</span>*)b;
-    <span class="kw">return</span> (x &gt; y) - (x &lt; y);   <span class="cm">// safe: no overflow on subtraction</span>
+static int cmp_int32(const void *a, const void *b) {
+    int32_t x = *(const int32_t*)a;
+    int32_t y = *(const int32_t*)b;
+    return (x &gt; y) - (x &lt; y);   // safe: no overflow on subtraction
 }
 
-<span class="ty">int32_t</span> nums[] = { <span class="nu">5</span>, <span class="nu">2</span>, <span class="nu">8</span>, <span class="nu">1</span>, <span class="nu">9</span> };
-<span class="fn">qsort</span>(nums, <span class="nu">5</span>, <span class="kw">sizeof</span>(nums[<span class="nu">0</span>]), cmp_int32);</code></pre>
+int32_t nums[] = { 5, 2, 8, 1, 9 };
+qsort(nums, 5, sizeof(nums[0]), cmp_int32);</code></pre>
 
   <div class="warn">A comparator that returns <code>x - y</code> is a classic bug: it overflows for distant values. Always return <code>(x &gt; y) - (x &lt; y)</code> or compare with explicit <code>if</code>s.</div>
 
   <h3>The "context pointer" idiom</h3>
   <p>Pure function pointers cannot capture state. C's universal fix is a <code>void *user</code> trailing argument that the caller hands back to you on every callback.</p>
 
-<pre><code><span class="kw">typedef</span> <span class="kw">void</span> <span class="ty">EachFn</span>(<span class="kw">const</span> <span class="ty">char</span> *line, <span class="kw">void</span> *user);
+<pre><code class="language-c">typedef void EachFn(const char *line, void *user);
 
-<span class="kw">void</span> <span class="fn">file_each_line</span>(<span class="ty">FILE</span> *f, <span class="ty">EachFn</span> *fn, <span class="kw">void</span> *user) {
-    <span class="ty">char</span> buf[<span class="nu">512</span>];
-    <span class="kw">while</span> (<span class="fn">fgets</span>(buf, <span class="kw">sizeof</span>(buf), f)) <span class="fn">fn</span>(buf, user);
+void file_each_line(FILE *f, EachFn *fn, void *user) {
+    char buf[512];
+    while (fgets(buf, sizeof(buf), f)) fn(buf, user);
 }
 
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">count_cb</span>(<span class="kw">const</span> <span class="ty">char</span> *line, <span class="kw">void</span> *user) {
-    (*(<span class="ty">int32_t</span>*)user)++;     <span class="cm">// user points to the counter</span>
-    (<span class="kw">void</span>)line;
+static void count_cb(const char *line, void *user) {
+    (*(int32_t*)user)++;     // user points to the counter
+    (void)line;
 }
 
-<span class="ty">int32_t</span> count = <span class="nu">0</span>;
-<span class="fn">file_each_line</span>(f, count_cb, &amp;count);</code></pre>
+int32_t count = 0;
+file_each_line(f, count_cb, &amp;count);</code></pre>
 
   <div class="rule">Every callback API in any well-designed C library takes a <code>void *user</code>. If a library forces you to use globals to share state with the callback, that API is broken.</div>
 
   <h3>Dispatch table (poor man's vtable)</h3>
-<pre><code><span class="kw">typedef struct</span> {
-    <span class="kw">void</span> (*draw)  (<span class="kw">void</span> *self);
-    <span class="kw">void</span> (*update)(<span class="kw">void</span> *self, <span class="ty">float</span> dt);
-    <span class="kw">void</span> (*destroy)(<span class="kw">void</span> *self);
-} <span class="ty">EntityVTable</span>;
+<pre><code class="language-c">typedef struct {
+    void (*draw)  (void *self);
+    void (*update)(void *self, float dt);
+    void (*destroy)(void *self);
+} EntityVTable;
 
-<span class="kw">typedef struct</span> {
-    <span class="kw">const</span> <span class="ty">EntityVTable</span> *vt;
-    <span class="cm">// per-instance fields follow</span>
-} <span class="ty">Entity</span>;
+typedef struct {
+    const EntityVTable *vt;
+    // per-instance fields follow
+} Entity;
 
-<span class="cm">// Concrete type embeds an Entity at the front (composition)</span>
-<span class="kw">typedef struct</span> {
-    <span class="ty">Entity</span> base;
-    <span class="ty">float</span>  hp;
-} <span class="ty">Player</span>;
+// Concrete type embeds an Entity at the front (composition)
+typedef struct {
+    Entity base;
+    float  hp;
+} Player;
 
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">player_draw</span>(<span class="kw">void</span> *self) {
-    <span class="ty">Player</span> *p = self;          <span class="cm">// safe: layout-compatible cast from base</span>
-    <span class="cm">// ... draw using p-&gt;hp etc</span>
-    (<span class="kw">void</span>)p;
+static void player_draw(void *self) {
+    Player *p = self;          // safe: layout-compatible cast from base
+    // ... draw using p-&gt;hp etc
+    (void)p;
 }
 
-<span class="kw">static</span> <span class="kw">const</span> <span class="ty">EntityVTable</span> kPlayerVT = {
+static const EntityVTable kPlayerVT = {
     .draw    = player_draw,
-    .update  = <span class="kw">NULL</span>,
-    .destroy = <span class="kw">NULL</span>,
+    .update  = NULL,
+    .destroy = NULL,
 };
 
-<span class="ty">Player</span> p = { .base = { .vt = &amp;kPlayerVT } };
-p.base.vt-&gt;<span class="fn">draw</span>(&amp;p);</code></pre>
+Player p = { .base = { .vt = &amp;kPlayerVT } };
+p.base.vt-&gt;draw(&amp;p);</code></pre>
 
   <div class="tip">Keep the vtable pointer at offset 0 so a generic <code>Entity*</code> can call <code>e-&gt;vt-&gt;draw(e)</code> regardless of the concrete subtype. This is exactly how C++ implements virtual calls under the hood.</div>
 
   <h3>NULL function pointers</h3>
-<pre><code><span class="cm">// Calling NULL crashes. Default to a no-op stub instead of NULL-checking everywhere.</span>
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">noop_update</span>(<span class="kw">void</span> *self, <span class="ty">float</span> dt) { (<span class="kw">void</span>)self; (<span class="kw">void</span>)dt; }
+<pre><code class="language-c">// Calling NULL crashes. Default to a no-op stub instead of NULL-checking everywhere.
+static void noop_update(void *self, float dt) { (void)self; (void)dt; }
 
-<span class="kw">static</span> <span class="kw">const</span> <span class="ty">EntityVTable</span> kDefaultVT = {
-    .draw    = noop_update_void,   <span class="cm">// fill every slot</span>
+static const EntityVTable kDefaultVT = {
+    .draw    = noop_update_void,   // fill every slot
     .update  = noop_update,
     .destroy = noop_update_void,
 };</code></pre>
@@ -962,12 +996,12 @@ p.base.vt-&gt;<span class="fn">draw</span>(&amp;p);</code></pre>
   <h3>Translation units</h3>
   <p>A translation unit (TU) is one <code>.c</code> file plus everything its preprocessor pulls in. Each TU is compiled to an object file independently. The <em>linker</em> stitches object files together by matching names. <code>#pragma once</code> stops a header pasting twice into the same TU; it does nothing across TUs.</p>
 
-<pre><code><span class="cm">// foo.c    -+</span>
-<span class="cm">//           +- foo.o  &lt;- compile</span>
-<span class="cm">// foo.h     |</span>
-<span class="cm">// bar.c    -+- bar.o  &lt;- compile</span>
-<span class="cm">//           +</span>
-<span class="cm">//           +- app    &lt;- link foo.o + bar.o</span></code></pre>
+<pre><code class="language-c">// foo.c    -+
+//           +- foo.o  &lt;- compile
+// foo.h     |
+// bar.c    -+- bar.o  &lt;- compile
+//           +
+//           +- app    &lt;- link foo.o + bar.o</code></pre>
 
   <h3>The four scopes</h3>
   <table>
@@ -980,23 +1014,23 @@ p.base.vt-&gt;<span class="fn">draw</span>(&amp;p);</code></pre>
     </tbody>
   </table>
 
-<pre><code><span class="cm">// foo.c</span>
-<span class="ty">int32_t</span>        public_count;        <span class="cm">// EXTERNAL: visible everywhere</span>
-<span class="kw">static</span> <span class="ty">int32_t</span> private_count;       <span class="cm">// INTERNAL: this file only</span>
+<pre><code class="language-c">// foo.c
+int32_t        public_count;        // EXTERNAL: visible everywhere
+static int32_t private_count;       // INTERNAL: this file only
 
-<span class="kw">void</span> <span class="fn">tick</span>(<span class="kw">void</span>) {
-    <span class="kw">static</span> <span class="ty">int32_t</span> calls = <span class="nu">0</span>;        <span class="cm">// LIFETIME=program, SCOPE=function</span>
+void tick(void) {
+    static int32_t calls = 0;        // LIFETIME=program, SCOPE=function
     calls++;
 }</code></pre>
 
   <div class="rule">Default file-scope visibility is <em>external</em>. That means a missing <code>static</code> on a helper leaks the symbol to every other TU, risks name collisions at link time, and bloats public surface. Mark every file-local helper <code>static</code>.</div>
 
   <h3><code>extern</code>: declaring something defined elsewhere</h3>
-<pre><code><span class="cm">// app.h</span>
-<span class="kw">extern</span> <span class="ty">int32_t</span> g_frame_count;   <span class="cm">// declaration, no storage</span>
+<pre><code class="language-c">// app.h
+extern int32_t g_frame_count;   // declaration, no storage
 
-<span class="cm">// app.c</span>
-<span class="ty">int32_t</span> g_frame_count = <span class="nu">0</span>;       <span class="cm">// definition, allocates storage</span></code></pre>
+// app.c
+int32_t g_frame_count = 0;       // definition, allocates storage</code></pre>
 
   <div class="warn">A header that <em>defines</em> a global (no <code>extern</code>, with an initializer) and is included by two TUs is a multiple-definition link error. Headers declare with <code>extern</code>; exactly one <code>.c</code> file defines.</div>
 
@@ -1008,8 +1042,8 @@ p.base.vt-&gt;<span class="fn">draw</span>(&amp;p);</code></pre>
   </ul>
 
   <h3><code>inline</code>: hint, not contract</h3>
-<pre><code><span class="cm">// header.h - safe pattern: static inline</span>
-<span class="kw">static</span> <span class="kw">inline</span> <span class="ty">int32_t</span> <span class="fn">sq</span>(<span class="ty">int32_t</span> x) { <span class="kw">return</span> x * x; }</code></pre>
+<pre><code class="language-c">// header.h - safe pattern: static inline
+static inline int32_t sq(int32_t x) { return x * x; }</code></pre>
   <p><code>static inline</code> in a header is the modern, no-surprises way to put short helpers in headers. Each TU gets its own private copy that the optimizer can inline freely. Plain <code>inline</code> without <code>static</code> has subtle one-definition-rule semantics that almost nobody gets right.</p>
 
   <div class="rule">Trust the optimizer. <code>inline</code> is a hint that compilers may ignore. Use <code>static inline</code> for tiny helpers in headers; otherwise just write a normal function in a <code>.c</code> file.</div>
@@ -1042,61 +1076,61 @@ p.base.vt-&gt;<span class="fn">draw</span>(&amp;p);</code></pre>
 
   <p>The preprocessor is a textual phase that runs before the compiler. It does three things: pastes files (<code>#include</code>), substitutes text (<code>#define</code>), and conditionally keeps or drops code (<code>#ifdef</code>). That's it.</p>
 
-<pre><code><span class="cm">// See exactly what the preprocessor produced:</span>
-clang -E main.c              <span class="cm"># prints expanded source to stdout</span>
-clang --save-temps main.c    <span class="cm"># also keeps main.i (preprocessed .c)</span></code></pre>
+<pre><code class="language-bash">// See exactly what the preprocessor produced:
+clang -E main.c              # prints expanded source to stdout
+clang --save-temps main.c    # also keeps main.i (preprocessed .c)</code></pre>
 
   <h3><code>#include</code></h3>
   <p>Literally pastes the file's contents at the line of the include. <code>&lt;name&gt;</code> searches system paths, <code>"name"</code> searches the project. You could include a <code>.json</code> file - it would not compile, but the paste would happen.</p>
 
   <h3><code>#define</code> constants</h3>
-<pre><code><span class="pp">#define MAX_ENTITIES 1024</span>
-<span class="pp">#define PI           3.14159f</span>
-<span class="pp">#define APP_NAME     "c-2080"</span></code></pre>
+<pre><code class="language-c">#define MAX_ENTITIES 1024
+#define PI           3.14159f
+#define APP_NAME     "c-2080"</code></pre>
   <p>Untyped, no scope, replaced as raw text. Convention: <code>SCREAMING_SNAKE_CASE</code> so a reader knows it's a macro.</p>
 
   <div class="rule">Prefer <code>static const</code> and <code>enum</code> for typed constants. Use <code>#define</code> only when you need text substitution: macros, conditional compile, header guards.</div>
 
   <h3>Function-like macros</h3>
-<pre><code><span class="cm">// BUG: SQUARE(1+2) becomes 1+2*1+2 = 5, not 9</span>
-<span class="pp">#define SQUARE(x) x*x</span>
+<pre><code class="language-c">// BUG: SQUARE(1+2) becomes 1+2*1+2 = 5, not 9
+#define SQUARE(x) x*x
 
-<span class="cm">// Fix: parens around args AND around the whole expression</span>
-<span class="pp">#define SQUARE(x) ((x)*(x))</span>
+// Fix: parens around args AND around the whole expression
+#define SQUARE(x) ((x)*(x))
 
-<span class="cm">// Multi-statement: wrap in do-while(0) so it works in any context</span>
-<span class="pp">#define LOG(msg) do { \
+// Multi-statement: wrap in do-while(0) so it works in any context
+#define LOG(msg) do { \
     fprintf(stderr, "[%s:%d] %s\n", __FILE__, __LINE__, msg); \
-} while (0)</span>
+} while (0)
 
-<span class="fn">LOG</span>(<span class="st">"started"</span>);  <span class="cm">// safe inside if/while/for without braces</span></code></pre>
+LOG("started");  // safe inside if/while/for without braces</code></pre>
 
   <h3>Conditional compilation</h3>
-<pre><code><span class="pp">#ifdef _WIN32</span>
-    <span class="cm">// Windows-only code</span>
-<span class="pp">#elif defined(__linux__)</span>
-    <span class="cm">// Linux-only code</span>
-<span class="pp">#endif</span>
+<pre><code class="language-c">#ifdef _WIN32
+    // Windows-only code
+#elif defined(__linux__)
+    // Linux-only code
+#endif
 
-<span class="pp">#ifndef NDEBUG</span>
-    <span class="fn">printf</span>(<span class="st">"debug build\n"</span>);
-<span class="pp">#endif</span>
+#ifndef NDEBUG
+    printf("debug build\n");
+#endif
 
-<span class="cm">// Single-header library trick (see Barker's Way pattern)</span>
-<span class="pp">#ifdef LIB_IMPLEMENTATION</span>
-<span class="cm">/* function bodies go here */</span>
-<span class="pp">#endif</span></code></pre>
+// Single-header library trick (see Barker's Way pattern)
+#ifdef LIB_IMPLEMENTATION
+/* function bodies go here */
+#endif</code></pre>
 
   <h3>Built-in macros</h3>
-<pre><code><span class="fn">printf</span>(<span class="st">"at %s:%d in %s\n"</span>, <span class="pp">__FILE__</span>, <span class="pp">__LINE__</span>, <span class="pp">__func__</span>);
-<span class="cm">// at main.c:42 in process_input</span></code></pre>
+<pre><code class="language-c">printf("at %s:%d in %s\n", __FILE__, __LINE__, __func__);
+// at main.c:42 in process_input</code></pre>
 
   <h3>Stringify <code>#</code> and token paste <code>##</code></h3>
-<pre><code><span class="pp">#define STR(x)   #x</span>            <span class="cm">// turn arg into string literal</span>
-<span class="pp">#define CAT(a,b) a##b</span>          <span class="cm">// glue two tokens</span>
+<pre><code class="language-c">#define STR(x)   #x            // turn arg into string literal
+#define CAT(a,b) a##b          // glue two tokens
 
-<span class="fn">printf</span>(<span class="st">"%s\n"</span>, <span class="fn">STR</span>(hello));   <span class="cm">// prints: hello</span>
-<span class="ty">int32_t</span> <span class="fn">CAT</span>(my_, var) = <span class="nu">7</span>;       <span class="cm">// declares my_var</span></code></pre>
+printf("%s\n", STR(hello));   // prints: hello
+int32_t CAT(my_, var) = 7;       // declares my_var</code></pre>
 
   <div class="warn">Macros do text substitution, not function calls. They have no type checking and side effects in arguments are evaluated more than once: <code>SQUARE(i++)</code> increments <code>i</code> twice. Prefer <code>static inline</code> functions when you need behaviour, not text.</div>
 </section>
@@ -1110,51 +1144,51 @@ clang --save-temps main.c    <span class="cm"># also keeps main.i (preprocessed 
   <p>A variadic function takes a variable number of arguments. <code>printf</code> is the famous one. You almost never write new variadic functions in modern C; what you do write are <em>wrappers</em> around <code>printf</code>/<code>vprintf</code> for logging, formatting, error reporting.</p>
 
   <h3>Calling variadic functions</h3>
-<pre><code><span class="pp">#include &lt;stdio.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
 
-<span class="fn">printf</span>(<span class="st">"%s is %d\n"</span>, name, age);  <span class="cm">// the format string is the discriminator</span>
+printf("%s is %d\n", name, age);  // the format string is the discriminator
 
-<span class="cm">// Format spec mismatches are silent UB. Enable -Wformat=2 -Werror.</span></code></pre>
+// Format spec mismatches are silent UB. Enable -Wformat=2 -Werror.</code></pre>
 
   <div class="warn">Mismatched format specifiers (<code>%d</code> vs <code>%lld</code> vs <code>%zu</code>) are undefined behaviour. They will silently print garbage on platforms where the argument width does not match the spec. <code>-Wformat=2</code> in your build catches almost all of these at compile time.</div>
 
   <h3>Writing a wrapper</h3>
-<pre><code><span class="pp">#include &lt;stdarg.h&gt;</span>
-<span class="pp">#include &lt;stdio.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdarg.h&gt;
+#include &lt;stdio.h&gt;
 
-<span class="cm">// Take a format string + ... and forward to vfprintf</span>
-<span class="kw">void</span> <span class="fn">log_info</span>(<span class="kw">const</span> <span class="ty">char</span> *fmt, ...) {
-    <span class="ty">va_list</span> ap;
-    <span class="fn">va_start</span>(ap, fmt);              <span class="cm">// last named arg goes here</span>
-    <span class="fn">fprintf</span>(stderr, <span class="st">"[info] "</span>);
-    <span class="fn">vfprintf</span>(stderr, fmt, ap);     <span class="cm">// the v-version takes a va_list</span>
-    <span class="fn">fprintf</span>(stderr, <span class="st">"\n"</span>);
-    <span class="fn">va_end</span>(ap);                     <span class="cm">// always end - paired with va_start</span>
+// Take a format string + ... and forward to vfprintf
+void log_info(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);              // last named arg goes here
+    fprintf(stderr, "[info] ");
+    vfprintf(stderr, fmt, ap);     // the v-version takes a va_list
+    fprintf(stderr, "\n");
+    va_end(ap);                     // always end - paired with va_start
 }
 
-<span class="fn">log_info</span>(<span class="st">"player %s scored %d"</span>, name, score);</code></pre>
+log_info("player %s scored %d", name, score);</code></pre>
 
   <div class="rule">Always wrap <code>vprintf</code>/<code>vsnprintf</code>, not <code>printf</code> directly. The <code>v</code>-versions accept the <code>va_list</code> you have already started; the non-<code>v</code> versions cannot. Forgetting <code>va_end</code> is technically UB; on most ABIs it is a no-op, but write it anyway.</div>
 
   <h3>Format-string attribute (gcc / clang)</h3>
-<pre><code><span class="cm">// Tell the compiler the 1st arg is a printf format and args start at 2</span>
-<span class="kw">void</span> <span class="fn">log_info</span>(<span class="kw">const</span> <span class="ty">char</span> *fmt, ...)
-    <span class="pp">__attribute__((format(printf, 1, 2)))</span>;</code></pre>
+<pre><code class="language-c">// Tell the compiler the 1st arg is a printf format and args start at 2
+void log_info(const char *fmt, ...)
+    __attribute__((format(printf, 1, 2)));</code></pre>
   <p>With this attribute, your wrapper gets the same <code>-Wformat=2</code> checking that <code>printf</code> itself gets. Free bug prevention.</p>
 
   <h3>Reading a <code>va_list</code> directly</h3>
-<pre><code><span class="cm">// Sum a variable number of int32_t. Caller passes a -1 sentinel.</span>
-<span class="ty">int32_t</span> <span class="fn">sum_until_neg1</span>(<span class="ty">int32_t</span> first, ...) {
-    <span class="ty">int32_t</span> total = first;
-    <span class="ty">va_list</span> ap;
-    <span class="fn">va_start</span>(ap, first);
-    <span class="kw">for</span> (;;) {
-        <span class="ty">int32_t</span> n = <span class="fn">va_arg</span>(ap, <span class="ty">int32_t</span>);   <span class="cm">// promotion rules apply</span>
-        <span class="kw">if</span> (n == -<span class="nu">1</span>) <span class="kw">break</span>;
+<pre><code class="language-c">// Sum a variable number of int32_t. Caller passes a -1 sentinel.
+int32_t sum_until_neg1(int32_t first, ...) {
+    int32_t total = first;
+    va_list ap;
+    va_start(ap, first);
+    for (;;) {
+        int32_t n = va_arg(ap, int32_t);   // promotion rules apply
+        if (n == -1) break;
         total += n;
     }
-    <span class="fn">va_end</span>(ap);
-    <span class="kw">return</span> total;
+    va_end(ap);
+    return total;
 }</code></pre>
 
   <div class="warn">There is no way to know how many arguments were passed - the function only sees the format string or a sentinel value. Reading past the actual arguments is undefined behaviour. Pass a count or a terminator and trust nothing else.</div>
@@ -1178,101 +1212,101 @@ clang --save-temps main.c    <span class="cm"># also keeps main.i (preprocessed 
   <p>The <code>&lt;stdio.h&gt;</code> stream API is the 80% of file I/O. <code>fopen</code>, read or write, <code>fclose</code>. For very large files or zero-copy workflows, drop down to <code>mmap</code>.</p>
 
   <h3>Open, read, close</h3>
-<pre><code><span class="pp">#include &lt;stdio.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
 
-<span class="ty">FILE</span> *f = <span class="fn">fopen</span>(<span class="st">"data.bin"</span>, <span class="st">"rb"</span>);   <span class="cm">// "rb" = read binary</span>
-<span class="kw">if</span> (!f) {
-    <span class="fn">perror</span>(<span class="st">"data.bin"</span>);              <span class="cm">// prints reason via errno</span>
-    <span class="kw">return</span> -<span class="nu">1</span>;
+FILE *f = fopen("data.bin", "rb");   // "rb" = read binary
+if (!f) {
+    perror("data.bin");              // prints reason via errno
+    return -1;
 }
 
-<span class="ty">uint8_t</span> buf[<span class="nu">4096</span>];
-<span class="ty">size_t</span>  n = <span class="fn">fread</span>(buf, <span class="nu">1</span>, <span class="kw">sizeof</span>(buf), f);
-<span class="cm">// fread returns elements read; with size=1 you get bytes</span>
+uint8_t buf[4096];
+size_t  n = fread(buf, 1, sizeof(buf), f);
+// fread returns elements read; with size=1 you get bytes
 
-<span class="fn">fclose</span>(f);                          <span class="cm">// must close on success AND failure paths</span></code></pre>
+fclose(f);                          // must close on success AND failure paths</code></pre>
 
   <div class="rule"><code>fopen</code> mode strings: <code>"r"</code> read, <code>"w"</code> create/truncate, <code>"a"</code> append, <code>"r+"</code> read+write existing, <code>"w+"</code> create+read+write, suffix <code>"b"</code> for binary on Windows. Always pass <code>"b"</code> in cross-platform code if you are not parsing text - on Windows the non-binary mode rewrites <code>\r\n</code> to <code>\n</code> on read.</div>
 
   <h3>Slurp a whole file (the helper everyone re-writes)</h3>
-<pre><code><span class="cm">// Reads file into a malloc'd buffer. Returns NULL on error.</span>
-<span class="cm">// Caller frees with free().</span>
-<span class="ty">uint8_t</span> *<span class="fn">slurp</span>(<span class="kw">const</span> <span class="ty">char</span> *path, <span class="ty">size_t</span> *out_len) {
-    <span class="ty">FILE</span> *f = <span class="fn">fopen</span>(path, <span class="st">"rb"</span>);
-    <span class="kw">if</span> (!f) <span class="kw">return</span> <span class="kw">NULL</span>;
+<pre><code class="language-c">// Reads file into a malloc'd buffer. Returns NULL on error.
+// Caller frees with free().
+uint8_t *slurp(const char *path, size_t *out_len) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
 
-    <span class="fn">fseek</span>(f, <span class="nu">0</span>, SEEK_END);
-    <span class="kw">long</span> sz = <span class="fn">ftell</span>(f);              <span class="cm">// long, not size_t - C legacy</span>
-    <span class="fn">fseek</span>(f, <span class="nu">0</span>, SEEK_SET);
-    <span class="kw">if</span> (sz &lt; <span class="nu">0</span>) { <span class="fn">fclose</span>(f); <span class="kw">return</span> <span class="kw">NULL</span>; }
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);              // long, not size_t - C legacy
+    fseek(f, 0, SEEK_SET);
+    if (sz &lt; 0) { fclose(f); return NULL; }
 
-    <span class="ty">uint8_t</span> *buf = <span class="fn">malloc</span>((<span class="ty">size_t</span>)sz + <span class="nu">1</span>);   <span class="cm">// +1 for optional NUL</span>
-    <span class="kw">if</span> (!buf) { <span class="fn">fclose</span>(f); <span class="kw">return</span> <span class="kw">NULL</span>; }
+    uint8_t *buf = malloc((size_t)sz + 1);   // +1 for optional NUL
+    if (!buf) { fclose(f); return NULL; }
 
-    <span class="ty">size_t</span> got = <span class="fn">fread</span>(buf, <span class="nu">1</span>, (<span class="ty">size_t</span>)sz, f);
-    <span class="fn">fclose</span>(f);
-    <span class="kw">if</span> (got != (<span class="ty">size_t</span>)sz) { <span class="fn">free</span>(buf); <span class="kw">return</span> <span class="kw">NULL</span>; }
+    size_t got = fread(buf, 1, (size_t)sz, f);
+    fclose(f);
+    if (got != (size_t)sz) { free(buf); return NULL; }
 
-    buf[got] = <span class="st">'\0'</span>;                 <span class="cm">// makes text usable as a C string</span>
+    buf[got] = '\0';                 // makes text usable as a C string
     *out_len = got;
-    <span class="kw">return</span> buf;
+    return buf;
 }</code></pre>
 
   <div class="warn"><code>fseek</code>/<code>ftell</code> can fail or report garbage on pipes, sockets, character devices, and very large files (&gt;2 GB on 32-bit <code>long</code>). For real production code, prefer <code>stat()</code> for size or read in chunks until <code>fread</code> returns 0.</div>
 
   <h3>Writing</h3>
-<pre><code><span class="ty">FILE</span> *f = <span class="fn">fopen</span>(<span class="st">"out.bin"</span>, <span class="st">"wb"</span>);
-<span class="kw">if</span> (!f) <span class="kw">return</span> -<span class="nu">1</span>;
+<pre><code class="language-c">FILE *f = fopen("out.bin", "wb");
+if (!f) return -1;
 
-<span class="kw">const</span> <span class="ty">uint8_t</span> data[] = { <span class="nu">0xDE</span>, <span class="nu">0xAD</span>, <span class="nu">0xBE</span>, <span class="nu">0xEF</span> };
-<span class="ty">size_t</span> w = <span class="fn">fwrite</span>(data, <span class="nu">1</span>, <span class="kw">sizeof</span>(data), f);
-<span class="kw">if</span> (w != <span class="kw">sizeof</span>(data)) { <span class="cm">/* short write - disk full? */</span> }
+const uint8_t data[] = { 0xDE, 0xAD, 0xBE, 0xEF };
+size_t w = fwrite(data, 1, sizeof(data), f);
+if (w != sizeof(data)) { /* short write - disk full? */ }
 
-<span class="fn">fflush</span>(f);                          <span class="cm">// flush user-space buffer to OS</span>
-<span class="cm">// fsync(fileno(f));                  // POSIX: flush OS buffer to disk</span>
-<span class="fn">fclose</span>(f);</code></pre>
+fflush(f);                          // flush user-space buffer to OS
+// fsync(fileno(f));                  // POSIX: flush OS buffer to disk
+fclose(f);</code></pre>
 
   <h3>Line-oriented text</h3>
-<pre><code><span class="ty">FILE</span> *f = <span class="fn">fopen</span>(<span class="st">"log.txt"</span>, <span class="st">"r"</span>);
-<span class="ty">char</span>  line[<span class="nu">512</span>];
-<span class="kw">while</span> (<span class="fn">fgets</span>(line, <span class="kw">sizeof</span>(line), f)) {
-    <span class="cm">// fgets keeps the trailing \n if one fit; strip it if needed</span>
-    <span class="ty">size_t</span> len = <span class="fn">strlen</span>(line);
-    <span class="kw">if</span> (len &amp;&amp; line[len-<span class="nu">1</span>] == <span class="st">'\n'</span>) line[len-<span class="nu">1</span>] = <span class="st">'\0'</span>;
-    <span class="cm">// process line</span>
+<pre><code class="language-c">FILE *f = fopen("log.txt", "r");
+char  line[512];
+while (fgets(line, sizeof(line), f)) {
+    // fgets keeps the trailing \n if one fit; strip it if needed
+    size_t len = strlen(line);
+    if (len &amp;&amp; line[len-1] == '\n') line[len-1] = '\0';
+    // process line
 }
-<span class="fn">fclose</span>(f);</code></pre>
+fclose(f);</code></pre>
 
   <div class="warn">Never use <code>gets()</code>. It cannot bound its read and was removed from the language. <code>fgets(buf, sizeof(buf), f)</code> is the safe replacement.</div>
 
   <h3>Memory-mapped files (POSIX)</h3>
-<pre><code><span class="pp">#include &lt;sys/mman.h&gt;</span>
-<span class="pp">#include &lt;sys/stat.h&gt;</span>
-<span class="pp">#include &lt;fcntl.h&gt;</span>
-<span class="pp">#include &lt;unistd.h&gt;</span>
+<pre><code class="language-c">#include &lt;sys/mman.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;unistd.h&gt;
 
-<span class="ty">int</span>   fd = <span class="fn">open</span>(<span class="st">"big.bin"</span>, O_RDONLY);
-<span class="kw">struct</span> <span class="ty">stat</span> st;
-<span class="fn">fstat</span>(fd, &amp;st);
+int   fd = open("big.bin", O_RDONLY);
+struct stat st;
+fstat(fd, &amp;st);
 
-<span class="kw">const</span> <span class="ty">uint8_t</span> *data = <span class="fn">mmap</span>(<span class="kw">NULL</span>, st.st_size, PROT_READ, MAP_PRIVATE, fd, <span class="nu">0</span>);
-<span class="fn">close</span>(fd);                          <span class="cm">// mmap keeps its own reference</span>
+const uint8_t *data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+close(fd);                          // mmap keeps its own reference
 
-<span class="cm">// access data[0..st.st_size-1] like a normal byte array</span>
-<span class="cm">// no read syscalls - the OS pages in on demand</span>
+// access data[0..st.st_size-1] like a normal byte array
+// no read syscalls - the OS pages in on demand
 
-<span class="fn">munmap</span>((<span class="kw">void</span>*)data, st.st_size);</code></pre>
+munmap((void*)data, st.st_size);</code></pre>
 
   <div class="tip">For read-mostly large files (assets, datasets, tokenizers), <code>mmap</code> is faster and uses less RAM than reading: pages load on access and the OS reuses them across processes. For small files or sequential streaming, <code>fread</code> is simpler with no measurable cost.</div>
 
   <h3>Errors and <code>errno</code></h3>
-<pre><code><span class="pp">#include &lt;errno.h&gt;</span>
-<span class="pp">#include &lt;string.h&gt;</span>
+<pre><code class="language-c">#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
 
-<span class="ty">FILE</span> *f = <span class="fn">fopen</span>(path, <span class="st">"r"</span>);
-<span class="kw">if</span> (!f) {
-    <span class="fn">fprintf</span>(stderr, <span class="st">"open %s: %s\n"</span>, path, <span class="fn">strerror</span>(errno));
-    <span class="kw">return</span> -<span class="nu">1</span>;
+FILE *f = fopen(path, "r");
+if (!f) {
+    fprintf(stderr, "open %s: %s\n", path, strerror(errno));
+    return -1;
 }</code></pre>
 
   <div class="rule"><code>errno</code> is only meaningful immediately after a libc call has failed. Reading it later (after a <code>printf</code>, even) gives stale data. Capture into a local variable on the failure path.</div>
@@ -1300,66 +1334,66 @@ clang --save-temps main.c    <span class="cm"># also keeps main.i (preprocessed 
   </table>
 
   <h3>The five idioms you actually use</h3>
-<pre><code><span class="ty">uint32_t</span> x = <span class="nu">0</span>;
-<span class="ty">uint32_t</span> bit = <span class="nu">1u</span> &lt;&lt; <span class="nu">5</span>;        <span class="cm">// pick which bit (5 = position)</span>
+<pre><code class="language-c">uint32_t x = 0;
+uint32_t bit = 1u &lt;&lt; 5;        // pick which bit (5 = position)
 
-x |=  bit;                       <span class="cm">// SET</span>
-x &amp;= ~bit;                       <span class="cm">// CLEAR</span>
-x ^=  bit;                       <span class="cm">// TOGGLE</span>
-<span class="kw">if</span> (x &amp; bit) { <span class="cm">/* set */</span> }       <span class="cm">// TEST</span>
+x |=  bit;                       // SET
+x &amp;= ~bit;                       // CLEAR
+x ^=  bit;                       // TOGGLE
+if (x &amp; bit) { /* set */ }       // TEST
 
-x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">// ASSIGN to value of `val`</span></code></pre>
+x = (x &amp; ~bit) | (val ? bit : 0);  // ASSIGN to value of `val`</code></pre>
 
   <div class="rule">Always use <strong>unsigned</strong> for bit work. Signed shifts of negative values are implementation-defined; signed overflow is UB. <code>uint32_t</code>, <code>uint64_t</code>, <code>uintptr_t</code> are your friends here.</div>
 
   <h3>Masks and packing</h3>
-<pre><code><span class="cm">// Pack r,g,b,a into a single 32-bit word</span>
-<span class="ty">uint32_t</span> rgba = ((<span class="ty">uint32_t</span>)r &lt;&lt; <span class="nu">24</span>)
-              | ((<span class="ty">uint32_t</span>)g &lt;&lt; <span class="nu">16</span>)
-              | ((<span class="ty">uint32_t</span>)b &lt;&lt;  <span class="nu">8</span>)
-              | ((<span class="ty">uint32_t</span>)a);
+<pre><code class="language-c">// Pack r,g,b,a into a single 32-bit word
+uint32_t rgba = ((uint32_t)r &lt;&lt; 24)
+              | ((uint32_t)g &lt;&lt; 16)
+              | ((uint32_t)b &lt;&lt;  8)
+              | ((uint32_t)a);
 
-<span class="cm">// Unpack</span>
-<span class="ty">uint8_t</span> rr = (rgba &gt;&gt; <span class="nu">24</span>) &amp; <span class="nu">0xFF</span>;
-<span class="ty">uint8_t</span> gg = (rgba &gt;&gt; <span class="nu">16</span>) &amp; <span class="nu">0xFF</span>;
-<span class="ty">uint8_t</span> bb = (rgba &gt;&gt;  <span class="nu">8</span>) &amp; <span class="nu">0xFF</span>;
-<span class="ty">uint8_t</span> aa =  rgba        &amp; <span class="nu">0xFF</span>;</code></pre>
+// Unpack
+uint8_t rr = (rgba &gt;&gt; 24) &amp; 0xFF;
+uint8_t gg = (rgba &gt;&gt; 16) &amp; 0xFF;
+uint8_t bb = (rgba &gt;&gt;  8) &amp; 0xFF;
+uint8_t aa =  rgba        &amp; 0xFF;</code></pre>
 
   <div class="tip">Cast to the wide type <em>before</em> shifting. <code>r &lt;&lt; 24</code> shifts a <code>uint8_t</code>, which has been promoted to <code>int</code>; on a 32-bit <code>int</code> platform with <code>r &gt;= 0x80</code> this becomes signed-overflow UB. <code>(uint32_t)r &lt;&lt; 24</code> is always safe.</div>
 
   <h3>Power-of-two tricks</h3>
-<pre><code><span class="cm">// Is x a power of two? (also true for 0 - usually want to exclude)</span>
-<span class="kw">int</span> <span class="fn">is_pow2</span>(<span class="ty">uint64_t</span> x) { <span class="kw">return</span> x &amp;&amp; !(x &amp; (x - <span class="nu">1</span>)); }
+<pre><code class="language-c">// Is x a power of two? (also true for 0 - usually want to exclude)
+int is_pow2(uint64_t x) { return x &amp;&amp; !(x &amp; (x - 1)); }
 
-<span class="cm">// Round up to next power of two (x must be &gt; 0 and fit)</span>
-<span class="ty">uint64_t</span> <span class="fn">next_pow2</span>(<span class="ty">uint64_t</span> x) {
+// Round up to next power of two (x must be &gt; 0 and fit)
+uint64_t next_pow2(uint64_t x) {
     x--;
-    x |= x &gt;&gt;  <span class="nu">1</span>; x |= x &gt;&gt;  <span class="nu">2</span>; x |= x &gt;&gt;  <span class="nu">4</span>;
-    x |= x &gt;&gt;  <span class="nu">8</span>; x |= x &gt;&gt; <span class="nu">16</span>; x |= x &gt;&gt; <span class="nu">32</span>;
-    <span class="kw">return</span> x + <span class="nu">1</span>;
+    x |= x &gt;&gt;  1; x |= x &gt;&gt;  2; x |= x &gt;&gt;  4;
+    x |= x &gt;&gt;  8; x |= x &gt;&gt; 16; x |= x &gt;&gt; 32;
+    return x + 1;
 }
 
-<span class="cm">// Modulo by a power-of-two: cheap mask, no division</span>
-<span class="ty">uint64_t</span> idx = hash &amp; (cap - <span class="nu">1</span>);    <span class="cm">// only correct when cap is a power of 2</span>
+// Modulo by a power-of-two: cheap mask, no division
+uint64_t idx = hash &amp; (cap - 1);    // only correct when cap is a power of 2
 
-<span class="cm">// Align UP to power-of-two boundary</span>
-<span class="ty">uintptr_t</span> aligned = (addr + (align - <span class="nu">1</span>)) &amp; ~(align - <span class="nu">1</span>);</code></pre>
+// Align UP to power-of-two boundary
+uintptr_t aligned = (addr + (align - 1)) &amp; ~(align - 1);</code></pre>
 
   <h3>Builtins (gcc / clang)</h3>
-<pre><code><span class="fn">__builtin_popcountll</span>(x);   <span class="cm">// number of 1 bits</span>
-<span class="fn">__builtin_clzll</span>(x);         <span class="cm">// count leading zeros (UB for x==0!)</span>
-<span class="fn">__builtin_ctzll</span>(x);         <span class="cm">// count trailing zeros (UB for x==0!)</span>
-<span class="fn">__builtin_bswap64</span>(x);       <span class="cm">// byte-reverse (endian flip)</span></code></pre>
+<pre><code class="language-c">__builtin_popcountll(x);   // number of 1 bits
+__builtin_clzll(x);         // count leading zeros (UB for x==0!)
+__builtin_ctzll(x);         // count trailing zeros (UB for x==0!)
+__builtin_bswap64(x);       // byte-reverse (endian flip)</code></pre>
 
   <p>C23 standardizes these as <code>stdc_popcount</code>, <code>stdc_leading_zeros</code>, etc., in <code>&lt;stdbit.h&gt;</code>. Until C23 lands everywhere, the <code>__builtin_</code> versions are the portable-enough form for gcc and clang.</p>
 
   <h3>Endianness</h3>
-<pre><code><span class="cm">// Read a big-endian (network order) 32-bit value safely - no aliasing tricks</span>
-<span class="ty">uint32_t</span> <span class="fn">read_be32</span>(<span class="kw">const</span> <span class="ty">uint8_t</span> *p) {
-    <span class="kw">return</span> ((<span class="ty">uint32_t</span>)p[<span class="nu">0</span>] &lt;&lt; <span class="nu">24</span>)
-         | ((<span class="ty">uint32_t</span>)p[<span class="nu">1</span>] &lt;&lt; <span class="nu">16</span>)
-         | ((<span class="ty">uint32_t</span>)p[<span class="nu">2</span>] &lt;&lt;  <span class="nu">8</span>)
-         | ((<span class="ty">uint32_t</span>)p[<span class="nu">3</span>]);
+<pre><code class="language-c">// Read a big-endian (network order) 32-bit value safely - no aliasing tricks
+uint32_t read_be32(const uint8_t *p) {
+    return ((uint32_t)p[0] &lt;&lt; 24)
+         | ((uint32_t)p[1] &lt;&lt; 16)
+         | ((uint32_t)p[2] &lt;&lt;  8)
+         | ((uint32_t)p[3]);
 }</code></pre>
 
   <div class="warn">Do not <code>memcpy</code> a <code>uint32_t</code> from a buffer and assume host order matches file/network order. Always parse byte-by-byte (above) or use explicit byte-swap. Both x86 and ARM default to little-endian today, but disk formats and protocols are often big-endian.</div>
@@ -1415,8 +1449,8 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
   <h3><code>&lt;math.h&gt;</code></h3>
   <p><code>sqrt</code>, <code>sin</code>, <code>cos</code>, <code>fabs</code>, <code>floor</code>, <code>ceil</code>, <code>pow</code>, <code>fmod</code>. Plus <code>INFINITY</code>, <code>NAN</code>, <code>M_PI</code> (POSIX). Add <code>-lm</code> to the link line on Linux.</p>
 
-<pre><code><span class="ty">double</span> r = <span class="fn">sqrt</span>(x);
-<span class="kw">if</span> (<span class="fn">isnan</span>(r) || <span class="fn">isinf</span>(r)) { <span class="cm">/* handle bad input */</span> }</code></pre>
+<pre><code class="language-c">double r = sqrt(x);
+if (isnan(r) || isinf(r)) { /* handle bad input */ }</code></pre>
 
   <h3><code>&lt;time.h&gt;</code></h3>
   <table>
@@ -1428,19 +1462,19 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
     </tbody>
   </table>
 
-<pre><code><span class="kw">struct</span> <span class="ty">timespec</span> a, b;
-<span class="fn">clock_gettime</span>(CLOCK_MONOTONIC, &amp;a);
-<span class="fn">work</span>();
-<span class="fn">clock_gettime</span>(CLOCK_MONOTONIC, &amp;b);
-<span class="ty">double</span> ms = (b.tv_sec - a.tv_sec) * <span class="nu">1e3</span>
-          + (b.tv_nsec - a.tv_nsec) / <span class="nu">1e6</span>;</code></pre>
+<pre><code class="language-c">struct timespec a, b;
+clock_gettime(CLOCK_MONOTONIC, &amp;a);
+work();
+clock_gettime(CLOCK_MONOTONIC, &amp;b);
+double ms = (b.tv_sec - a.tv_sec) * 1e3
+          + (b.tv_nsec - a.tv_nsec) / 1e6;</code></pre>
 
   <div class="warn"><code>clock()</code> measures CPU time, not wall time. It is rarely what you want for benchmarks. <code>time()</code> has 1-second resolution. <code>clock_gettime(CLOCK_MONOTONIC, ...)</code> is the right answer 95% of the time.</div>
 
   <h3><code>&lt;ctype.h&gt;</code> - single-byte character predicates</h3>
   <p><code>isspace</code>, <code>isdigit</code>, <code>isalpha</code>, <code>isalnum</code>, <code>tolower</code>, <code>toupper</code>. All take an <code>int</code>; pass <code>(unsigned char)c</code>, never a raw <code>char</code>:</p>
 
-<pre><code><span class="kw">if</span> (<span class="fn">isspace</span>((<span class="kw">unsigned</span> <span class="ty">char</span>)c)) { <span class="cm">/* ... */</span> }   <span class="cm">// avoid sign-extension UB</span></code></pre>
+<pre><code class="language-c">if (isspace((unsigned char)c)) { /* ... */ }   // avoid sign-extension UB</code></pre>
 
   <h3><code>&lt;errno.h&gt;</code></h3>
   <p>Just <code>errno</code> + the <code>E*</code> error codes. Use <code>strerror(errno)</code> for messages. See File I/O for usage rules.</p>
@@ -1466,19 +1500,19 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
   <p>Every C program starts at <code>main</code>. The OS hands you arguments, an environment, and a way to send the program signals. This section is the survival kit for entry points.</p>
 
   <h3>The two valid signatures</h3>
-<pre><code><span class="ty">int</span> <span class="fn">main</span>(<span class="kw">void</span>);                              <span class="cm">// no args needed</span>
-<span class="ty">int</span> <span class="fn">main</span>(<span class="ty">int</span> argc, <span class="ty">char</span> **argv);             <span class="cm">// or argv[]</span>
+<pre><code class="language-c">int main(void);                              // no args needed
+int main(int argc, char **argv);             // or argv[]
 
-<span class="cm">// Some platforms also accept env as a third arg, but it is non-standard:</span>
-<span class="cm">// int main(int argc, char **argv, char **envp);</span></code></pre>
+// Some platforms also accept env as a third arg, but it is non-standard:
+// int main(int argc, char **argv, char **envp);</code></pre>
 
   <p><code>argv[0]</code> is the program name (often the path used to invoke). <code>argv[argc]</code> is guaranteed to be <code>NULL</code> - you can iterate without a counter.</p>
 
-<pre><code><span class="ty">int</span> <span class="fn">main</span>(<span class="ty">int</span> argc, <span class="ty">char</span> **argv) {
-    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">1</span>; i &lt; argc; i++) {
-        <span class="fn">printf</span>(<span class="st">"arg %d: %s\n"</span>, i, argv[i]);
+<pre><code class="language-c">int main(int argc, char **argv) {
+    for (int i = 1; i &lt; argc; i++) {
+        printf("arg %d: %s\n", i, argv[i]);
     }
-    <span class="kw">return</span> EXIT_SUCCESS;   <span class="cm">// 0 = ok, non-zero = failure</span>
+    return EXIT_SUCCESS;   // 0 = ok, non-zero = failure
 }</code></pre>
 
   <h3>Exit codes</h3>
@@ -1491,65 +1525,65 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
   </ul>
 
   <h3>Argument parsing - hand rolled</h3>
-<pre><code><span class="kw">typedef struct</span> {
-    <span class="kw">const</span> <span class="ty">char</span> *input;
-    <span class="ty">int32_t</span>     workers;
-    <span class="ty">bool</span>        verbose;
-} <span class="ty">Args</span>;
+<pre><code class="language-c">typedef struct {
+    const char *input;
+    int32_t     workers;
+    bool        verbose;
+} Args;
 
-<span class="ty">bool</span> <span class="fn">parse_args</span>(<span class="ty">int</span> argc, <span class="ty">char</span> **argv, <span class="ty">Args</span> *out) {
-    *out = (<span class="ty">Args</span>){ .workers = <span class="nu">1</span> };
-    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">1</span>; i &lt; argc; i++) {
-        <span class="kw">const</span> <span class="ty">char</span> *a = argv[i];
-        <span class="kw">if</span>      (<span class="fn">strcmp</span>(a, <span class="st">"-v"</span>) == <span class="nu">0</span>) out-&gt;verbose = <span class="kw">true</span>;
-        <span class="kw">else if</span> (<span class="fn">strcmp</span>(a, <span class="st">"-w"</span>) == <span class="nu">0</span> &amp;&amp; i + <span class="nu">1</span> &lt; argc)
-            out-&gt;workers = <span class="fn">atoi</span>(argv[++i]);     <span class="cm">// strtol in real code</span>
-        <span class="kw">else if</span> (a[<span class="nu">0</span>] != <span class="st">'-'</span>) out-&gt;input = a;
-        <span class="kw">else</span>    <span class="kw">return</span> <span class="kw">false</span>;
+bool parse_args(int argc, char **argv, Args *out) {
+    *out = (Args){ .workers = 1 };
+    for (int i = 1; i &lt; argc; i++) {
+        const char *a = argv[i];
+        if      (strcmp(a, "-v") == 0) out-&gt;verbose = true;
+        else if (strcmp(a, "-w") == 0 &amp;&amp; i + 1 &lt; argc)
+            out-&gt;workers = atoi(argv[++i]);     // strtol in real code
+        else if (a[0] != '-') out-&gt;input = a;
+        else    return false;
     }
-    <span class="kw">return</span> out-&gt;input != <span class="kw">NULL</span>;
+    return out-&gt;input != NULL;
 }</code></pre>
 
   <div class="tip">For anything more complex than a flag and a path, use <code>getopt</code> (POSIX) or vendor a small parser. Hand-rolled is fine until you need <code>--long</code> options or argument bundling like <code>-vvv</code>.</div>
 
   <h3><code>getopt</code> - the POSIX standard</h3>
-<pre><code><span class="pp">#include &lt;unistd.h&gt;</span>
+<pre><code class="language-c">#include &lt;unistd.h&gt;
 
-<span class="ty">int</span> opt;
-<span class="kw">while</span> ((opt = <span class="fn">getopt</span>(argc, argv, <span class="st">"vw:o:"</span>)) != -<span class="nu">1</span>) {
-    <span class="kw">switch</span> (opt) {
-    <span class="kw">case</span> <span class="st">'v'</span>: verbose = <span class="kw">true</span>;             <span class="kw">break</span>;
-    <span class="kw">case</span> <span class="st">'w'</span>: workers = <span class="fn">atoi</span>(optarg);     <span class="kw">break</span>;     <span class="cm">// "w:" means takes arg</span>
-    <span class="kw">case</span> <span class="st">'o'</span>: output  = optarg;            <span class="kw">break</span>;
-    <span class="kw">default</span>: <span class="kw">return</span> <span class="nu">2</span>;                    <span class="cm">// usage error</span>
+int opt;
+while ((opt = getopt(argc, argv, "vw:o:")) != -1) {
+    switch (opt) {
+    case 'v': verbose = true;             break;
+    case 'w': workers = atoi(optarg);     break;     // "w:" means takes arg
+    case 'o': output  = optarg;            break;
+    default: return 2;                    // usage error
     }
 }
-<span class="cm">// argv[optind .. argc-1] are the positional args</span></code></pre>
+// argv[optind .. argc-1] are the positional args</code></pre>
 
   <h3>Environment variables</h3>
-<pre><code><span class="kw">const</span> <span class="ty">char</span> *home = <span class="fn">getenv</span>(<span class="st">"HOME"</span>);   <span class="cm">// NULL if unset</span>
-<span class="kw">if</span> (!home) home = <span class="st">"/tmp"</span>;</code></pre>
+<pre><code class="language-c">const char *home = getenv("HOME");   // NULL if unset
+if (!home) home = "/tmp";</code></pre>
 
   <div class="warn"><code>getenv</code> returns a pointer into a process-wide buffer. Do not free it. Do not assume it survives a <code>setenv</code> call. If you need it long-term, copy the string.</div>
 
   <h3>Signals (the 80%)</h3>
-<pre><code><span class="pp">#include &lt;signal.h&gt;</span>
+<pre><code class="language-c">#include &lt;signal.h&gt;
 
-<span class="kw">static</span> <span class="kw">volatile</span> <span class="ty">sig_atomic_t</span> g_stop = <span class="nu">0</span>;
+static volatile sig_atomic_t g_stop = 0;
 
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">on_sigint</span>(<span class="ty">int</span> sig) {
-    (<span class="kw">void</span>)sig;
-    g_stop = <span class="nu">1</span>;        <span class="cm">// only async-signal-safe ops allowed here</span>
+static void on_sigint(int sig) {
+    (void)sig;
+    g_stop = 1;        // only async-signal-safe ops allowed here
 }
 
-<span class="ty">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
-    <span class="fn">signal</span>(SIGINT,  on_sigint);
-    <span class="fn">signal</span>(SIGTERM, on_sigint);
+int main(void) {
+    signal(SIGINT,  on_sigint);
+    signal(SIGTERM, on_sigint);
 
-    <span class="kw">while</span> (!g_stop) {
-        <span class="cm">// main loop - polls flag</span>
+    while (!g_stop) {
+        // main loop - polls flag
     }
-    <span class="kw">return</span> EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }</code></pre>
 
   <div class="rule">Inside a signal handler you may only set <code>volatile sig_atomic_t</code> flags and call a tiny set of "async-signal-safe" functions. <code>printf</code>, <code>malloc</code>, <code>fprintf</code> are not safe. The portable design is "set a flag, return; the main loop checks it".</div>
@@ -1579,61 +1613,61 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
   <p>Threads let independent work run on independent cores. The C11 standard provides <code>&lt;threads.h&gt;</code>; in practice most code targets POSIX <code>pthread.h</code> on Linux/macOS and Win32 threads on Windows. The 80% you need is: spawn a thread, join it, protect shared state with a mutex, communicate small flags with atomics.</p>
 
   <h3>POSIX threads (the de-facto standard)</h3>
-<pre><code><span class="pp">#include &lt;pthread.h&gt;</span>
+<pre><code class="language-c">#include &lt;pthread.h&gt;
 
-<span class="kw">static</span> <span class="kw">void</span> *<span class="fn">worker</span>(<span class="kw">void</span> *arg) {
-    <span class="ty">int32_t</span> id = *(<span class="ty">int32_t</span>*)arg;
-    <span class="fn">printf</span>(<span class="st">"hello from %d\n"</span>, id);
-    <span class="kw">return</span> <span class="kw">NULL</span>;       <span class="cm">// or any void* you want join() to receive</span>
+static void *worker(void *arg) {
+    int32_t id = *(int32_t*)arg;
+    printf("hello from %d\n", id);
+    return NULL;       // or any void* you want join() to receive
 }
 
-<span class="ty">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
-    <span class="kw">enum</span> { N = <span class="nu">4</span> };
-    <span class="ty">pthread_t</span> th[N];
-    <span class="ty">int32_t</span>   ids[N];
+int main(void) {
+    enum { N = 4 };
+    pthread_t th[N];
+    int32_t   ids[N];
 
-    <span class="kw">for</span> (<span class="ty">int32_t</span> i = <span class="nu">0</span>; i &lt; N; i++) {
+    for (int32_t i = 0; i &lt; N; i++) {
         ids[i] = i;
-        <span class="fn">pthread_create</span>(&amp;th[i], <span class="kw">NULL</span>, worker, &amp;ids[i]);
+        pthread_create(&amp;th[i], NULL, worker, &amp;ids[i]);
     }
-    <span class="kw">for</span> (<span class="ty">int32_t</span> i = <span class="nu">0</span>; i &lt; N; i++) {
-        <span class="fn">pthread_join</span>(th[i], <span class="kw">NULL</span>);
+    for (int32_t i = 0; i &lt; N; i++) {
+        pthread_join(th[i], NULL);
     }
 }
-<span class="cm">// link with -lpthread (Linux); built-in on macOS</span></code></pre>
+// link with -lpthread (Linux); built-in on macOS</code></pre>
 
   <div class="warn">Each thread argument must be valid for the lifetime of the thread. Passing <code>&amp;i</code> from a loop counter to multiple threads is a classic bug - by the time the thread reads <code>i</code>, it has been incremented. Pass distinct addresses (<code>&amp;ids[i]</code>) or copy by value into a small struct per thread.</div>
 
   <h3>Mutex - protect shared state</h3>
-<pre><code><span class="kw">static</span> <span class="ty">pthread_mutex_t</span> g_mu = PTHREAD_MUTEX_INITIALIZER;
-<span class="kw">static</span> <span class="ty">int64_t</span>          g_total = <span class="nu">0</span>;
+<pre><code class="language-c">static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
+static int64_t          g_total = 0;
 
-<span class="kw">static</span> <span class="kw">void</span> *<span class="fn">add_some</span>(<span class="kw">void</span> *arg) {
-    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i &lt; <span class="nu">10000</span>; i++) {
-        <span class="fn">pthread_mutex_lock</span>(&amp;g_mu);
-        g_total += <span class="nu">1</span>;
-        <span class="fn">pthread_mutex_unlock</span>(&amp;g_mu);
+static void *add_some(void *arg) {
+    for (int i = 0; i &lt; 10000; i++) {
+        pthread_mutex_lock(&amp;g_mu);
+        g_total += 1;
+        pthread_mutex_unlock(&amp;g_mu);
     }
-    (<span class="kw">void</span>)arg; <span class="kw">return</span> <span class="kw">NULL</span>;
+    (void)arg; return NULL;
 }</code></pre>
 
   <div class="rule">Lock the smallest possible region. Hold a mutex while computing a slow result and you have serialized your program. Compute first, lock just to publish the result.</div>
 
   <h3>Atomics (C11) - lock-free flags and counters</h3>
-<pre><code><span class="pp">#include &lt;stdatomic.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdatomic.h&gt;
 
-<span class="kw">static</span> <span class="ty">atomic_int</span> g_running = <span class="nu">1</span>;
+static atomic_int g_running = 1;
 
-<span class="kw">while</span> (<span class="fn">atomic_load</span>(&amp;g_running)) {
-    <span class="cm">// hot loop reads the flag</span>
+while (atomic_load(&amp;g_running)) {
+    // hot loop reads the flag
 }
 
-<span class="cm">// Another thread:</span>
-<span class="fn">atomic_store</span>(&amp;g_running, <span class="nu">0</span>);
+// Another thread:
+atomic_store(&amp;g_running, 0);
 
-<span class="cm">// Atomic counters</span>
-<span class="kw">static</span> <span class="ty">atomic_uint64</span> g_count = <span class="nu">0</span>;
-<span class="fn">atomic_fetch_add</span>(&amp;g_count, <span class="nu">1</span>);   <span class="cm">// returns previous value</span></code></pre>
+// Atomic counters
+static atomic_uint64 g_count = 0;
+atomic_fetch_add(&amp;g_count, 1);   // returns previous value</code></pre>
 
   <p>Atomics give you small thread-safe values without the overhead of a mutex. They are the right tool for "running" flags, reference counts, ID generators, and similar shared scalars.</p>
 
@@ -1645,8 +1679,8 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
   <div class="rule">Default to mutexes for shared state, <code>memory_order_seq_cst</code> atomics for shared flags and counters, and message passing (one writer per queue) for everything else. Lock-free queues, RCU, hazard pointers, weakly ordered atomics - all real, all out of scope for the 80%.</div>
 
   <h3>Thread-local storage</h3>
-<pre><code><span class="cm">// C11 keyword - per-thread copy of the variable</span>
-<span class="kw">static</span> <span class="kw">_Thread_local</span> <span class="ty">char</span> g_buf[<span class="nu">256</span>];   <span class="cm">// or `thread_local` from &lt;threads.h&gt;</span></code></pre>
+<pre><code class="language-c">// C11 keyword - per-thread copy of the variable
+static _Thread_local char g_buf[256];   // or `thread_local` from &lt;threads.h&gt;</code></pre>
 
   <p>Useful for per-thread scratch buffers, RNG state, profiling counters - anything you want zero-contention access to.</p>
 
@@ -1684,35 +1718,35 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
   <div class="rule">C89: variables must be declared at the top of a function, loop counters leak, struct init is positional (you can swap two same-typed fields by mistake). C99 fixes all of this.</div>
 
   <h3>Always-on warning flags</h3>
-<pre><code>-Wall -Wextra -Wshadow -Wconversion -Wformat=<span class="nu">2</span> -Wnull-dereference</code></pre>
+<pre><code class="language-c">-Wall -Wextra -Wshadow -Wconversion -Wformat=2 -Wnull-dereference</code></pre>
   <p>Add <code>-Werror</code> to make warnings stop the build. Switch it on from day one - it's much harder to clean up later. <code>-Wpedantic</code> is useful when you want maximum portability, but it flags widely-used compiler extensions (like <code>_Alignof</code> in C99 mode) - add it when you specifically need ISO conformance.</p>
 
   <h3>Sanitizers</h3>
-<pre><code><span class="cm"># AddressSanitizer (heap/stack overflow, use-after-free, double-free, leaks)</span>
+<pre><code class="language-bash"># AddressSanitizer (heap/stack overflow, use-after-free, double-free, leaks)
 -fsanitize=address -fno-omit-frame-pointer
-<span class="cm"># env: ASAN_OPTIONS=detect_leaks=1</span>
+# env: ASAN_OPTIONS=detect_leaks=1
 
-<span class="cm"># UndefinedBehaviorSanitizer (signed overflow, null deref, alignment, OOB shifts)</span>
+# UndefinedBehaviorSanitizer (signed overflow, null deref, alignment, OOB shifts)
 -fsanitize=undefined
 
-<span class="cm"># Combined</span>
+# Combined
 -fsanitize=address,undefined</code></pre>
 
   <div class="tip">Run with ASan basically all the time during local dev. Without it, a one-byte overrun into the slack space of a malloc block silently corrupts memory and surfaces as a "visual glitch" six minutes later. ASan catches the bug at the line where it happens.</div>
 
   <h3>Release hardening</h3>
-<pre><code>-fstack-protector-strong       <span class="cm"># canaries against stack smashes</span>
--D_FORTIFY_SOURCE=<span class="nu">2</span>            <span class="cm"># bounds-checked libc (needs -O1+)</span></code></pre>
+<pre><code class="language-bash">-fstack-protector-strong       # canaries against stack smashes
+-D_FORTIFY_SOURCE=2            # bounds-checked libc (needs -O1+)</code></pre>
 
   <h3>Two build modes</h3>
-<pre><code><span class="cm"># dev: max safety, slow, readable crashes</span>
+<pre><code class="language-bash"># dev: max safety, slow, readable crashes
 clang -std=c99 -g -O0 -Wall -Wextra -Wpedantic -Werror \
       -fsanitize=address,undefined -fno-omit-frame-pointer \
       main.c -o app
 
-<span class="cm"># release: fast, hardened</span>
+# release: fast, hardened
 clang -std=c99 -O2 -DNDEBUG -Wall -Wextra \
-      -fstack-protector-strong -D_FORTIFY_SOURCE=<span class="nu">2</span> \
+      -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
       main.c -o app</code></pre>
 
   <h3>What is a segfault, really</h3>
@@ -1730,93 +1764,93 @@ clang -std=c99 -O2 -DNDEBUG -Wall -Wextra \
   <p>Undefined behaviour (UB) is the C standard's term for "anything can happen, including looking like it works". The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the "but it worked on my machine" class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.</p>
 
   <h3>Signed integer overflow</h3>
-<pre><code><span class="ty">int32_t</span> a = INT32_MAX;
-<span class="ty">int32_t</span> b = a + <span class="nu">1</span>;          <span class="cm">// UB: signed overflow</span>
+<pre><code class="language-c">int32_t a = INT32_MAX;
+int32_t b = a + 1;          // UB: signed overflow
 
-<span class="cm">// Compiler may assume a + 1 &gt; a always - which deletes overflow checks like:</span>
-<span class="kw">if</span> (a + <span class="nu">1</span> &lt; a) { <span class="cm">/* overflowed */</span> }    <span class="cm">// dead code at -O2</span></code></pre>
+// Compiler may assume a + 1 &gt; a always - which deletes overflow checks like:
+if (a + 1 &lt; a) { /* overflowed */ }    // dead code at -O2</code></pre>
 
   <div class="rule">Use <strong>unsigned</strong> integer types when you want defined wrap-around. Unsigned overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The compiler exploits this difference for optimizations.</div>
 
   <h3>Strict aliasing</h3>
-<pre><code><span class="ty">float</span>     f = <span class="nu">3.14f</span>;
-<span class="ty">uint32_t</span> *p = (<span class="ty">uint32_t</span>*)&amp;f;     <span class="cm">// UB: pointer to one type, accessed as another</span>
-<span class="ty">uint32_t</span>  bits = *p;             <span class="cm">// undefined</span>
+<pre><code class="language-c">float     f = 3.14f;
+uint32_t *p = (uint32_t*)&amp;f;     // UB: pointer to one type, accessed as another
+uint32_t  bits = *p;             // undefined
 
-<span class="cm">// Defined alternative:</span>
-<span class="ty">uint32_t</span> bits;
-<span class="fn">memcpy</span>(&amp;bits, &amp;f, <span class="kw">sizeof</span>(bits));    <span class="cm">// optimizes to a register move</span></code></pre>
+// Defined alternative:
+uint32_t bits;
+memcpy(&amp;bits, &amp;f, sizeof(bits));    // optimizes to a register move</code></pre>
 
   <p>Two pointers of unrelated types may not legally read or write the same object. The compiler relies on this to keep things in registers across function calls. <code>memcpy</code> is the escape hatch and it generates the same machine code at any optimization level.</p>
 
   <div class="warn">The exception: <code>char*</code>, <code>signed char*</code>, <code>unsigned char*</code> may alias anything. That is why <code>memcpy</code> is implemented in terms of <code>unsigned char*</code> and is safe.</div>
 
   <h3>NULL dereference</h3>
-<pre><code><span class="ty">int32_t</span> *p = <span class="kw">NULL</span>;
-<span class="ty">int32_t</span>  v = *p;                <span class="cm">// UB - usually segfault on modern OSes</span>
+<pre><code class="language-c">int32_t *p = NULL;
+int32_t  v = *p;                // UB - usually segfault on modern OSes
 
-<span class="cm">// More subtle: dereference happens BEFORE the if-check</span>
-<span class="ty">int32_t</span> v2 = p-&gt;<span class="fn">x</span>;
-<span class="kw">if</span> (p) { <span class="cm">/* useless check - the deref already happened */</span> }
-<span class="cm">// At -O2, gcc may delete the if-check entirely. Yes really.</span></code></pre>
+// More subtle: dereference happens BEFORE the if-check
+int32_t v2 = p-&gt;x;
+if (p) { /* useless check - the deref already happened */ }
+// At -O2, gcc may delete the if-check entirely. Yes really.</code></pre>
 
   <div class="rule">Once the compiler proves a pointer is dereferenced, it assumes the pointer is non-NULL afterwards and may eliminate later NULL checks as dead code. Always check <em>before</em> the deref.</div>
 
   <h3>Out-of-bounds access</h3>
-<pre><code><span class="ty">int32_t</span> arr[<span class="nu">4</span>];
-arr[<span class="nu">4</span>] = <span class="nu">99</span>;          <span class="cm">// UB: one past the end</span>
-arr[-<span class="nu">1</span>] = <span class="nu">99</span>;         <span class="cm">// UB: before the start</span>
+<pre><code class="language-c">int32_t arr[4];
+arr[4] = 99;          // UB: one past the end
+arr[-1] = 99;         // UB: before the start
 
-<span class="cm">// Even taking the address is UB beyond one past the end:</span>
-<span class="ty">int32_t</span> *p = &amp;arr[<span class="nu">5</span>];   <span class="cm">// UB: arr+4 is OK, arr+5 is not</span></code></pre>
+// Even taking the address is UB beyond one past the end:
+int32_t *p = &amp;arr[5];   // UB: arr+4 is OK, arr+5 is not</code></pre>
 
   <h3>Use after free / use after scope</h3>
-<pre><code><span class="ty">int32_t</span> *<span class="fn">leak</span>(<span class="kw">void</span>) {
-    <span class="ty">int32_t</span> local = <span class="nu">42</span>;
-    <span class="kw">return</span> &amp;local;            <span class="cm">// UB: returning address of automatic var</span>
+<pre><code class="language-c">int32_t *leak(void) {
+    int32_t local = 42;
+    return &amp;local;            // UB: returning address of automatic var
 }
 
-<span class="kw">void</span> *p = <span class="fn">malloc</span>(<span class="nu">100</span>);
-<span class="fn">free</span>(p);
-<span class="kw">memcpy</span>(p, src, <span class="nu">10</span>);          <span class="cm">// UB: p is no longer a valid pointer</span></code></pre>
+void *p = malloc(100);
+free(p);
+memcpy(p, src, 10);          // UB: p is no longer a valid pointer</code></pre>
 
   <div class="tip">Set freed pointers to <code>NULL</code> as a habit. The next use becomes a clean NULL deref (segfault) instead of silent reuse of recycled memory.</div>
 
   <h3>Shifting too far / by negative</h3>
-<pre><code><span class="ty">uint32_t</span> x = <span class="nu">1</span>;
-<span class="ty">uint32_t</span> y = x &lt;&lt; <span class="nu">32</span>;       <span class="cm">// UB: shift by &gt;= width of type</span>
-<span class="ty">uint32_t</span> z = x &lt;&lt; -<span class="nu">1</span>;       <span class="cm">// UB: negative shift</span></code></pre>
+<pre><code class="language-c">uint32_t x = 1;
+uint32_t y = x &lt;&lt; 32;       // UB: shift by &gt;= width of type
+uint32_t z = x &lt;&lt; -1;       // UB: negative shift</code></pre>
 
   <p>Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer "0" feels right. ARM hardware actually does that; x86 silently masks the shift count. The C standard says: undefined.</p>
 
   <h3>Reading uninitialized memory</h3>
-<pre><code><span class="ty">int32_t</span> x;            <span class="cm">// indeterminate value</span>
-<span class="kw">if</span> (x) { <span class="cm">/* UB: reading x before any write */</span> }
+<pre><code class="language-c">int32_t x;            // indeterminate value
+if (x) { /* UB: reading x before any write */ }
 
-<span class="cm">// Designated init or memset to zero:</span>
-<span class="ty">int32_t</span> y = <span class="nu">0</span>;
-<span class="kw">struct</span> <span class="ty">Big</span> b = {<span class="nu">0</span>};   <span class="cm">// zeroes everything, including padding</span></code></pre>
+// Designated init or memset to zero:
+int32_t y = 0;
+struct Big b = {0};   // zeroes everything, including padding</code></pre>
 
   <h3>Sequencing and side effects</h3>
-<pre><code><span class="ty">int32_t</span> i = <span class="nu">0</span>;
-<span class="ty">int32_t</span> arr[] = { i++, i++, i++ };   <span class="cm">// UB: order between i++s undefined</span>
+<pre><code class="language-c">int32_t i = 0;
+int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined
 
-<span class="ty">int32_t</span> j = <span class="nu">0</span>;
-<span class="fn">printf</span>(<span class="st">"%d %d\n"</span>, j++, j);          <span class="cm">// UB: j read and j++ unsequenced</span>
+int32_t j = 0;
+printf("%d %d\n", j++, j);          // UB: j read and j++ unsequenced
 
-<span class="ty">int32_t</span> k = <span class="nu">0</span>;
-k = k++ + <span class="nu">1</span>;                          <span class="cm">// UB: two writes, no sequencing</span></code></pre>
+int32_t k = 0;
+k = k++ + 1;                          // UB: two writes, no sequencing</code></pre>
 
   <div class="rule">If the same scalar is read and written, or written twice, in the same expression with no sequence point between them, it is UB. Split into separate statements.</div>
 
   <h3>Misaligned access</h3>
-<pre><code><span class="ty">uint8_t</span> buf[<span class="nu">16</span>] = {<span class="nu">0</span>};
-<span class="ty">uint32_t</span> *p = (<span class="ty">uint32_t</span>*)(buf + <span class="nu">1</span>);   <span class="cm">// likely misaligned</span>
-<span class="ty">uint32_t</span> v = *p;                       <span class="cm">// UB on architectures requiring alignment</span>
+<pre><code class="language-c">uint8_t buf[16] = {0};
+uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned
+uint32_t v = *p;                       // UB on architectures requiring alignment
 
-<span class="cm">// Use memcpy from any byte offset</span>
-<span class="ty">uint32_t</span> v2;
-<span class="fn">memcpy</span>(&amp;v2, buf + <span class="nu">1</span>, <span class="kw">sizeof</span>(v2));      <span class="cm">// always defined</span></code></pre>
+// Use memcpy from any byte offset
+uint32_t v2;
+memcpy(&amp;v2, buf + 1, sizeof(v2));      // always defined</code></pre>
 
   <p>x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS, RISC-V and others may trap. Even on x86, vector instructions require alignment. <code>memcpy</code> handles arbitrary alignment portably.</p>
 
@@ -1847,74 +1881,74 @@ k = k++ + <span class="nu">1</span>;                          <span class="cm">/
   <p>C has no built-in test framework. The good news is you don't need one for the 80%: a single <code>tests.c</code> file plus <code>assert.h</code> plus the sanitizers from §17 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.</p>
 
   <h3>The minimum viable test</h3>
-<pre><code><span class="cm">// tests.c</span>
-<span class="pp">#include &lt;assert.h&gt;</span>
-<span class="pp">#include &lt;stdio.h&gt;</span>
-<span class="pp">#include "mylib.h"</span>
+<pre><code class="language-c">// tests.c
+#include &lt;assert.h&gt;
+#include &lt;stdio.h&gt;
+#include "mylib.h"
 
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">test_add</span>(<span class="kw">void</span>) {
-    <span class="fn">assert</span>(<span class="fn">add</span>(<span class="nu">2</span>, <span class="nu">3</span>) == <span class="nu">5</span>);
-    <span class="fn">assert</span>(<span class="fn">add</span>(-<span class="nu">1</span>, <span class="nu">1</span>) == <span class="nu">0</span>);
-    <span class="fn">assert</span>(<span class="fn">add</span>(<span class="nu">0</span>, <span class="nu">0</span>) == <span class="nu">0</span>);
+static void test_add(void) {
+    assert(add(2, 3) == 5);
+    assert(add(-1, 1) == 0);
+    assert(add(0, 0) == 0);
 }
 
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">test_strings</span>(<span class="kw">void</span>) {
-    <span class="fn">assert</span>(<span class="fn">strcmp</span>(<span class="st">"hi"</span>, <span class="st">"hi"</span>) == <span class="nu">0</span>);
-    <span class="fn">assert</span>(<span class="fn">strcmp</span>(<span class="st">"a"</span>,  <span class="st">"b"</span>)  &lt; <span class="nu">0</span>);
+static void test_strings(void) {
+    assert(strcmp("hi", "hi") == 0);
+    assert(strcmp("a",  "b")  &lt; 0);
 }
 
-<span class="ty">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
-    <span class="fn">test_add</span>();
-    <span class="fn">test_strings</span>();
-    <span class="fn">printf</span>(<span class="st">"all tests passed\n"</span>);
-    <span class="kw">return</span> <span class="nu">0</span>;
+int main(void) {
+    test_add();
+    test_strings();
+    printf("all tests passed\n");
+    return 0;
 }</code></pre>
 
   <p>Build it with the same flags as production plus the sanitizers:</p>
-<pre><code>clang -std=c99 -g -O0 -Wall -Wextra -Werror \
+<pre><code class="language-bash">clang -std=c99 -g -O0 -Wall -Wextra -Werror \
       -fsanitize=address,undefined \
       tests.c mylib.c -o tests
-./tests   <span class="cm"># exits 0 on success, non-zero on failure</span></code></pre>
+./tests   # exits 0 on success, non-zero on failure</code></pre>
 
   <div class="rule">A C test binary is just a program that returns <code>0</code> on success and non-zero on failure. There is nothing to install. <code>make test</code> is "build it and run it" - any CI knows how to handle that.</div>
 
   <h3>A small in-house test runner</h3>
-<pre><code><span class="cm">// test_helper.h - drop in any project</span>
-<span class="pp">#pragma once</span>
-<span class="pp">#include &lt;stdio.h&gt;</span>
-<span class="pp">#include &lt;stdlib.h&gt;</span>
+<pre><code class="language-c">// test_helper.h - drop in any project
+#pragma once
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
 
-<span class="kw">static</span> <span class="ty">int32_t</span> g_pass = <span class="nu">0</span>, g_fail = <span class="nu">0</span>;
+static int32_t g_pass = 0, g_fail = 0;
 
-<span class="pp">#define EXPECT(cond) do {                                       \
+#define EXPECT(cond) do {                                       \
     if (cond) g_pass++;                                         \
     else { g_fail++; fprintf(stderr,                            \
         "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); }       \
-} while (0)</span>
+} while (0)
 
-<span class="pp">#define EXPECT_EQ(a, b) EXPECT((a) == (b))</span>
-<span class="pp">#define EXPECT_NE(a, b) EXPECT((a) != (b))</span>
-<span class="pp">#define EXPECT_STR_EQ(a, b) EXPECT(strcmp((a), (b)) == 0)</span>
+#define EXPECT_EQ(a, b) EXPECT((a) == (b))
+#define EXPECT_NE(a, b) EXPECT((a) != (b))
+#define EXPECT_STR_EQ(a, b) EXPECT(strcmp((a), (b)) == 0)
 
-<span class="pp">#define RUN(name) do { fprintf(stderr, "running %s\n", #name); name(); } while (0)</span>
+#define RUN(name) do { fprintf(stderr, "running %s\n", #name); name(); } while (0)
 
-<span class="pp">#define REPORT() do {                                           \
+#define REPORT() do {                                           \
     fprintf(stderr, "%d passed, %d failed\n", g_pass, g_fail);  \
     return g_fail ? 1 : 0;                                      \
-} while (0)</span></code></pre>
+} while (0)</code></pre>
 
-<pre><code><span class="cm">// tests.c</span>
-<span class="pp">#include "test_helper.h"</span>
-<span class="pp">#include "mylib.h"</span>
+<pre><code class="language-c">// tests.c
+#include "test_helper.h"
+#include "mylib.h"
 
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">test_add</span>(<span class="kw">void</span>) {
-    <span class="fn">EXPECT_EQ</span>(<span class="fn">add</span>(<span class="nu">2</span>, <span class="nu">3</span>), <span class="nu">5</span>);
-    <span class="fn">EXPECT_EQ</span>(<span class="fn">add</span>(-<span class="nu">1</span>, <span class="nu">1</span>), <span class="nu">0</span>);
+static void test_add(void) {
+    EXPECT_EQ(add(2, 3), 5);
+    EXPECT_EQ(add(-1, 1), 0);
 }
 
-<span class="ty">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
-    <span class="fn">RUN</span>(test_add);
-    <span class="fn">REPORT</span>();
+int main(void) {
+    RUN(test_add);
+    REPORT();
 }</code></pre>
 
   <p>Forty lines of header gives you per-line failure reporting, a pass/fail summary, and a sensible exit code. No dependency, no install, no framework lock-in.</p>
@@ -1931,13 +1965,13 @@ k = k++ + <span class="nu">1</span>;                          <span class="cm">/
   <div class="rule">Run your test binary under <code>ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ./tests</code>. A passing test under sanitizers is dramatically stronger than the same test run on a plain release build.</div>
 
   <h3><code>assert</code> in production code</h3>
-<pre><code><span class="pp">#include &lt;assert.h&gt;</span>
+<pre><code class="language-c">#include &lt;assert.h&gt;
 
-<span class="kw">void</span> <span class="fn">draw_pixel</span>(<span class="ty">Image</span> *img, <span class="ty">int32_t</span> x, <span class="ty">int32_t</span> y) {
-    <span class="fn">assert</span>(img != <span class="kw">NULL</span>);
-    <span class="fn">assert</span>(x &gt;= <span class="nu">0</span> &amp;&amp; x &lt; img-&gt;w);
-    <span class="fn">assert</span>(y &gt;= <span class="nu">0</span> &amp;&amp; y &lt; img-&gt;h);
-    <span class="cm">// ... safe to access</span>
+void draw_pixel(Image *img, int32_t x, int32_t y) {
+    assert(img != NULL);
+    assert(x &gt;= 0 &amp;&amp; x &lt; img-&gt;w);
+    assert(y &gt;= 0 &amp;&amp; y &lt; img-&gt;h);
+    // ... safe to access
 }</code></pre>
 
   <p><code>assert</code> aborts the program on failure with a useful message and stack. In release builds (<code>-DNDEBUG</code>) it disappears entirely - zero cost. Sprinkle it through any function that has invariants. Tests are how you make sure asserts don't fire on real input.</p>
@@ -1947,36 +1981,36 @@ k = k++ + <span class="nu">1</span>;                          <span class="cm">/
   <h3>Property-based / fuzz testing</h3>
   <p>Property tests assert relationships rather than exact outputs ("for any input, parsing then serializing returns the original"). Fuzzers automate finding inputs that violate those properties.</p>
 
-<pre><code><span class="cm">// fuzz_target.c - libFuzzer entry point (clang -fsanitize=fuzzer,address)</span>
-<span class="pp">#include &lt;stdint.h&gt;</span>
-<span class="pp">#include &lt;stddef.h&gt;</span>
+<pre><code class="language-c">// fuzz_target.c - libFuzzer entry point (clang -fsanitize=fuzzer,address)
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
 
-<span class="ty">int</span> <span class="fn">LLVMFuzzerTestOneInput</span>(<span class="kw">const</span> <span class="ty">uint8_t</span> *data, <span class="ty">size_t</span> size) {
-    <span class="cm">// Feed `data` into the parser. Return 0 if the input was processed</span>
-    <span class="cm">// (whether successfully or with a graceful error). Crashes / sanitizer</span>
-    <span class="cm">// trips are reported by the harness.</span>
-    <span class="fn">parse_protocol</span>(data, size);
-    <span class="kw">return</span> <span class="nu">0</span>;
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    // Feed `data` into the parser. Return 0 if the input was processed
+    // (whether successfully or with a graceful error). Crashes / sanitizer
+    // trips are reported by the harness.
+    parse_protocol(data, size);
+    return 0;
 }</code></pre>
 
   <p>Build and run:</p>
-<pre><code>clang -g -fsanitize=fuzzer,address,undefined fuzz_target.c parser.c -o fuzz
-./fuzz -max_total_time=<span class="nu">60</span>     <span class="cm"># run for 60 seconds</span></code></pre>
+<pre><code class="language-bash">clang -g -fsanitize=fuzzer,address,undefined fuzz_target.c parser.c -o fuzz
+./fuzz -max_total_time=60     # run for 60 seconds</code></pre>
 
   <p>The fuzzer generates random inputs, observes coverage, and minimizes any crashing input it finds into a single byte file you can replay deterministically. For network parsers, file format readers, anything that ingests untrusted input - this is the highest-leverage testing you can write. See <a href="#fuzz">Pattern: Fuzz Harness</a>.</p>
 
   <h3>Snapshot / golden tests</h3>
   <p>For functions whose output is awkward to spell out (formatted strings, generated tables, layout coordinates), write a "golden" file with the expected output and have the test diff against it.</p>
 
-<pre><code><span class="ty">char</span> *<span class="fn">render</span>(<span class="kw">const</span> <span class="ty">Doc</span> *d);                <span class="cm">// returns malloc'd string</span>
-<span class="kw">static</span> <span class="kw">void</span> <span class="fn">test_render_golden</span>(<span class="kw">void</span>) {
-    <span class="ty">Doc</span> d  = <span class="fn">make_doc</span>();
-    <span class="ty">char</span> *got = <span class="fn">render</span>(&amp;d);
-    <span class="ty">char</span> *want;
-    <span class="ty">size_t</span> n;
-    want = (<span class="ty">char</span>*)<span class="fn">slurp</span>(<span class="st">"testdata/render.golden"</span>, &amp;n);
-    <span class="fn">EXPECT_STR_EQ</span>(got, want);
-    <span class="fn">free</span>(got); <span class="fn">free</span>(want);
+<pre><code class="language-c">char *render(const Doc *d);                // returns malloc'd string
+static void test_render_golden(void) {
+    Doc d  = make_doc();
+    char *got = render(&amp;d);
+    char *want;
+    size_t n;
+    want = (char*)slurp("testdata/render.golden", &amp;n);
+    EXPECT_STR_EQ(got, want);
+    free(got); free(want);
 }</code></pre>
 
   <div class="tip">Run the test once with <code>UPDATE=1</code> to write the file, then commit it. Subsequent runs diff against the committed version. Cheap and surprisingly effective for parsers and formatters.</div>
@@ -1996,7 +2030,7 @@ k = k++ + <span class="nu">1</span>;                          <span class="cm">/
   <div class="rule">Start with hand-rolled tests. Add a framework only when you outgrow them. The first thing you outgrow is "I want test isolation so a crashing test doesn't kill the rest" - at that point Criterion or running each test as its own binary is the answer.</div>
 
   <h3>Hooking into <code>make</code> / CMake</h3>
-<pre><code><span class="cm"># Makefile</span>
+<pre><code class="language-makefile"># Makefile
 test: tests
 	./tests
 
@@ -2005,7 +2039,7 @@ tests: tests.c mylib.c
 	    -fsanitize=address,undefined \
 	    $^ -o $@</code></pre>
 
-<pre><code><span class="cm"># CMakeLists.txt</span>
+<pre><code class="language-cmake"># CMakeLists.txt
 add_executable(tests tests.c mylib.c)
 target_compile_options(tests PRIVATE -fsanitize=address,undefined)
 target_link_options(tests PRIVATE -fsanitize=address,undefined)
@@ -2084,23 +2118,23 @@ add_test(NAME unit COMMAND tests)</code></pre>
   <div class="rule">Compile with <code>-g -O0</code> for clean debug info. Optimization mangles line numbers and elides locals - the debugger will refuse to show variables that the optimizer "doesn't believe" exist.</div>
 
   <h3>gdb cheat sheet</h3>
-<pre><code>gdb ./app
-b main                       <span class="cm"># breakpoint at function</span>
-b file.c:42                  <span class="cm"># breakpoint at line</span>
-b parse_int <span class="kw">if</span> x &gt; <span class="nu">100</span>         <span class="cm"># conditional</span>
-r arg1 arg2                  <span class="cm"># run with args</span>
-n / s                        <span class="cm"># next / step in</span>
-c                            <span class="cm"># continue</span>
-finish                       <span class="cm"># step out of current frame</span>
-bt / bt full                 <span class="cm"># backtrace (with locals)</span>
-p var / p *ptr / p/x val     <span class="cm"># print value (decimal/hex)</span>
-info locals                  <span class="cm"># all locals in current frame</span>
-watch ptr-&gt;field             <span class="cm"># break when value changes</span>
-rwatch / awatch              <span class="cm"># break on read / read-or-write</span>
-display var                  <span class="cm"># show every step</span>
-layout src                   <span class="cm"># TUI source view (or: gdb -tui)</span>
-<span class="kw">set</span> print pretty on            <span class="cm"># readable struct dumps</span>
-q                            <span class="cm"># quit</span></code></pre>
+<pre><code class="language-bash">gdb ./app
+b main                       # breakpoint at function
+b file.c:42                  # breakpoint at line
+b parse_int if x &gt; 100         # conditional
+r arg1 arg2                  # run with args
+n / s                        # next / step in
+c                            # continue
+finish                       # step out of current frame
+bt / bt full                 # backtrace (with locals)
+p var / p *ptr / p/x val     # print value (decimal/hex)
+info locals                  # all locals in current frame
+watch ptr-&gt;field             # break when value changes
+rwatch / awatch              # break on read / read-or-write
+display var                  # show every step
+layout src                   # TUI source view (or: gdb -tui)
+set print pretty on            # readable struct dumps
+q                            # quit</code></pre>
 
   <h3>lldb equivalents</h3>
   <table>
@@ -2116,26 +2150,26 @@ q                            <span class="cm"># quit</span></code></pre>
   </table>
 
   <h3>Core dumps (post-mortem)</h3>
-<pre><code>ulimit -c unlimited
-./app                    <span class="cm"># crashes -> ./core file</span>
-gdb ./app core           <span class="cm"># load post-mortem</span>
+<pre><code class="language-bash">ulimit -c unlimited
+./app                    # crashes -> ./core file
+gdb ./app core           # load post-mortem
 
-<span class="cm"># on systemd-based Linux</span>
-coredumpctl gdb          <span class="cm"># picks up the latest crash</span></code></pre>
+# on systemd-based Linux
+coredumpctl gdb          # picks up the latest crash</code></pre>
 
   <h3>Optional <code>~/.gdbinit</code></h3>
-<pre><code><span class="kw">set</span> print pretty on
-<span class="kw">set</span> print array on
-<span class="kw">set</span> pagination off
-<span class="kw">set</span> history save on</code></pre>
+<pre><code class="language-bash">set print pretty on
+set print array on
+set pagination off
+set history save on</code></pre>
 
   <h3>When ASan isn't available: valgrind</h3>
-<pre><code>valgrind --leak-check=full --show-leak-kinds=all ./app</code></pre>
+<pre><code class="language-bash">valgrind --leak-check=full --show-leak-kinds=all ./app</code></pre>
   <p>Slower than ASan, but works without recompiling and sometimes finds different bugs.</p>
 
   <h3>Time-travel debugging: rr (Linux)</h3>
-<pre><code>rr record ./app
-rr replay                <span class="cm"># reverse-step through any bug</span></code></pre>
+<pre><code class="language-bash">rr record ./app
+rr replay                # reverse-step through any bug</code></pre>
 
   <h3>Standalone GUI debuggers</h3>
   <ul class="tight">
@@ -2156,63 +2190,63 @@ rr replay                <span class="cm"># reverse-step through any bug</span><
   <p>Helix is a modal terminal editor with built-in LSP and DAP support. C works out of the box once you install <code>clangd</code>.</p>
 
   <h3>Install</h3>
-<pre><code><span class="cm"># macOS</span>
+<pre><code class="language-bash"># macOS
 brew install llvm bear helix
 
-<span class="cm"># Debian / Ubuntu</span>
+# Debian / Ubuntu
 sudo apt install clang clangd clang-format lldb bear gdb
-<span class="cm"># helix from https://helix-editor.com/</span>
-<span class="cm"># lldb ships the DAP binary as lldb-dap-NN. Symlink it so Helix finds it:</span>
-sudo ln -sf <span class="st">"$(ls /usr/bin/lldb-dap-* | sort -V | tail -1)"</span> /usr/local/bin/lldb-dap
+# helix from https://helix-editor.com/
+# lldb ships the DAP binary as lldb-dap-NN. Symlink it so Helix finds it:
+sudo ln -sf "$(ls /usr/bin/lldb-dap-* | sort -V | tail -1)" /usr/local/bin/lldb-dap
 
-<span class="cm"># Arch</span>
+# Arch
 sudo pacman -S clang lldb bear gdb helix
 
-<span class="cm"># Verify</span>
-hx --health c            <span class="cm"># clangd should show "Found"</span></code></pre>
+# Verify
+hx --health c            # clangd should show "Found"</code></pre>
 
   <h3>Project file: <code>./.clangd</code></h3>
   <p>Save this in your repo root.</p>
-<pre><code>CompileFlags:
+<pre><code class="language-yaml">CompileFlags:
   Add: [-std=c99, -Wall, -Wextra, -Wpedantic]
 Diagnostics:
   UnusedIncludes: Strict</code></pre>
 
   <h3>Project file: <code>./compile_commands.json</code></h3>
   <p>clangd reads this for accurate cross-file analysis. Generate it with one of:</p>
-<pre><code><span class="cm"># with a Makefile: bear records each clang invocation</span>
+<pre><code class="language-bash"># with a Makefile: bear records each clang invocation
 bear -- make
 
-<span class="cm"># single-file project: write the file directly via heredoc</span>
+# single-file project: write the file directly via heredoc
 cat &gt; compile_commands.json &lt;&lt;EOF
 [
   {
-    <span class="st">"directory"</span>: <span class="st">"$(pwd)"</span>,
-    <span class="st">"command"</span>: <span class="st">"clang -std=c99 -Wall main.c"</span>,
-    <span class="st">"file"</span>: <span class="st">"main.c"</span>
+    "directory": "$(pwd)",
+    "command": "clang -std=c99 -Wall main.c",
+    "file": "main.c"
   }
 ]
 EOF</code></pre>
 
   <h3>Project file: <code>./.clang-format</code></h3>
   <p>Save this in your repo root. <code>clang-format</code> picks it up automatically.</p>
-<pre><code>BasedOnStyle: LLVM
-IndentWidth: <span class="nu">4</span>
-ColumnLimit: <span class="nu">100</span>
+<pre><code class="language-yaml">BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
 AlignConsecutiveDeclarations: true</code></pre>
 
   <h3>User config: <code>~/.config/helix/languages.toml</code></h3>
   <p>Add this single <code>[[language]]</code> entry. Wires up format-on-save and DAP debugging in one block. Create the file if it doesn't exist (<code>mkdir -p ~/.config/helix</code> first).</p>
-<pre><code>[[language]]
-name = <span class="st">"c"</span>
+<pre><code class="language-toml">[[language]]
+name = "c"
 auto-format = true
-formatter = { command = <span class="st">"clang-format"</span> }
-debugger = { name = <span class="st">"lldb-dap"</span>, transport = <span class="st">"stdio"</span>, command = <span class="st">"lldb-dap"</span> }
+formatter = { command = "clang-format" }
+debugger = { name = "lldb-dap", transport = "stdio", command = "lldb-dap" }
 [[language.debugger.templates]]
-name = <span class="st">"binary"</span>
-request = <span class="st">"launch"</span>
-completion = [ { name = <span class="st">"binary"</span>, completion = <span class="st">"filename"</span> } ]
-args = { program = <span class="st">"{0}"</span> }</code></pre>
+name = "binary"
+request = "launch"
+completion = [ { name = "binary", completion = "filename" } ]
+args = { program = "{0}" }</code></pre>
   <p>In Helix: <code>:debug-start binary ./app</code>, then <code>Space + g</code> for the debug menu. Build with <code>-g -O0</code>.</p>
 
   <h3>Useful keybinds for C</h3>
@@ -2252,17 +2286,17 @@ args = { program = <span class="st">"{0}"</span> }</code></pre>
 
       <p>Trick: <code>#include</code> every <code>.c</code> from <code>main.c</code>. One compilation unit. One <code>clang main.c -o app</code>. No build system needed for projects up to thousands of lines.</p>
 
-<pre><code><span class="cm">// main.c</span>
-<span class="pp">#include "math_utils.c"</span>
-<span class="pp">#include "render.c"</span>
-<span class="pp">#include "audio.c"</span>
+<pre><code class="language-c">// main.c
+#include "math_utils.c"
+#include "render.c"
+#include "audio.c"
 
-<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
-    <span class="cm">// ... use functions from any of the above ...</span>
-    <span class="kw">return</span> <span class="nu">0</span>;
+int main(void) {
+    // ... use functions from any of the above ...
+    return 0;
 }</code></pre>
 
-<pre><code><span class="cm"># Build the whole project</span>
+<pre><code class="language-bash"># Build the whole project
 clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
 
       <h3>Wins</h3>
@@ -2289,61 +2323,61 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
 
       <p>Use it for: per-frame data in games, per-request in servers, scratch memory for parsers, temp strings.</p>
 
-<pre><code><span class="pp">#include &lt;stdint.h&gt;</span>
-<span class="pp">#include &lt;stddef.h&gt;</span>
-<span class="pp">#include &lt;stdlib.h&gt;</span>
-<span class="pp">#include &lt;string.h&gt;</span>
-<span class="pp">#include &lt;assert.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;assert.h&gt;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">uint8_t</span> *data;
-    <span class="ty">size_t</span>   pos;   <span class="cm">// next free byte</span>
-    <span class="ty">size_t</span>   cap;   <span class="cm">// total size</span>
-} <span class="ty">Arena</span>;
+typedef struct {
+    uint8_t *data;
+    size_t   pos;   // next free byte
+    size_t   cap;   // total size
+} Arena;
 
-<span class="cm">// Create an arena backed by a heap allocation</span>
-<span class="ty">Arena</span> <span class="fn">arena_make</span>(<span class="ty">size_t</span> cap) {
-    <span class="kw">return</span> (<span class="ty">Arena</span>){ .data = <span class="fn">malloc</span>(cap), .cap = cap };
+// Create an arena backed by a heap allocation
+Arena arena_make(size_t cap) {
+    return (Arena){ .data = malloc(cap), .cap = cap };
 }
 
-<span class="cm">// Allocate n bytes, aligned to 'align' bytes (usually 8 or 16)</span>
-<span class="kw">void</span> *<span class="fn">arena_alloc</span>(<span class="ty">Arena</span> *a, <span class="ty">size_t</span> n, <span class="ty">size_t</span> align) {
-    <span class="ty">size_t</span> pos  = (a-&gt;pos + align - <span class="nu">1</span>) &amp; ~(align - <span class="nu">1</span>); <span class="cm">// align up</span>
-    <span class="ty">size_t</span> next = pos + n;
-    <span class="kw">if</span> (next &gt; a-&gt;cap) <span class="kw">return</span> <span class="kw">NULL</span>;  <span class="cm">// out of space</span>
+// Allocate n bytes, aligned to 'align' bytes (usually 8 or 16)
+void *arena_alloc(Arena *a, size_t n, size_t align) {
+    size_t pos  = (a-&gt;pos + align - 1) &amp; ~(align - 1); // align up
+    size_t next = pos + n;
+    if (next &gt; a-&gt;cap) return NULL;  // out of space
     a-&gt;pos = next;
-    <span class="kw">return</span> a-&gt;data + pos;
+    return a-&gt;data + pos;
 }
 
-<span class="cm">// Convenience macro: alloc + zero + type-safe</span>
-<span class="pp">#define ARENA_ALLOC(a, T)    ((T*)arena_alloc(a, sizeof(T),    _Alignof(T)))</span>
-<span class="pp">#define ARENA_ALLOC_N(a,T,n) ((T*)arena_alloc(a, sizeof(T)*n,  _Alignof(T)))</span>
+// Convenience macro: alloc + zero + type-safe
+#define ARENA_ALLOC(a, T)    ((T*)arena_alloc(a, sizeof(T),    _Alignof(T)))
+#define ARENA_ALLOC_N(a,T,n) ((T*)arena_alloc(a, sizeof(T)*n,  _Alignof(T)))
 
-<span class="cm">// Free ALL at once - O(1), trivial</span>
-<span class="kw">void</span> <span class="fn">arena_reset</span>(<span class="ty">Arena</span> *a)   { a-&gt;pos = <span class="nu">0</span>; }
-<span class="kw">void</span> <span class="fn">arena_destroy</span>(<span class="ty">Arena</span> *a) { <span class="fn">free</span>(a-&gt;data); *a = (<span class="ty">Arena</span>){<span class="nu">0</span>}; }
+// Free ALL at once - O(1), trivial
+void arena_reset(Arena *a)   { a-&gt;pos = 0; }
+void arena_destroy(Arena *a) { free(a-&gt;data); *a = (Arena){0}; }
 
-<span class="cm">// ── Usage ──────────────────────────────────────────────────────</span>
+// ── Usage ──────────────────────────────────────────────────────
 
-<span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; <span class="ty">int32_t</span> id; } <span class="ty">Entity</span>;
+typedef struct { float x, y; int32_t id; } Entity;
 
-<span class="kw">void</span> <span class="fn">game_frame</span>(<span class="kw">void</span>) {
-    <span class="ty">Arena</span> frame = <span class="fn">arena_make</span>(<span class="nu">4</span> * <span class="nu">1024</span> * <span class="nu">1024</span>);  <span class="cm">// 4 MB scratch</span>
+void game_frame(void) {
+    Arena frame = arena_make(4 * 1024 * 1024);  // 4 MB scratch
 
-    <span class="cm">// Allocate as much as you want - no individual frees needed</span>
-    <span class="ty">Entity</span>  *player  = <span class="fn">ARENA_ALLOC</span>(&amp;frame, <span class="ty">Entity</span>);
-    <span class="ty">Entity</span>  *enemies = <span class="fn">ARENA_ALLOC_N</span>(&amp;frame, <span class="ty">Entity</span>, <span class="nu">128</span>);
-    <span class="ty">char</span>    *buf     = <span class="fn">ARENA_ALLOC_N</span>(&amp;frame, <span class="ty">char</span>, <span class="nu">4096</span>);
+    // Allocate as much as you want - no individual frees needed
+    Entity  *player  = ARENA_ALLOC(&amp;frame, Entity);
+    Entity  *enemies = ARENA_ALLOC_N(&amp;frame, Entity, 128);
+    char    *buf     = ARENA_ALLOC_N(&amp;frame, char, 4096);
 
-    player-&gt;x = <span class="nu">100.0f</span>;
-    <span class="cm">// ... do game work ...</span>
+    player-&gt;x = 100.0f;
+    // ... do game work ...
 
-    <span class="fn">arena_destroy</span>(&amp;frame);  <span class="cm">// one free, everything gone</span>
+    arena_destroy(&amp;frame);  // one free, everything gone
 }
 
-<span class="cm">// Or for permanent + per-frame arenas:</span>
-<span class="kw">static</span> <span class="ty">Arena</span> g_perm;    <span class="cm">// program lifetime, never reset</span>
-<span class="kw">static</span> <span class="ty">Arena</span> g_frame;   <span class="cm">// reset every frame</span></code></pre>
+// Or for permanent + per-frame arenas:
+static Arena g_perm;    // program lifetime, never reset
+static Arena g_frame;   // reset every frame</code></pre>
 
       <div class="tip">Use two arenas: a <strong>permanent</strong> arena for the game's lifetime and a <strong>scratch</strong> arena you reset each frame. This eliminates almost all malloc/free bookkeeping.</div>
     </div>
@@ -2360,49 +2394,49 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
     <div class="pattern-card-body">
       <p>The <code>std::vector</code> of C: an owned array that grows on demand. The trick: a small <em>header</em> with <code>len</code> and <code>cap</code> sits just before the data. The user holds a normal <code>T*</code>, indexes it like a regular array, and metadata is reachable via <code>(header*)ptr - 1</code>. Sean Barrett's <code>stb_ds.h</code> popularized this style.</p>
 
-<pre><code><span class="pp">#include &lt;stdlib.h&gt;</span>
-<span class="pp">#include &lt;string.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">size_t</span> len;
-    <span class="ty">size_t</span> cap;
-    <span class="cm">// data follows in memory</span>
-} <span class="ty">DAHeader</span>;
+typedef struct {
+    size_t len;
+    size_t cap;
+    // data follows in memory
+} DAHeader;
 
-<span class="pp">#define da_header(a)  ((DAHeader*)((char*)(a) - sizeof(DAHeader)))
+#define da_header(a)  ((DAHeader*)((char*)(a) - sizeof(DAHeader)))
 #define da_len(a)     ((a) ? da_header(a)-&gt;len : (size_t)0)
 #define da_cap(a)     ((a) ? da_header(a)-&gt;cap : (size_t)0)
 #define da_free(a)    ((a) ? (free(da_header(a)), (a) = NULL) : 0)
 
 #define da_push(a, v)                                                \
     ((a) = da__maybe_grow((a), sizeof(*(a))),                        \
-     (a)[da_header(a)-&gt;len++] = (v))</span>
+     (a)[da_header(a)-&gt;len++] = (v))
 
-<span class="kw">static</span> <span class="kw">void</span> *<span class="fn">da__maybe_grow</span>(<span class="kw">void</span> *a, <span class="ty">size_t</span> elem_size) {
-    <span class="ty">DAHeader</span> *h = a ? <span class="fn">da_header</span>(a) : <span class="kw">NULL</span>;
-    <span class="ty">size_t</span>    cap = h ? h-&gt;cap : <span class="nu">0</span>;
-    <span class="ty">size_t</span>    len = h ? h-&gt;len : <span class="nu">0</span>;
-    <span class="kw">if</span> (len + <span class="nu">1</span> &lt;= cap) <span class="kw">return</span> a;
+static void *da__maybe_grow(void *a, size_t elem_size) {
+    DAHeader *h = a ? da_header(a) : NULL;
+    size_t    cap = h ? h-&gt;cap : 0;
+    size_t    len = h ? h-&gt;len : 0;
+    if (len + 1 &lt;= cap) return a;
 
-    <span class="ty">size_t</span> new_cap = cap ? cap * <span class="nu">2</span> : <span class="nu">8</span>;
-    h = <span class="fn">realloc</span>(h, <span class="kw">sizeof</span>(<span class="ty">DAHeader</span>) + new_cap * elem_size);
+    size_t new_cap = cap ? cap * 2 : 8;
+    h = realloc(h, sizeof(DAHeader) + new_cap * elem_size);
     h-&gt;cap = new_cap;
     h-&gt;len = len;
-    <span class="kw">return</span> (<span class="ty">char</span>*)h + <span class="kw">sizeof</span>(<span class="ty">DAHeader</span>);
+    return (char*)h + sizeof(DAHeader);
 }</code></pre>
 
       <p>Usage feels like a real array:</p>
-<pre><code><span class="ty">int32_t</span> *nums = <span class="kw">NULL</span>;          <span class="cm">// no malloc yet - NULL is the empty array</span>
+<pre><code class="language-c">int32_t *nums = NULL;          // no malloc yet - NULL is the empty array
 
-<span class="fn">da_push</span>(nums, <span class="nu">10</span>);
-<span class="fn">da_push</span>(nums, <span class="nu">20</span>);
-<span class="fn">da_push</span>(nums, <span class="nu">30</span>);
+da_push(nums, 10);
+da_push(nums, 20);
+da_push(nums, 30);
 
-<span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; <span class="fn">da_len</span>(nums); i++) {
-    <span class="fn">printf</span>(<span class="st">"%d\n"</span>, nums[i]);   <span class="cm">// straight indexing</span>
+for (size_t i = 0; i &lt; da_len(nums); i++) {
+    printf("%d\n", nums[i]);   // straight indexing
 }
 
-<span class="fn">da_free</span>(nums);                  <span class="cm">// frees both header and data</span></code></pre>
+da_free(nums);                  // frees both header and data</code></pre>
 
       <h3>Wins</h3>
       <ul class="tight">
@@ -2433,33 +2467,33 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
     <div class="pattern-card-body">
       <p>A raw pointer tells you nothing about how many items it holds. Bundle the pointer with its length into a <strong>slice</strong>. Functions pass these by value - cheap, safe, self-describing.</p>
 
-<pre><code><span class="cm">// Generic macro to define slice types</span>
-<span class="pp">#define SLICE(T) struct { T *data; size_t len; }</span>
+<pre><code class="language-c">// Generic macro to define slice types
+#define SLICE(T) struct { T *data; size_t len; }
 
-<span class="kw">typedef</span> <span class="pp">SLICE</span>(<span class="ty">int32_t</span>) <span class="ty">I32Slice</span>;
-<span class="kw">typedef</span> <span class="pp">SLICE</span>(<span class="ty">float</span>)   <span class="ty">F32Slice</span>;
+typedef SLICE(int32_t) I32Slice;
+typedef SLICE(float)   F32Slice;
 
-<span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; } <span class="ty">Vec2</span>;
-<span class="kw">typedef</span> <span class="pp">SLICE</span>(<span class="ty">Vec2</span>) <span class="ty">Vec2Slice</span>;
+typedef struct { float x, y; } Vec2;
+typedef SLICE(Vec2) Vec2Slice;
 
-<span class="cm">// Allocate a slice from an arena</span>
-<span class="ty">Vec2Slice</span> <span class="fn">make_positions</span>(<span class="ty">Arena</span> *a, <span class="ty">size_t</span> count) {
-    <span class="kw">return</span> (<span class="ty">Vec2Slice</span>){
-        .data = <span class="fn">ARENA_ALLOC_N</span>(a, <span class="ty">Vec2</span>, count),
+// Allocate a slice from an arena
+Vec2Slice make_positions(Arena *a, size_t count) {
+    return (Vec2Slice){
+        .data = ARENA_ALLOC_N(a, Vec2, count),
         .len  = count,
     };
 }
 
-<span class="cm">// Iterate safely - no out-of-bounds by accident</span>
-<span class="kw">void</span> <span class="fn">print_positions</span>(<span class="ty">Vec2Slice</span> s) {
-    <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; s.len; i++) {
-        <span class="fn">printf</span>(<span class="st">"(%.2f, %.2f)\n"</span>, s.data[i].x, s.data[i].y);
+// Iterate safely - no out-of-bounds by accident
+void print_positions(Vec2Slice s) {
+    for (size_t i = 0; i &lt; s.len; i++) {
+        printf("(%.2f, %.2f)\n", s.data[i].x, s.data[i].y);
     }
 }
 
-<span class="cm">// Get a sub-slice - no copy, no alloc</span>
-<span class="ty">Vec2Slice</span> <span class="fn">slice_range</span>(<span class="ty">Vec2Slice</span> s, <span class="ty">size_t</span> start, <span class="ty">size_t</span> end) {
-    <span class="kw">return</span> (<span class="ty">Vec2Slice</span>){ s.data + start, end - start };
+// Get a sub-slice - no copy, no alloc
+Vec2Slice slice_range(Vec2Slice s, size_t start, size_t end) {
+    return (Vec2Slice){ s.data + start, end - start };
 }</code></pre>
     </div>
   </div>
@@ -2475,51 +2509,51 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
     <div class="pattern-card-body">
       <p>Instead of pointers to heap-allocated objects (bad for cache, fragmentation, dangling pointers), store all objects in a flat array and hand out <strong>integer handles</strong>. Handles can be validated, versioned, and never dangle.</p>
 
-<pre><code><span class="pp">#define MAX_ENTITIES 1024</span>
+<pre><code class="language-c">#define MAX_ENTITIES 1024
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">float</span>   x, y;
-    <span class="ty">float</span>   speed;
-    <span class="ty">bool</span>    active;
-    <span class="ty">uint32_t</span> generation;  <span class="cm">// version counter</span>
-} <span class="ty">Entity</span>;
+typedef struct {
+    float   x, y;
+    float   speed;
+    bool    active;
+    uint32_t generation;  // version counter
+} Entity;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">uint32_t</span> index;
-    <span class="ty">uint32_t</span> generation;  <span class="cm">// must match slot's generation</span>
-} <span class="ty">EntityHandle</span>;
+typedef struct {
+    uint32_t index;
+    uint32_t generation;  // must match slot's generation
+} EntityHandle;
 
-<span class="kw">static</span> <span class="ty">Entity</span>   g_entities[<span class="pp">MAX_ENTITIES</span>];
-<span class="kw">static</span> <span class="ty">uint32_t</span> g_count = <span class="nu">0</span>;
+static Entity   g_entities[MAX_ENTITIES];
+static uint32_t g_count = 0;
 
-<span class="ty">EntityHandle</span> <span class="fn">entity_create</span>(<span class="kw">void</span>) {
-    <span class="kw">for</span> (<span class="ty">uint32_t</span> i = <span class="nu">0</span>; i &lt; <span class="pp">MAX_ENTITIES</span>; i++) {
-        <span class="kw">if</span> (!g_entities[i].active) {
-            g_entities[i].active = <span class="kw">true</span>;
+EntityHandle entity_create(void) {
+    for (uint32_t i = 0; i &lt; MAX_ENTITIES; i++) {
+        if (!g_entities[i].active) {
+            g_entities[i].active = true;
             g_entities[i].generation++;
-            <span class="kw">return</span> (<span class="ty">EntityHandle</span>){ i, g_entities[i].generation };
+            return (EntityHandle){ i, g_entities[i].generation };
         }
     }
-    <span class="kw">return</span> (<span class="ty">EntityHandle</span>){ <span class="nu">0</span>, <span class="nu">0</span> }; <span class="cm">// null handle</span>
+    return (EntityHandle){ 0, 0 }; // null handle
 }
 
-<span class="cm">// Returns NULL if handle is stale or invalid</span>
-<span class="ty">Entity</span> *<span class="fn">entity_get</span>(<span class="ty">EntityHandle</span> h) {
-    <span class="kw">if</span> (h.index &gt;= <span class="pp">MAX_ENTITIES</span>) <span class="kw">return</span> <span class="kw">NULL</span>;
-    <span class="ty">Entity</span> *e = &amp;g_entities[h.index];
-    <span class="kw">if</span> (!e-&gt;active || e-&gt;generation != h.generation) <span class="kw">return</span> <span class="kw">NULL</span>;
-    <span class="kw">return</span> e;
+// Returns NULL if handle is stale or invalid
+Entity *entity_get(EntityHandle h) {
+    if (h.index &gt;= MAX_ENTITIES) return NULL;
+    Entity *e = &amp;g_entities[h.index];
+    if (!e-&gt;active || e-&gt;generation != h.generation) return NULL;
+    return e;
 }
 
-<span class="kw">void</span> <span class="fn">entity_destroy</span>(<span class="ty">EntityHandle</span> h) {
-    <span class="ty">Entity</span> *e = <span class="fn">entity_get</span>(h);
-    <span class="kw">if</span> (e) { *e = (<span class="ty">Entity</span>){<span class="nu">0</span>}; }  <span class="cm">// zero = inactive</span>
+void entity_destroy(EntityHandle h) {
+    Entity *e = entity_get(h);
+    if (e) { *e = (Entity){0}; }  // zero = inactive
 }
 
-<span class="cm">// Update all - tight loop, cache-friendly</span>
-<span class="kw">void</span> <span class="fn">entities_update</span>(<span class="ty">float</span> dt) {
-    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i &lt; <span class="pp">MAX_ENTITIES</span>; i++) {
-        <span class="kw">if</span> (!g_entities[i].active) <span class="kw">continue</span>;
+// Update all - tight loop, cache-friendly
+void entities_update(float dt) {
+    for (int i = 0; i &lt; MAX_ENTITIES; i++) {
+        if (!g_entities[i].active) continue;
         g_entities[i].x += g_entities[i].speed * dt;
     }
 }</code></pre>
@@ -2539,81 +2573,81 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
     <div class="pattern-card-body">
       <p>The second-most-used data structure after the dynamic array. Open addressing with linear probing on a power-of-two capacity is what most production C code uses: cache-friendly, branchless lookup in the hot path, no per-entry allocation.</p>
 
-<pre><code><span class="pp">#include &lt;stdint.h&gt;</span>
-<span class="pp">#include &lt;stdlib.h&gt;</span>
-<span class="pp">#include &lt;string.h&gt;</span>
+<pre><code class="language-c">#include &lt;stdint.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">uint64_t</span> key;       <span class="cm">// 0 = empty, anything else = present</span>
-    <span class="ty">uint64_t</span> val;
-} <span class="ty">MapEntry</span>;
+typedef struct {
+    uint64_t key;       // 0 = empty, anything else = present
+    uint64_t val;
+} MapEntry;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">MapEntry</span> *entries;
-    <span class="ty">size_t</span>    cap;       <span class="cm">// always a power of two</span>
-    <span class="ty">size_t</span>    len;
-} <span class="ty">Map</span>;
+typedef struct {
+    MapEntry *entries;
+    size_t    cap;       // always a power of two
+    size_t    len;
+} Map;
 
-<span class="cm">// Mix bits so adjacent keys don't all land in the same bucket</span>
-<span class="kw">static</span> <span class="kw">inline</span> <span class="ty">uint64_t</span> <span class="fn">mix</span>(<span class="ty">uint64_t</span> x) {
-    x ^= x &gt;&gt; <span class="nu">33</span>;
-    x *= <span class="nu">0xff51afd7ed558ccdULL</span>;
-    x ^= x &gt;&gt; <span class="nu">33</span>;
-    x *= <span class="nu">0xc4ceb9fe1a85ec53ULL</span>;
-    x ^= x &gt;&gt; <span class="nu">33</span>;
-    <span class="kw">return</span> x;
+// Mix bits so adjacent keys don't all land in the same bucket
+static inline uint64_t mix(uint64_t x) {
+    x ^= x &gt;&gt; 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x &gt;&gt; 33;
+    x *= 0xc4ceb9fe1a85ec53ULL;
+    x ^= x &gt;&gt; 33;
+    return x;
 }
 
-<span class="kw">void</span> <span class="fn">map_init</span>(<span class="ty">Map</span> *m, <span class="ty">size_t</span> cap_pow2) {
-    m-&gt;entries = <span class="fn">calloc</span>(cap_pow2, <span class="kw">sizeof</span>(<span class="ty">MapEntry</span>));
+void map_init(Map *m, size_t cap_pow2) {
+    m-&gt;entries = calloc(cap_pow2, sizeof(MapEntry));
     m-&gt;cap     = cap_pow2;
-    m-&gt;len     = <span class="nu">0</span>;
+    m-&gt;len     = 0;
 }
 
-<span class="kw">static</span> <span class="ty">size_t</span> <span class="fn">map_probe</span>(<span class="kw">const</span> <span class="ty">Map</span> *m, <span class="ty">uint64_t</span> key) {
-    <span class="ty">size_t</span> mask = m-&gt;cap - <span class="nu">1</span>;     <span class="cm">// pow2 capacity -&gt; mask is cheap modulo</span>
-    <span class="ty">size_t</span> i = <span class="fn">mix</span>(key) &amp; mask;
-    <span class="kw">while</span> (m-&gt;entries[i].key != <span class="nu">0</span> &amp;&amp; m-&gt;entries[i].key != key) {
-        i = (i + <span class="nu">1</span>) &amp; mask;       <span class="cm">// linear probe</span>
+static size_t map_probe(const Map *m, uint64_t key) {
+    size_t mask = m-&gt;cap - 1;     // pow2 capacity -&gt; mask is cheap modulo
+    size_t i = mix(key) &amp; mask;
+    while (m-&gt;entries[i].key != 0 &amp;&amp; m-&gt;entries[i].key != key) {
+        i = (i + 1) &amp; mask;       // linear probe
     }
-    <span class="kw">return</span> i;
+    return i;
 }
 
-<span class="kw">void</span> <span class="fn">map_put</span>(<span class="ty">Map</span> *m, <span class="ty">uint64_t</span> key, <span class="ty">uint64_t</span> val) {
-    <span class="cm">// 0 is the sentinel "empty" value - real users wrap or remap key==0</span>
-    <span class="kw">if</span> ((m-&gt;len + <span class="nu">1</span>) * <span class="nu">2</span> &gt; m-&gt;cap) <span class="fn">map_grow</span>(m);
-    <span class="ty">size_t</span> i = <span class="fn">map_probe</span>(m, key);
-    <span class="kw">if</span> (m-&gt;entries[i].key == <span class="nu">0</span>) m-&gt;len++;
-    m-&gt;entries[i] = (<span class="ty">MapEntry</span>){ key, val };
+void map_put(Map *m, uint64_t key, uint64_t val) {
+    // 0 is the sentinel "empty" value - real users wrap or remap key==0
+    if ((m-&gt;len + 1) * 2 &gt; m-&gt;cap) map_grow(m);
+    size_t i = map_probe(m, key);
+    if (m-&gt;entries[i].key == 0) m-&gt;len++;
+    m-&gt;entries[i] = (MapEntry){ key, val };
 }
 
-<span class="ty">int</span> <span class="fn">map_get</span>(<span class="kw">const</span> <span class="ty">Map</span> *m, <span class="ty">uint64_t</span> key, <span class="ty">uint64_t</span> *out) {
-    <span class="ty">size_t</span> i = <span class="fn">map_probe</span>(m, key);
-    <span class="kw">if</span> (m-&gt;entries[i].key != key) <span class="kw">return</span> <span class="nu">0</span>;
+int map_get(const Map *m, uint64_t key, uint64_t *out) {
+    size_t i = map_probe(m, key);
+    if (m-&gt;entries[i].key != key) return 0;
     *out = m-&gt;entries[i].val;
-    <span class="kw">return</span> <span class="nu">1</span>;
+    return 1;
 }
 
-<span class="kw">void</span> <span class="fn">map_grow</span>(<span class="ty">Map</span> *m) {
-    <span class="ty">Map</span> bigger = {<span class="nu">0</span>};
-    <span class="fn">map_init</span>(&amp;bigger, m-&gt;cap * <span class="nu">2</span>);
-    <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; m-&gt;cap; i++) {
-        <span class="kw">if</span> (m-&gt;entries[i].key) <span class="fn">map_put</span>(&amp;bigger, m-&gt;entries[i].key, m-&gt;entries[i].val);
+void map_grow(Map *m) {
+    Map bigger = {0};
+    map_init(&amp;bigger, m-&gt;cap * 2);
+    for (size_t i = 0; i &lt; m-&gt;cap; i++) {
+        if (m-&gt;entries[i].key) map_put(&amp;bigger, m-&gt;entries[i].key, m-&gt;entries[i].val);
     }
-    <span class="fn">free</span>(m-&gt;entries);
+    free(m-&gt;entries);
     *m = bigger;
 }</code></pre>
 
       <p>Usage:</p>
-<pre><code><span class="ty">Map</span> m;
-<span class="fn">map_init</span>(&amp;m, <span class="nu">16</span>);          <span class="cm">// must be power of 2</span>
-<span class="fn">map_put</span>(&amp;m, <span class="nu">42</span>, <span class="nu">100</span>);
-<span class="fn">map_put</span>(&amp;m, <span class="nu">99</span>, <span class="nu">200</span>);
+<pre><code class="language-c">Map m;
+map_init(&amp;m, 16);          // must be power of 2
+map_put(&amp;m, 42, 100);
+map_put(&amp;m, 99, 200);
 
-<span class="ty">uint64_t</span> v;
-<span class="kw">if</span> (<span class="fn">map_get</span>(&amp;m, <span class="nu">42</span>, &amp;v)) <span class="fn">printf</span>(<span class="st">"%llu\n"</span>, v);
+uint64_t v;
+if (map_get(&amp;m, 42, &amp;v)) printf("%llu\n", v);
 
-<span class="fn">free</span>(m.entries);</code></pre>
+free(m.entries);</code></pre>
 
       <h3>Wins</h3>
       <ul class="tight">
@@ -2655,24 +2689,24 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
         <li>Pointers can't be serialized. ASLR randomizes addresses on every run; indexes are stable across processes.</li>
       </ul>
 
-<pre><code><span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; } <span class="ty">Vec2</span>;
-<span class="kw">typedef struct</span> { <span class="ty">Vec2</span> *data; <span class="ty">size_t</span> len, cap; } <span class="ty">Vec2Arr</span>;
+<pre><code class="language-c">typedef struct { float x, y; } Vec2;
+typedef struct { Vec2 *data; size_t len, cap; } Vec2Arr;
 
-<span class="kw">static</span> <span class="ty">Vec2</span> g_zero = {<span class="nu">0</span>};
+static Vec2 g_zero = {0};
 
-<span class="ty">Vec2</span> *<span class="fn">vec2arr_get</span>(<span class="ty">Vec2Arr</span> *a, <span class="ty">size_t</span> i) {
-    <span class="kw">if</span> (i &gt;= a-&gt;len) {
-        <span class="cm">// breakpoint here in dev; logs/crashes catch the bug</span>
-        <span class="kw">return</span> &amp;g_zero;
+Vec2 *vec2arr_get(Vec2Arr *a, size_t i) {
+    if (i &gt;= a-&gt;len) {
+        // breakpoint here in dev; logs/crashes catch the bug
+        return &amp;g_zero;
     }
-    <span class="kw">return</span> &amp;a-&gt;data[i];
+    return &amp;a-&gt;data[i];
 }
 
-<span class="cm">// Reference by index instead of pointer</span>
-<span class="kw">typedef struct</span> {
-    <span class="ty">uint32_t</span> owner_idx;       <span class="cm">// index into player array</span>
-    <span class="ty">uint32_t</span> target_idx;      <span class="cm">// index into enemy array</span>
-} <span class="ty">Bullet</span>;</code></pre>
+// Reference by index instead of pointer
+typedef struct {
+    uint32_t owner_idx;       // index into player array
+    uint32_t target_idx;      // index into enemy array
+} Bullet;</code></pre>
 
       <h3>Generational indexes</h3>
       <p>For safe deletion, pair the index with a generation counter (see the <em>Handle Arrays</em> pattern). Stale handles return <code>NULL</code> instead of dangling.</p>
@@ -2698,36 +2732,36 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
     <div class="pattern-card-body">
       <p>C has no exceptions. The modern pattern is to return a <strong>result type</strong> - a struct containing either a value or an error.</p>
 
-<pre><code><span class="kw">typedef enum</span> {
-    <span class="ty">ERR_OK</span>       = <span class="nu">0</span>,
-    <span class="ty">ERR_OOM</span>,      <span class="cm">// out of memory</span>
-    <span class="ty">ERR_NOT_FOUND</span>,
-    <span class="ty">ERR_INVALID</span>,
-} <span class="ty">Error</span>;
+<pre><code class="language-c">typedef enum {
+    ERR_OK       = 0,
+    ERR_OOM,      // out of memory
+    ERR_NOT_FOUND,
+    ERR_INVALID,
+} Error;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">int32_t</span> value;
-    <span class="ty">Error</span>   err;
-} <span class="ty">I32Result</span>;
+typedef struct {
+    int32_t value;
+    Error   err;
+} I32Result;
 
-<span class="cm">// Constructor helpers</span>
-<span class="kw">static inline</span> <span class="ty">I32Result</span> <span class="fn">i32_ok</span>(<span class="ty">int32_t</span> v) { <span class="kw">return</span> (<span class="ty">I32Result</span>){v, <span class="ty">ERR_OK</span>}; }
-<span class="kw">static inline</span> <span class="ty">I32Result</span> <span class="fn">i32_err</span>(<span class="ty">Error</span> e) { <span class="kw">return</span> (<span class="ty">I32Result</span>){<span class="nu">0</span>, e}; }
+// Constructor helpers
+static inline I32Result i32_ok(int32_t v) { return (I32Result){v, ERR_OK}; }
+static inline I32Result i32_err(Error e) { return (I32Result){0, e}; }
 
-<span class="ty">I32Result</span> <span class="fn">parse_int</span>(<span class="kw">const</span> <span class="ty">char</span> *s) {
-    <span class="kw">if</span> (!s || !*s) <span class="kw">return</span> <span class="fn">i32_err</span>(<span class="ty">ERR_INVALID</span>);
-    <span class="ty">char</span> *end;
-    <span class="ty">long</span> v = <span class="fn">strtol</span>(s, &amp;end, <span class="nu">10</span>);
-    <span class="kw">if</span> (*end != <span class="st">'\0'</span>) <span class="kw">return</span> <span class="fn">i32_err</span>(<span class="ty">ERR_INVALID</span>);
-    <span class="kw">return</span> <span class="fn">i32_ok</span>((<span class="ty">int32_t</span>)v);
+I32Result parse_int(const char *s) {
+    if (!s || !*s) return i32_err(ERR_INVALID);
+    char *end;
+    long v = strtol(s, &amp;end, 10);
+    if (*end != '\0') return i32_err(ERR_INVALID);
+    return i32_ok((int32_t)v);
 }
 
-<span class="cm">// Usage - you MUST check before using the value</span>
-<span class="ty">I32Result</span> r = <span class="fn">parse_int</span>(<span class="st">"123"</span>);
-<span class="kw">if</span> (r.err) {
-    <span class="fn">fprintf</span>(stderr, <span class="st">"parse failed: %d\n"</span>, r.err);
-} <span class="kw">else</span> {
-    <span class="fn">printf</span>(<span class="st">"got: %d\n"</span>, r.value);
+// Usage - you MUST check before using the value
+I32Result r = parse_int("123");
+if (r.err) {
+    fprintf(stderr, "parse failed: %d\n", r.err);
+} else {
+    printf("got: %d\n", r.value);
 }</code></pre>
 
       <div class="tip">For simple functions, returning <code>NULL</code> on failure is fine. Reserve result types for places where you need to distinguish <em>why</em> something failed.</div>
@@ -2745,30 +2779,30 @@ clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
     <div class="pattern-card-body">
       <p>When a function acquires multiple resources, the <code>goto cleanup</code> pattern gives you structured cleanup without nesting hell. It's the idiomatic C way to get Go/Zig-style <code>defer</code>.</p>
 
-<pre><code><span class="ty">int32_t</span> <span class="fn">load_and_process</span>(<span class="kw">const</span> <span class="ty">char</span> *path) {
-    <span class="ty">int32_t</span>  result = -<span class="nu">1</span>;
-    <span class="ty">FILE</span>    *f      = <span class="kw">NULL</span>;
-    <span class="ty">uint8_t</span> *buf    = <span class="kw">NULL</span>;
+<pre><code class="language-c">int32_t load_and_process(const char *path) {
+    int32_t  result = -1;
+    FILE    *f      = NULL;
+    uint8_t *buf    = NULL;
 
-    f = <span class="fn">fopen</span>(path, <span class="st">"rb"</span>);
-    <span class="kw">if</span> (!f) <span class="kw">goto</span> cleanup;
+    f = fopen(path, "rb");
+    if (!f) goto cleanup;
 
-    buf = <span class="fn">malloc</span>(<span class="nu">4096</span>);
-    <span class="kw">if</span> (!buf) <span class="kw">goto</span> cleanup;
+    buf = malloc(4096);
+    if (!buf) goto cleanup;
 
-    <span class="ty">size_t</span> n = <span class="fn">fread</span>(buf, <span class="nu">1</span>, <span class="nu">4096</span>, f);
-    <span class="kw">if</span> (n == <span class="nu">0</span>) <span class="kw">goto</span> cleanup;
+    size_t n = fread(buf, 1, 4096, f);
+    if (n == 0) goto cleanup;
 
-    <span class="cm">// ... process buf ...</span>
-    result = (<span class="ty">int32_t</span>)n;  <span class="cm">// success</span>
+    // ... process buf ...
+    result = (int32_t)n;  // success
 
 cleanup:
-    <span class="fn">free</span>(buf);    <span class="cm">// free(NULL) is safe in C</span>
-    <span class="kw">if</span> (f) <span class="fn">fclose</span>(f);
-    <span class="kw">return</span> result;
+    free(buf);    // free(NULL) is safe in C
+    if (f) fclose(f);
+    return result;
 }
-<span class="cm">// No matter how we exit, cleanup always runs.</span>
-<span class="cm">// No nested ifs. No leaked resources.</span></code></pre>
+// No matter how we exit, cleanup always runs.
+// No nested ifs. No leaked resources.</code></pre>
 
       <div class="rule">Always initialize resources to <code>NULL</code> at the top. <code>free(NULL)</code> is a no-op in C, so your cleanup block is always safe to call unconditionally.</div>
     </div>
@@ -2785,54 +2819,54 @@ cleanup:
     <div class="pattern-card-body">
       <p>Production code needs leveled logging that compiles out below a chosen threshold. The whole pattern fits in one short header. Anything bigger and you're paying for a feature you almost certainly don't need.</p>
 
-<pre><code><span class="cm">// log.h</span>
-<span class="pp">#pragma once</span>
-<span class="pp">#include &lt;stdio.h&gt;</span>
-<span class="pp">#include &lt;time.h&gt;</span>
+<pre><code class="language-c">// log.h
+#pragma once
+#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
 
-<span class="kw">enum</span> { <span class="ty">LOG_TRACE</span>, <span class="ty">LOG_DEBUG</span>, <span class="ty">LOG_INFO</span>, <span class="ty">LOG_WARN</span>, <span class="ty">LOG_ERROR</span>, <span class="ty">LOG_OFF</span> };
+enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_OFF };
 
-<span class="cm">// Compile-time threshold - everything below disappears in release.</span>
-<span class="pp">#ifndef LOG_LEVEL
+// Compile-time threshold - everything below disappears in release.
+#ifndef LOG_LEVEL
 #  ifdef NDEBUG
 #    define LOG_LEVEL LOG_INFO
 #  else
 #    define LOG_LEVEL LOG_DEBUG
 #  endif
-#endif</span>
+#endif
 
-<span class="kw">static</span> <span class="kw">inline</span> <span class="kw">void</span> <span class="fn">log_emit</span>(<span class="ty">int</span> level, <span class="kw">const</span> <span class="ty">char</span> *file, <span class="ty">int</span> line,
-                            <span class="kw">const</span> <span class="ty">char</span> *fmt, ...) {
-    <span class="kw">static</span> <span class="kw">const</span> <span class="ty">char</span> *labels[] = {<span class="st">"TRC"</span>,<span class="st">"DBG"</span>,<span class="st">"INF"</span>,<span class="st">"WRN"</span>,<span class="st">"ERR"</span>};
-    <span class="kw">struct</span> <span class="ty">timespec</span> ts;
-    <span class="fn">clock_gettime</span>(CLOCK_REALTIME, &amp;ts);
-    <span class="fn">fprintf</span>(stderr, <span class="st">"%lld.%03ld %s %s:%d "</span>,
-        (<span class="kw">long long</span>)ts.tv_sec, ts.tv_nsec / <span class="nu">1000000</span>,
+static inline void log_emit(int level, const char *file, int line,
+                            const char *fmt, ...) {
+    static const char *labels[] = {"TRC","DBG","INF","WRN","ERR"};
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &amp;ts);
+    fprintf(stderr, "%lld.%03ld %s %s:%d ",
+        (long long)ts.tv_sec, ts.tv_nsec / 1000000,
         labels[level], file, line);
 
-    <span class="ty">va_list</span> ap;
-    <span class="fn">va_start</span>(ap, fmt);
-    <span class="fn">vfprintf</span>(stderr, fmt, ap);
-    <span class="fn">va_end</span>(ap);
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
 
-    <span class="fn">fputc</span>(<span class="st">'\n'</span>, stderr);
+    fputc('\n', stderr);
 }
 
-<span class="pp">#define LOG_AT(lv, ...) \
+#define LOG_AT(lv, ...) \
     do { if ((lv) &gt;= LOG_LEVEL) log_emit((lv), __FILE__, __LINE__, __VA_ARGS__); } while (0)
 
 #define LOG_TRACE(...) LOG_AT(LOG_TRACE, __VA_ARGS__)
 #define LOG_DEBUG(...) LOG_AT(LOG_DEBUG, __VA_ARGS__)
 #define LOG_INFO(...)  LOG_AT(LOG_INFO,  __VA_ARGS__)
 #define LOG_WARN(...)  LOG_AT(LOG_WARN,  __VA_ARGS__)
-#define LOG_ERROR(...) LOG_AT(LOG_ERROR, __VA_ARGS__)</span></code></pre>
+#define LOG_ERROR(...) LOG_AT(LOG_ERROR, __VA_ARGS__)</code></pre>
 
       <p>Usage:</p>
-<pre><code><span class="fn">LOG_INFO</span>(<span class="st">"server listening on port %d"</span>, port);
-<span class="fn">LOG_WARN</span>(<span class="st">"slow request %.2f ms from %s"</span>, ms, addr);
-<span class="fn">LOG_ERROR</span>(<span class="st">"open %s: %s"</span>, path, <span class="fn">strerror</span>(errno));
+<pre><code class="language-c">LOG_INFO("server listening on port %d", port);
+LOG_WARN("slow request %.2f ms from %s", ms, addr);
+LOG_ERROR("open %s: %s", path, strerror(errno));
 
-<span class="cm">// Build with -DLOG_LEVEL=LOG_WARN to silence INFO and below.</span></code></pre>
+// Build with -DLOG_LEVEL=LOG_WARN to silence INFO and below.</code></pre>
 
       <h3>Wins</h3>
       <ul class="tight">
@@ -2843,15 +2877,15 @@ cleanup:
       </ul>
 
       <h3>Multi-threaded</h3>
-<pre><code><span class="cm">// Add a single mutex around the whole emit. stderr is line-buffered by</span>
-<span class="cm">// default, so individual lines stay intact, but interleaving across</span>
-<span class="cm">// fields is possible without the lock.</span>
-<span class="kw">static</span> <span class="ty">pthread_mutex_t</span> g_log_mu = PTHREAD_MUTEX_INITIALIZER;
+<pre><code class="language-c">// Add a single mutex around the whole emit. stderr is line-buffered by
+// default, so individual lines stay intact, but interleaving across
+// fields is possible without the lock.
+static pthread_mutex_t g_log_mu = PTHREAD_MUTEX_INITIALIZER;
 
-<span class="kw">static</span> <span class="kw">inline</span> <span class="kw">void</span> <span class="fn">log_emit</span>(...) {
-    <span class="fn">pthread_mutex_lock</span>(&amp;g_log_mu);
-    <span class="cm">// ... existing body ...</span>
-    <span class="fn">pthread_mutex_unlock</span>(&amp;g_log_mu);
+static inline void log_emit(...) {
+    pthread_mutex_lock(&amp;g_log_mu);
+    // ... existing body ...
+    pthread_mutex_unlock(&amp;g_log_mu);
 }</code></pre>
 
       <div class="warn">Do not call <code>LOG_*</code> from a signal handler. <code>vfprintf</code>, <code>fprintf</code>, <code>clock_gettime</code> are not async-signal-safe. Set a flag in the handler and let the main loop log.</div>
@@ -2871,30 +2905,30 @@ cleanup:
     <div class="pattern-card-body">
       <p>A fuzzer feeds random byte sequences to a function in a tight loop, watching for sanitizer trips and crashes. Five extra lines around an existing parser turns it into a fuzz target. This is the highest-leverage testing you can write for any code that ingests untrusted input.</p>
 
-<pre><code><span class="cm">// fuzz_target.c</span>
-<span class="pp">#include &lt;stdint.h&gt;</span>
-<span class="pp">#include &lt;stddef.h&gt;</span>
-<span class="pp">#include "parser.h"</span>
+<pre><code class="language-c">// fuzz_target.c
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
+#include "parser.h"
 
-<span class="cm">// libFuzzer entry point. Returning 0 means "input was processed";</span>
-<span class="cm">// crashes / sanitizer trips are surfaced by the harness.</span>
-<span class="ty">int</span> <span class="fn">LLVMFuzzerTestOneInput</span>(<span class="kw">const</span> <span class="ty">uint8_t</span> *data, <span class="ty">size_t</span> size) {
-    <span class="ty">Parsed</span> p;
-    <span class="kw">if</span> (<span class="fn">parse</span>(data, size, &amp;p) == <span class="ty">PARSE_OK</span>) {
-        <span class="fn">parsed_free</span>(&amp;p);
+// libFuzzer entry point. Returning 0 means "input was processed";
+// crashes / sanitizer trips are surfaced by the harness.
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    Parsed p;
+    if (parse(data, size, &amp;p) == PARSE_OK) {
+        parsed_free(&amp;p);
     }
-    <span class="kw">return</span> <span class="nu">0</span>;
+    return 0;
 }</code></pre>
 
       <h3>Build and run</h3>
-<pre><code>clang -g -O1 -fsanitize=fuzzer,address,undefined \
+<pre><code class="language-bash">clang -g -O1 -fsanitize=fuzzer,address,undefined \
       fuzz_target.c parser.c -o fuzz
 
 mkdir -p corpus crashes
-./fuzz corpus/ -max_total_time=<span class="nu">60</span>            <span class="cm"># 60 s campaign</span>
-./fuzz corpus/ -max_total_time=<span class="nu">3600</span> -jobs=<span class="nu">4</span>   <span class="cm"># overnight + 4 cores</span>
+./fuzz corpus/ -max_total_time=60            # 60 s campaign
+./fuzz corpus/ -max_total_time=3600 -jobs=4   # overnight + 4 cores
 
-<span class="cm"># Reproduce a saved crash deterministically:</span>
+# Reproduce a saved crash deterministically:
 ./fuzz crashes/crash-abc123</code></pre>
 
       <p>The fuzzer instruments coverage at compile time, generates random inputs, and minimizes any crashing input down to the smallest reproducer it can find. Drop the corpus into your CI as a regression suite.</p>
@@ -2916,21 +2950,21 @@ mkdir -p corpus crashes
       </ol>
 
       <h3>Properties beyond "doesn't crash"</h3>
-<pre><code><span class="ty">int</span> <span class="fn">LLVMFuzzerTestOneInput</span>(<span class="kw">const</span> <span class="ty">uint8_t</span> *data, <span class="ty">size_t</span> size) {
-    <span class="ty">Parsed</span> p;
-    <span class="kw">if</span> (<span class="fn">parse</span>(data, size, &amp;p) != <span class="ty">PARSE_OK</span>) <span class="kw">return</span> <span class="nu">0</span>;
+<pre><code class="language-c">int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    Parsed p;
+    if (parse(data, size, &amp;p) != PARSE_OK) return 0;
 
-    <span class="cm">// Round-trip property: parse -&gt; serialize -&gt; parse must give same result</span>
-    <span class="ty">uint8_t</span> *re;
-    <span class="ty">size_t</span>  re_len;
-    <span class="fn">serialize</span>(&amp;p, &amp;re, &amp;re_len);
+    // Round-trip property: parse -&gt; serialize -&gt; parse must give same result
+    uint8_t *re;
+    size_t  re_len;
+    serialize(&amp;p, &amp;re, &amp;re_len);
 
-    <span class="ty">Parsed</span> q;
-    <span class="kw">int</span> ok = <span class="fn">parse</span>(re, re_len, &amp;q) == <span class="ty">PARSE_OK</span> &amp;&amp; <span class="fn">parsed_eq</span>(&amp;p, &amp;q);
-    <span class="fn">assert</span>(ok);   <span class="cm">// fuzzer treats assert failures as crashes</span>
+    Parsed q;
+    int ok = parse(re, re_len, &amp;q) == PARSE_OK &amp;&amp; parsed_eq(&amp;p, &amp;q);
+    assert(ok);   // fuzzer treats assert failures as crashes
 
-    <span class="fn">free</span>(re); <span class="fn">parsed_free</span>(&amp;p); <span class="fn">parsed_free</span>(&amp;q);
-    <span class="kw">return</span> <span class="nu">0</span>;
+    free(re); parsed_free(&amp;p); parsed_free(&amp;q);
+    return 0;
 }</code></pre>
 
       <div class="tip">If clang's libFuzzer isn't an option, AFL++ takes the same harness with a tiny shim - the function name changes but the body is identical. Both fuzzers feed bytes to a function and expect a non-crashing return; everything else is plumbing.</div>
@@ -2951,20 +2985,20 @@ mkdir -p corpus crashes
       <p>A worked example from Nic Barker's CPU performance talk. Start with a typical OO enemy update loop. Apply twelve mechanical changes. End up ~40x faster. Each step is small. The cumulative effect is large because cache pressure makes the gains <em>multiplicative</em>, not additive.</p>
 
       <h3>Baseline (slow)</h3>
-<pre><code><span class="cm">// What you'd write in your first year of programming</span>
-<span class="kw">class</span> <span class="ty">Enemy</span> {
-    <span class="ty">bool</span>           dead;
-    <span class="ty">string</span>         id;
-    <span class="ty">bool</span>           frenzy;
-    <span class="ty">function</span>       onDeath;     <span class="cm">// callback / delegate</span>
+<pre><code class="language-c">// What you'd write in your first year of programming
+class Enemy {
+    bool           dead;
+    string         id;
+    bool           frenzy;
+    function       onDeath;     // callback / delegate
 
-    <span class="kw">void</span> <span class="fn">Update</span>(<span class="ty">float</span> dt) {
-        <span class="kw">if</span> (dead) { <span class="fn">onDeath</span>(id); <span class="kw">return</span>; }
-        <span class="kw">if</span> (frenzy || <span class="fn">config</span>.global_frenzy) { <span class="cm">/* fast path */</span> }
-        <span class="kw">else</span> { <span class="cm">/* normal path */</span> }
+    void Update(float dt) {
+        if (dead) { onDeath(id); return; }
+        if (frenzy || config.global_frenzy) { /* fast path */ }
+        else { /* normal path */ }
     }
 }
-<span class="cm">// foreach (e in enemies) e.Update(dt);    // ~309 ms baseline</span></code></pre>
+// foreach (e in enemies) e.Update(dt);    // ~309 ms baseline</code></pre>
 
       <h3>Twelve mechanical optimizations</h3>
       <table>
@@ -2986,27 +3020,27 @@ mkdir -p corpus crashes
       </table>
 
       <h3>Final code</h3>
-<pre><code><span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; <span class="ty">uint32_t</span> id; } <span class="ty">Enemy</span>;
+<pre><code class="language-c">typedef struct { float x, y; uint32_t id; } Enemy;
 
-<span class="kw">typedef struct</span> {
-    <span class="ty">Enemy</span> *data;
-    <span class="ty">size_t</span> len, cap;
-} <span class="ty">EnemyArray</span>;
+typedef struct {
+    Enemy *data;
+    size_t len, cap;
+} EnemyArray;
 
-<span class="kw">void</span> <span class="fn">update_normals</span>(<span class="ty">EnemyArray</span> *e, <span class="ty">float</span> dt) {
-    <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; e-&gt;len; i++) {
-        e-&gt;data[i].x += <span class="nu">1.0f</span> * dt;   <span class="cm">// no branch, no callback, no alloc</span>
+void update_normals(EnemyArray *e, float dt) {
+    for (size_t i = 0; i &lt; e-&gt;len; i++) {
+        e-&gt;data[i].x += 1.0f * dt;   // no branch, no callback, no alloc
     }
 }
 
-<span class="kw">void</span> <span class="fn">update_frenzies</span>(<span class="ty">EnemyArray</span> *e, <span class="ty">float</span> dt) {
-    <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; e-&gt;len; i++) {
-        e-&gt;data[i].x += <span class="nu">3.0f</span> * dt;
+void update_frenzies(EnemyArray *e, float dt) {
+    for (size_t i = 0; i &lt; e-&gt;len; i++) {
+        e-&gt;data[i].x += 3.0f * dt;
     }
 }
 
-<span class="cm">// Swap-back deletion - O(1), order not preserved</span>
-<span class="kw">void</span> <span class="fn">enemy_remove</span>(<span class="ty">EnemyArray</span> *e, <span class="ty">size_t</span> i) {
+// Swap-back deletion - O(1), order not preserved
+void enemy_remove(EnemyArray *e, size_t i) {
     e-&gt;data[i] = e-&gt;data[--e-&gt;len];
 }</code></pre>
 
@@ -3042,43 +3076,43 @@ mkdir -p corpus crashes
       </ol>
 
       <h3>Single-header library skeleton</h3>
-<pre><code><span class="cm">// tinylib.h</span>
-<span class="pp">#ifndef TINYLIB_H</span>
-<span class="pp">#define TINYLIB_H</span>
-<span class="pp">#include &lt;stdint.h&gt;</span>
-<span class="pp">#include &lt;stddef.h&gt;</span>
+<pre><code class="language-c">// tinylib.h
+#ifndef TINYLIB_H
+#define TINYLIB_H
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
 
-<span class="kw">typedef struct</span> { <span class="ty">uint8_t</span> *data; <span class="ty">size_t</span> pos, cap; } <span class="ty">Tiny_Arena</span>;
-<span class="kw">typedef struct</span> { <span class="kw">const</span> <span class="ty">char</span> *chars; <span class="ty">int32_t</span> len; } <span class="ty">Tiny_String</span>;
+typedef struct { uint8_t *data; size_t pos, cap; } Tiny_Arena;
+typedef struct { const char *chars; int32_t len; } Tiny_String;
 
-<span class="kw">void</span>  <span class="fn">Tiny_Init</span>(<span class="ty">Tiny_Arena</span> *a, <span class="kw">void</span> *mem, <span class="ty">size_t</span> cap);
-<span class="kw">void</span> *<span class="fn">Tiny__Alloc</span>(<span class="ty">Tiny_Arena</span> *a, <span class="ty">size_t</span> n, <span class="ty">size_t</span> align);
+void  Tiny_Init(Tiny_Arena *a, void *mem, size_t cap);
+void *Tiny__Alloc(Tiny_Arena *a, size_t n, size_t align);
 
-<span class="pp">#define TINY_PUSH(a, T) ((T*)Tiny__Alloc((a), sizeof(T), _Alignof(T)))</span>
+#define TINY_PUSH(a, T) ((T*)Tiny__Alloc((a), sizeof(T), _Alignof(T)))
 
-<span class="pp">#ifdef TINYLIB_IMPLEMENTATION</span>
-<span class="kw">void</span> <span class="fn">Tiny_Init</span>(<span class="ty">Tiny_Arena</span> *a, <span class="kw">void</span> *mem, <span class="ty">size_t</span> cap) {
-    a-&gt;data = mem; a-&gt;pos = <span class="nu">0</span>; a-&gt;cap = cap;
+#ifdef TINYLIB_IMPLEMENTATION
+void Tiny_Init(Tiny_Arena *a, void *mem, size_t cap) {
+    a-&gt;data = mem; a-&gt;pos = 0; a-&gt;cap = cap;
 }
-<span class="kw">void</span> *<span class="fn">Tiny__Alloc</span>(<span class="ty">Tiny_Arena</span> *a, <span class="ty">size_t</span> n, <span class="ty">size_t</span> align) {
-    <span class="ty">size_t</span> p = (a-&gt;pos + align - <span class="nu">1</span>) &amp; ~(align - <span class="nu">1</span>);
-    <span class="kw">if</span> (p + n &gt; a-&gt;cap) <span class="kw">return</span> <span class="nu">0</span>;
+void *Tiny__Alloc(Tiny_Arena *a, size_t n, size_t align) {
+    size_t p = (a-&gt;pos + align - 1) &amp; ~(align - 1);
+    if (p + n &gt; a-&gt;cap) return 0;
     a-&gt;pos = p + n;
-    <span class="kw">return</span> a-&gt;data + p;
+    return a-&gt;data + p;
 }
-<span class="pp">#endif</span>
-<span class="pp">#endif</span></code></pre>
+#endif
+#endif</code></pre>
 
       <h3>Usage</h3>
-<pre><code><span class="pp">#define TINYLIB_IMPLEMENTATION</span>
-<span class="pp">#include "tinylib.h"</span>
+<pre><code class="language-c">#define TINYLIB_IMPLEMENTATION
+#include "tinylib.h"
 
-<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
-    <span class="kw">static</span> <span class="ty">uint8_t</span> mem[<span class="nu">1</span> &lt;&lt; <span class="nu">20</span>];   <span class="cm">// 1 MB static buffer, no malloc</span>
-    <span class="ty">Tiny_Arena</span> a;
-    <span class="fn">Tiny_Init</span>(&amp;a, mem, <span class="kw">sizeof</span> mem);
-    <span class="ty">int32_t</span> *x = <span class="fn">TINY_PUSH</span>(&amp;a, <span class="ty">int32_t</span>);
-    *x = <span class="nu">42</span>;
+int main(void) {
+    static uint8_t mem[1 &lt;&lt; 20];   // 1 MB static buffer, no malloc
+    Tiny_Arena a;
+    Tiny_Init(&amp;a, mem, sizeof mem);
+    int32_t *x = TINY_PUSH(&amp;a, int32_t);
+    *x = 42;
 }</code></pre>
 
       <div class="tip">Read <code>clay.h</code> itself - it's a single file, ~3000 lines, and the best living example of every rule above. <a href="https://github.com/nicbarker/clay" style="color: var(--accent)">github.com/nicbarker/clay</a></div>
@@ -3244,5 +3278,8 @@ mkdir -p corpus crashes
   </div>
 </section>
 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 </body>
 </html>
