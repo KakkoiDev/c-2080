@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>C: The 20/80</title>
+<title>C: The 20/80 (c-2080)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700;900&family=DM+Serif+Display:ital@0;1&display=swap');
 
@@ -245,9 +245,53 @@
 
   .summary-item ul li::before { content: '· '; color: var(--accent2); }
 
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 13.5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  th, td {
+    text-align: left;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  td code, th code { font-size: 12.5px; }
+
+  ul.tight {
+    list-style: none;
+    margin: 12px 0;
+  }
+  ul.tight li {
+    padding: 4px 0;
+    color: var(--text);
+  }
+  ul.tight li::before { content: '· '; color: var(--accent2); }
+
+  ol.steps {
+    margin: 12px 0 12px 22px;
+    color: var(--text);
+  }
+  ol.steps li { padding: 4px 0; }
+  ol.steps li strong { color: var(--accent2); }
+
   @media (max-width: 600px) {
     .toc { grid-template-columns: 1fr; }
     .summary-grid { grid-template-columns: 1fr; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 8px; }
   }
 </style>
 </head>
@@ -265,11 +309,20 @@
   <a href="#structs">Structs & Composition</a>
   <a href="#strings">Strings</a>
   <a href="#functions">Functions & Headers</a>
+  <a href="#preprocessor">Preprocessor & #define</a>
+  <a href="#building">Building & Safety</a>
+  <a href="#cpuperf">CPU Performance</a>
+  <a href="#debugger">Debugger Tips</a>
+  <a href="#helix">Helix Setup</a>
+  <a href="#unity">Pattern: Unity Build</a>
   <a href="#arena">Pattern: Arena Allocator</a>
   <a href="#slices">Pattern: Slices</a>
   <a href="#handles">Pattern: Handle Arrays</a>
+  <a href="#indexes">Pattern: Indexes Over Pointers</a>
   <a href="#errhandle">Pattern: Error Handling</a>
   <a href="#defer">Pattern: Defer / Cleanup</a>
+  <a href="#optjourney">Pattern: Optimization Journey</a>
+  <a href="#barker">Pattern: Barker's Way</a>
 </nav>
 
 <!-- ─── SECTION 1: TYPES ─────────────────────────────────────────── -->
@@ -279,13 +332,13 @@
   <p>C has no runtime. Every variable is either on the <strong>stack</strong> (automatic, freed when function returns) or the <strong>heap</strong> (manual, lives until you free it). This is everything.</p>
 
   <h3>The types you'll actually use</h3>
-<pre><code><span class="pp">#include &lt;stdint.h&gt;</span>   <span class="cm">// fixed-width types — use these always</span>
+<pre><code><span class="pp">#include &lt;stdint.h&gt;</span>   <span class="cm">// fixed-width types - use these always</span>
 <span class="pp">#include &lt;stddef.h&gt;</span>   <span class="cm">// size_t, NULL, ptrdiff_t</span>
 <span class="pp">#include &lt;stdbool.h&gt;</span>  <span class="cm">// bool, true, false</span>
 
 <span class="ty">int8_t</span>   a;   <span class="cm">// signed  8-bit  (-128..127)</span>
-<span class="ty">uint8_t</span>  b;   <span class="cm">// unsigned 8-bit  (0..255)  — byte</span>
-<span class="ty">int32_t</span>  c;   <span class="cm">// signed 32-bit  — default int choice</span>
+<span class="ty">uint8_t</span>  b;   <span class="cm">// unsigned 8-bit  (0..255)  - byte</span>
+<span class="ty">int32_t</span>  c;   <span class="cm">// signed 32-bit  - default int choice</span>
 <span class="ty">int64_t</span>  d;   <span class="cm">// signed 64-bit</span>
 <span class="ty">uint64_t</span> e;   <span class="cm">// unsigned 64-bit</span>
 <span class="ty">size_t</span>   n;   <span class="cm">// for sizes and counts (pointer-sized)</span>
@@ -293,20 +346,20 @@
 <span class="ty">double</span>   g;   <span class="cm">// 64-bit float</span>
 <span class="ty">bool</span>     ok;  <span class="cm">// true / false</span></code></pre>
 
-  <div class="rule">Avoid plain <code>int</code>, <code>long</code>, <code>short</code> — their sizes are platform-defined. Use <code>int32_t</code>, <code>int64_t</code>, etc. for anything you care about.</div>
+  <div class="rule">Avoid plain <code>int</code>, <code>long</code>, <code>short</code> - their sizes are platform-defined. Use <code>int32_t</code>, <code>int64_t</code>, etc. for anything you care about.</div>
 
   <h3>Stack vs Heap at a glance</h3>
 <pre><code><span class="kw">void</span> <span class="fn">example</span>(<span class="kw">void</span>) {
-    <span class="cm">// STACK — automatic, zero overhead, dies with function</span>
+    <span class="cm">// STACK - automatic, zero overhead, dies with function</span>
     <span class="ty">int32_t</span> x = <span class="nu">42</span>;
-    <span class="ty">float</span>   buf[<span class="nu">256</span>];   <span class="cm">// 1 KB on stack — fine</span>
+    <span class="ty">float</span>   buf[<span class="nu">256</span>];   <span class="cm">// 1 KB on stack - fine</span>
 
-    <span class="cm">// HEAP — manual, survives the function</span>
+    <span class="cm">// HEAP - manual, survives the function</span>
     <span class="ty">int32_t</span> *data = <span class="fn">malloc</span>(<span class="nu">1024</span> * <span class="kw">sizeof</span>(<span class="ty">int32_t</span>)); <span class="cm">// 4 KB</span>
     <span class="kw">if</span> (!data) { <span class="cm">/* always check! */</span> <span class="kw">return</span>; }
 
     data[<span class="nu">0</span>] = <span class="nu">7</span>;
-    <span class="fn">free</span>(data);  <span class="cm">// you MUST free it — there's no GC</span>
+    <span class="fn">free</span>(data);  <span class="cm">// you MUST free it - there's no GC</span>
     data = <span class="kw">NULL</span>; <span class="cm">// null it out to catch use-after-free</span>
 }</code></pre>
 
@@ -323,8 +376,31 @@
 
 <pre><code><span class="ty">int32_t</span>  x   = <span class="nu">10</span>;     <span class="cm">// x is the value</span>
 <span class="ty">int32_t</span> *p   = &amp;x;    <span class="cm">// p holds the ADDRESS of x</span>
-<span class="ty">int32_t</span>  val = *p;    <span class="cm">// *p dereferences — reads through address</span>
-*p = <span class="nu">20</span>;              <span class="cm">// write through pointer — x is now 20</span></code></pre>
+<span class="ty">int32_t</span>  val = *p;    <span class="cm">// *p dereferences - reads through address</span>
+*p = <span class="nu">20</span>;              <span class="cm">// write through pointer - x is now 20</span></code></pre>
+
+  <h3>The three faces of <code>*</code></h3>
+  <p>The asterisk has three unrelated jobs in C. Reading code is easier once you can spot which one you're looking at.</p>
+<pre><code><span class="ty">int32_t</span> *p;             <span class="cm">// 1. DECLARATION: p is a pointer to int32_t</span>
+<span class="ty">int32_t</span>  v = *p;        <span class="cm">// 2. EXPRESSION: dereference, read through p</span>
+<span class="ty">int32_t</span>  z = a * b;     <span class="cm">// 3. OPERATOR: multiplication, unrelated</span>
+
+<span class="cm">// In a declaration, * binds to the variable, not the type:</span>
+<span class="ty">int32_t</span> *a, *b;         <span class="cm">// both a and b are pointers</span>
+<span class="ty">int32_t</span> *a,  b;         <span class="cm">// a is a pointer, b is just int32_t</span></code></pre>
+  <div class="rule">Convention: write <code>int32_t *p</code> with the asterisk hugging the name. It makes the second case above immediately obvious.</div>
+
+  <h3><code>&amp;</code> - address-of</h3>
+  <p><code>&amp;</code> returns the address of an lvalue. It is the mirror of <code>*</code>: <code>*(&amp;x) == x</code>.</p>
+<pre><code><span class="ty">int32_t</span>  x = <span class="nu">42</span>;
+<span class="ty">int32_t</span> *p = &amp;x;          <span class="cm">// fine: x has an address</span>
+
+<span class="cm">// Cannot take address of:</span>
+<span class="cm">//   - a literal:        &amp;42         (error)</span>
+<span class="cm">//   - an rvalue:        &amp;(a + b)    (error)</span>
+<span class="cm">//   - a register var:   &amp;reg_var    (error if marked register)</span></code></pre>
+
+  <div class="warn">Dereferencing a <code>NULL</code>, freed, or uninitialized pointer is undefined behaviour. In practice you get a segfault if you're lucky and silent memory corruption if you're not. Build with <code>-fsanitize=address</code> during development.</div>
 
   <h3>Why pointers exist</h3>
   <p>1. Pass large data without copying. 2. Let a function mutate a caller's variable. 3. Point into heap memory. 4. Build data structures.</p>
@@ -346,15 +422,37 @@ p++;                    <span class="cm">// p now points to arr[1]</span></code>
 
   <div class="tip"><code>arr[i]</code> is literally syntactic sugar for <code>*(arr + i)</code>. Arrays and pointers are deeply the same thing in C.</div>
 
-  <h3>Pointer to pointer (when you need it)</h3>
-<pre><code><span class="cm">// Needed when a function must allocate and return via param</span>
+  <h3>Pointer to pointer <code>**</code></h3>
+  <p>Three real-world cases where you need a double pointer.</p>
+
+<pre><code><span class="cm">// 1. Output parameter - function allocates, returns via arg</span>
 <span class="kw">void</span> <span class="fn">alloc_buf</span>(<span class="ty">uint8_t</span> **out, <span class="ty">size_t</span> n) {
     *out = <span class="fn">malloc</span>(n);
 }
-
 <span class="ty">uint8_t</span> *buf = <span class="kw">NULL</span>;
 <span class="fn">alloc_buf</span>(&amp;buf, <span class="nu">1024</span>);
-<span class="cm">// buf now points to 1024 bytes</span></code></pre>
+
+<span class="cm">// 2. argv - array of strings (each string is a char*)</span>
+<span class="kw">int</span> <span class="fn">main</span>(<span class="ty">int</span> argc, <span class="ty">char</span> **argv) {
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i &lt; argc; i++) {
+        <span class="fn">printf</span>(<span class="st">"%s\n"</span>, argv[i]);  <span class="cm">// argv[i] is char*</span>
+    }
+    <span class="kw">return</span> <span class="nu">0</span>;
+}
+
+<span class="cm">// 3. Pointer-to-pointer to update a list head from a helper</span>
+<span class="kw">typedef struct</span> <span class="ty">Node</span> { <span class="ty">int32_t</span> v; <span class="kw">struct</span> <span class="ty">Node</span> *next; } <span class="ty">Node</span>;
+
+<span class="kw">void</span> <span class="fn">push_front</span>(<span class="ty">Node</span> **head, <span class="ty">int32_t</span> v) {
+    <span class="ty">Node</span> *n = <span class="fn">malloc</span>(<span class="kw">sizeof</span>(*n));
+    n-&gt;v = v; n-&gt;next = *head;
+    *head = n;                          <span class="cm">// caller's head now points to n</span>
+}
+
+<span class="ty">Node</span> *list = <span class="kw">NULL</span>;
+<span class="fn">push_front</span>(&amp;list, <span class="nu">42</span>);</code></pre>
+
+  <div class="tip">Read <code>**</code> right-to-left: <code>char **argv</code> = "argv is a pointer to a pointer to char" = "an array of strings". Same pattern works for any output-parameter or container-of-pointers situation.</div>
 </section>
 
 <hr class="divider">
@@ -375,7 +473,7 @@ p++;                    <span class="cm">// p now points to arr[1]</span></code>
     <span class="ty">bool</span>    active;
 } <span class="ty">Ball</span>;
 
-<span class="cm">// Designated initializers (C99+) — use these, they're clear</span>
+<span class="cm">// Designated initializers (C99+) - use these, they're clear</span>
 <span class="ty">Ball</span> b = {
     .pos    = {<span class="nu">100.0f</span>, <span class="nu">200.0f</span>},
     .vel    = {<span class="nu">3.0f</span>,   <span class="nu">-1.5f</span>},
@@ -408,13 +506,13 @@ bp-&gt;radius = <span class="nu">20.0f</span>;   <span class="cm">// arrow = der
 
 <pre><code><span class="pp">#include &lt;string.h&gt;</span>
 
-<span class="cm">// String literal — lives in read-only memory, do NOT write to it</span>
+<span class="cm">// String literal - lives in read-only memory, do NOT write to it</span>
 <span class="kw">const</span> <span class="ty">char</span> *s1 = <span class="st">"hello"</span>;
 
-<span class="cm">// Mutable copy on stack — you CAN write to this</span>
+<span class="cm">// Mutable copy on stack - you CAN write to this</span>
 <span class="ty">char</span> buf[<span class="nu">64</span>] = <span class="st">"hello"</span>;
 
-<span class="cm">// NEVER use strcpy/strcat — use the safe n-versions</span>
+<span class="cm">// NEVER use strcpy/strcat - use the safe n-versions</span>
 <span class="fn">strncpy</span>(buf, <span class="st">"world"</span>, <span class="kw">sizeof</span>(buf) - <span class="nu">1</span>);
 buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span class="st">'\0'</span>;  <span class="cm">// always null-terminate</span>
 
@@ -429,7 +527,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
   <div class="warn">Never compare strings with <code>==</code>. That compares pointer addresses, not content. Always use <code>strcmp</code>.</div>
 
   <h3>Modern: String View (non-owning slice)</h3>
-<pre><code><span class="cm">// A string that doesn't own its memory — great for parsing</span>
+<pre><code><span class="cm">// A string that doesn't own its memory - great for parsing</span>
 <span class="kw">typedef struct</span> {
     <span class="kw">const</span> <span class="ty">char</span> *data;
     <span class="ty">size_t</span>      len;
@@ -450,7 +548,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
 <section id="functions">
   <h2><span class="num">05</span> Functions & Headers</h2>
 
-<pre><code><span class="cm">// mylib.h — declarations only</span>
+<pre><code><span class="cm">// mylib.h - declarations only</span>
 <span class="pp">#pragma once</span>           <span class="cm">// include guard (supported everywhere)</span>
 <span class="pp">#include &lt;stdint.h&gt;</span>
 
@@ -460,7 +558,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
 <span class="kw">void</span>    <span class="fn">mylib_destroy</span>(<span class="ty">MyLib</span> *lib);
 <span class="ty">int32_t</span> <span class="fn">mylib_process</span>(<span class="ty">MyLib</span> *lib, <span class="kw">const</span> <span class="ty">uint8_t</span> *data, <span class="ty">size_t</span> n);</code></pre>
 
-<pre><code><span class="cm">// mylib.c — definitions</span>
+<pre><code><span class="cm">// mylib.c - definitions</span>
 <span class="pp">#include "mylib.h"</span>
 <span class="pp">#include &lt;stdlib.h&gt;</span>
 
@@ -490,9 +588,387 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
 
 <hr class="divider">
 
+<!-- ─── SECTION 6: PREPROCESSOR ──────────────────────────────────── -->
+<section id="preprocessor">
+  <h2><span class="num">06</span> The Preprocessor &amp; <code>#define</code></h2>
+
+  <p>The preprocessor is a textual phase that runs before the compiler. It does three things: pastes files (<code>#include</code>), substitutes text (<code>#define</code>), and conditionally keeps or drops code (<code>#ifdef</code>). That's it.</p>
+
+<pre><code><span class="cm">// See exactly what the preprocessor produced:</span>
+clang -E main.c              <span class="cm"># prints expanded source to stdout</span>
+clang --save-temps main.c    <span class="cm"># also keeps main.i (preprocessed .c)</span></code></pre>
+
+  <h3><code>#include</code></h3>
+  <p>Literally pastes the file's contents at the line of the include. <code>&lt;name&gt;</code> searches system paths, <code>"name"</code> searches the project. You could include a <code>.json</code> file - it would not compile, but the paste would happen.</p>
+
+  <h3><code>#define</code> constants</h3>
+<pre><code><span class="pp">#define MAX_ENTITIES 1024</span>
+<span class="pp">#define PI           3.14159f</span>
+<span class="pp">#define APP_NAME     "c-2080"</span></code></pre>
+  <p>Untyped, no scope, replaced as raw text. Convention: <code>SCREAMING_SNAKE_CASE</code> so a reader knows it's a macro.</p>
+
+  <div class="rule">Prefer <code>static const</code> and <code>enum</code> for typed constants. Use <code>#define</code> only when you need text substitution: macros, conditional compile, header guards.</div>
+
+  <h3>Function-like macros</h3>
+<pre><code><span class="cm">// BUG: SQUARE(1+2) becomes 1+2*1+2 = 5, not 9</span>
+<span class="pp">#define SQUARE(x) x*x</span>
+
+<span class="cm">// Fix: parens around args AND around the whole expression</span>
+<span class="pp">#define SQUARE(x) ((x)*(x))</span>
+
+<span class="cm">// Multi-statement: wrap in do-while(0) so it works in any context</span>
+<span class="pp">#define LOG(msg) do { \
+    fprintf(stderr, "[%s:%d] %s\n", __FILE__, __LINE__, msg); \
+} while (0)</span>
+
+<span class="fn">LOG</span>(<span class="st">"started"</span>);  <span class="cm">// safe inside if/while/for without braces</span></code></pre>
+
+  <h3>Conditional compilation</h3>
+<pre><code><span class="pp">#ifdef _WIN32</span>
+    <span class="cm">// Windows-only code</span>
+<span class="pp">#elif defined(__linux__)</span>
+    <span class="cm">// Linux-only code</span>
+<span class="pp">#endif</span>
+
+<span class="pp">#ifndef NDEBUG</span>
+    <span class="fn">printf</span>(<span class="st">"debug build\n"</span>);
+<span class="pp">#endif</span>
+
+<span class="cm">// Single-header library trick (see Barker's Way pattern)</span>
+<span class="pp">#ifdef LIB_IMPLEMENTATION</span>
+<span class="cm">/* function bodies go here */</span>
+<span class="pp">#endif</span></code></pre>
+
+  <h3>Built-in macros</h3>
+<pre><code><span class="fn">printf</span>(<span class="st">"at %s:%d in %s\n"</span>, <span class="pp">__FILE__</span>, <span class="pp">__LINE__</span>, <span class="pp">__func__</span>);
+<span class="cm">// at main.c:42 in process_input</span></code></pre>
+
+  <h3>Stringify <code>#</code> and token paste <code>##</code></h3>
+<pre><code><span class="pp">#define STR(x)   #x</span>            <span class="cm">// turn arg into string literal</span>
+<span class="pp">#define CAT(a,b) a##b</span>          <span class="cm">// glue two tokens</span>
+
+<span class="fn">printf</span>(<span class="st">"%s\n"</span>, <span class="fn">STR</span>(hello));   <span class="cm">// prints: hello</span>
+<span class="ty">int32_t</span> <span class="fn">CAT</span>(my_, var) = <span class="nu">7</span>;       <span class="cm">// declares my_var</span></code></pre>
+
+  <div class="warn">Macros do text substitution, not function calls. They have no type checking and side effects in arguments are evaluated more than once: <code>SQUARE(i++)</code> increments <code>i</code> twice. Prefer <code>static inline</code> functions when you need behaviour, not text.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 7: BUILDING & SAFETY ─────────────────────────────── -->
+<section id="building">
+  <h2><span class="num">07</span> Building &amp; Safety</h2>
+
+  <p>The C standard, the compiler, and the sanitizers form your safety net. This section is what every C project's build script should look like.</p>
+
+  <h3>C99: the version to pick</h3>
+  <p>C89 is widely supported but cumbersome. C99 fixes the main pain points and is supported by every modern compiler. C11/17/23 are fine, but C99 has the broadest reach and covers the 80%.</p>
+
+  <ul class="tight">
+    <li><strong>Designated initializers</strong> <code>.field = v</code> - the killer feature.</li>
+    <li><strong>Mixed declarations and statements</strong>: declare where used, including <code>for (int i = 0; ...)</code>.</li>
+    <li><strong>Fixed-width types</strong> via <code>&lt;stdint.h&gt;</code>: <code>int32_t</code>, <code>uint64_t</code>. Plain <code>int</code> is at least 16 bits per spec; <code>long</code> is 32-bit on Windows, 64-bit on Linux.</li>
+    <li><strong><code>&lt;stdbool.h&gt;</code></strong>: <code>bool</code>, <code>true</code>, <code>false</code>.</li>
+    <li><strong><code>//</code> line comments</strong>.</li>
+    <li><strong>Compound literals</strong>: <code>foo((Vec2){1, 2})</code> - struct literals as arguments.</li>
+  </ul>
+
+  <div class="rule">C89: variables must be declared at the top of a function, loop counters leak, struct init is positional (you can swap two same-typed fields by mistake). C99 fixes all of this.</div>
+
+  <h3>Always-on warning flags</h3>
+<pre><code>-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wformat=<span class="nu">2</span> -Wnull-dereference</code></pre>
+  <p>Add <code>-Werror</code> to make warnings stop the build. Switch it on from day one - it's much harder to clean up later.</p>
+
+  <h3>Sanitizers</h3>
+<pre><code><span class="cm"># AddressSanitizer (heap/stack overflow, use-after-free, double-free, leaks)</span>
+-fsanitize=address -fno-omit-frame-pointer
+<span class="cm"># env: ASAN_OPTIONS=detect_leaks=1</span>
+
+<span class="cm"># UndefinedBehaviorSanitizer (signed overflow, null deref, alignment, OOB shifts)</span>
+-fsanitize=undefined
+
+<span class="cm"># Combined</span>
+-fsanitize=address,undefined</code></pre>
+
+  <div class="tip">Run with ASan basically all the time during local dev. Without it, a one-byte overrun into the slack space of a malloc block silently corrupts memory and surfaces as a "visual glitch" six minutes later. ASan catches the bug at the line where it happens.</div>
+
+  <h3>Release hardening</h3>
+<pre><code>-fstack-protector-strong       <span class="cm"># canaries against stack smashes</span>
+-D_FORTIFY_SOURCE=<span class="nu">2</span>            <span class="cm"># bounds-checked libc (needs -O1+)</span></code></pre>
+
+  <h3>Two build modes</h3>
+<pre><code><span class="cm"># dev: max safety, slow, readable crashes</span>
+clang -std=c99 -g -O0 -Wall -Wextra -Wpedantic -Werror \
+      -fsanitize=address,undefined -fno-omit-frame-pointer \
+      main.c -o app
+
+<span class="cm"># release: fast, hardened</span>
+clang -std=c99 -O2 -DNDEBUG -Wall -Wextra \
+      -fstack-protector-strong -D_FORTIFY_SOURCE=<span class="nu">2</span> \
+      main.c -o app</code></pre>
+
+  <h3>What is a segfault, really</h3>
+  <p>The OS gives your process a virtual address space. <code>malloc</code> maps regions into it. A read or write outside any mapped region traps as <code>SIGSEGV</code>. <code>NULL</code> is <code>0</code>, which is unmapped, hence the classic null-deref segfault. ASan catches the bug <em>before</em> it ever becomes a segfault by instrumenting every load and store.</p>
+
+  <div class="warn">A segfault is a <em>lucky</em> outcome. The unlucky version is silent corruption: your bad write lands inside a different valid allocation and the program keeps running with garbage data until something visible breaks much later.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 8: CPU PERFORMANCE ───────────────────────────────── -->
+<section id="cpuperf">
+  <h2><span class="num">08</span> CPU Performance Foundations</h2>
+
+  <p>A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.</p>
+
+  <h3>The kitchen analogy</h3>
+  <p>Borrowed from Nic Barker's CPU performance talk. The mental model holds remarkably well.</p>
+
+  <table>
+    <thead><tr><th>Kitchen</th><th>Computer</th></tr></thead>
+    <tbody>
+      <tr><td>Chef</td><td>CPU core</td></tr>
+      <tr><td>Knives, pans, boards</td><td>Instructions</td></tr>
+      <tr><td>Ingredients</td><td>Data</td></tr>
+      <tr><td>Chopping board (only place work happens)</td><td>Registers</td></tr>
+      <tr><td>Box on the bench</td><td>L1 cache</td></tr>
+      <tr><td>Shelves</td><td>L2 cache</td></tr>
+      <tr><td>Storage room</td><td>L3 cache</td></tr>
+      <tr><td>Supermarket run</td><td>Main memory (DRAM)</td></tr>
+      <tr><td>Farm delivery</td><td>Disk / SSD</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cache hierarchy: the headline numbers</h3>
+  <table>
+    <thead><tr><th>Storage</th><th>Size</th><th>Latency (cycles)</th></tr></thead>
+    <tbody>
+      <tr><td>Register</td><td>8 B</td><td>0</td></tr>
+      <tr><td>L1</td><td>~64 KB</td><td>~3</td></tr>
+      <tr><td>L2</td><td>~2 MB</td><td>~20</td></tr>
+      <tr><td>L3</td><td>~32 MB</td><td>~100</td></tr>
+      <tr><td>DRAM</td><td>GB</td><td>200-300</td></tr>
+      <tr><td>SSD (random read)</td><td>TB</td><td>~300,000</td></tr>
+    </tbody>
+  </table>
+
+  <div class="rule">Cache line = <strong>64 bytes</strong>. Every memory fetch brings 64 bytes whether you wanted them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per call. A single cache miss costs 200-300. One miss is 7-10x more expensive than the most famous optimization in game-dev history.</div>
+
+  <p>Each core has its own L1 and L2. Single-core code throws away the rest. With 8 cores you have 8x the L1 you'd think.</p>
+
+  <h3>The four rules of thumb</h3>
+  <ol class="steps">
+    <li><strong>Pack data tight.</strong> Smallest types that fit. Group fields by locality of use. Don't waste the cache line.</li>
+    <li><strong>Do work in bulk.</strong> Functions take <em>arrays</em> of things, not one thing at a time. Amortize setup cost.</li>
+    <li><strong>Pre-compute at startup, not at runtime.</strong> Why do you think it's called <em>baking</em>? Lighting, lookup tables, parsed configs, sorted indices. Anything stable before the frame loop should be ready at frame zero.</li>
+    <li><strong>Use multiple cores.</strong> Independent streams of work, cheap join at the end. Avoid synchronization in the inner loops.</li>
+  </ol>
+
+  <h3>The silent killer</h3>
+  <p>When you access <code>enemy.hp</code>, the cache line you paid 200+ cycles for also contains the <em>next 60 bytes after <code>hp</code></em>. Was that next 60 bytes useful? If yes, the next access is free. If no, you wasted the trip. This is invisible in source. Big-O notation does not capture it.</p>
+
+  <div class="tip">When in doubt, lay out struct fields from largest to smallest. Compilers pack in declaration order; mis-ordering wastes bytes via alignment padding. Order matters.</div>
+
+  <div class="warn">An O(n) walk over a packed array beats an O(log n) traversal of a pointer-chained tree at most realistic sizes. The tree's pointers each cost a cache miss; the array streams in 64-byte gulps.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 9: DEBUGGER ──────────────────────────────────────── -->
+<section id="debugger">
+  <h2><span class="num">09</span> Debugger Tips</h2>
+
+  <p>You absolutely need a debugger to be productive in C. Print debugging will not scale. The good news: gdb and lldb are 90% the same and you only need a dozen commands.</p>
+
+  <div class="rule">Compile with <code>-g -O0</code> for clean debug info. Optimization mangles line numbers and elides locals - the debugger will refuse to show variables that the optimizer "doesn't believe" exist.</div>
+
+  <h3>gdb cheat sheet</h3>
+<pre><code>gdb ./app
+b main                       <span class="cm"># breakpoint at function</span>
+b file.c:42                  <span class="cm"># breakpoint at line</span>
+b parse_int <span class="kw">if</span> x &gt; <span class="nu">100</span>         <span class="cm"># conditional</span>
+r arg1 arg2                  <span class="cm"># run with args</span>
+n / s                        <span class="cm"># next / step in</span>
+c                            <span class="cm"># continue</span>
+finish                       <span class="cm"># step out of current frame</span>
+bt / bt full                 <span class="cm"># backtrace (with locals)</span>
+p var / p *ptr / p/x val     <span class="cm"># print value (decimal/hex)</span>
+info locals                  <span class="cm"># all locals in current frame</span>
+watch ptr-&gt;field             <span class="cm"># break when value changes</span>
+rwatch / awatch              <span class="cm"># break on read / read-or-write</span>
+display var                  <span class="cm"># show every step</span>
+layout src                   <span class="cm"># TUI source view (or: gdb -tui)</span>
+<span class="kw">set</span> print pretty on            <span class="cm"># readable struct dumps</span>
+q                            <span class="cm"># quit</span></code></pre>
+
+  <h3>lldb equivalents</h3>
+  <table>
+    <thead><tr><th>gdb</th><th>lldb</th></tr></thead>
+    <tbody>
+      <tr><td><code>b main</code></td><td><code>b main</code></td></tr>
+      <tr><td><code>n</code> / <code>s</code></td><td><code>n</code> / <code>s</code></td></tr>
+      <tr><td><code>p var</code></td><td><code>p var</code> or <code>fr v</code></td></tr>
+      <tr><td><code>bt</code></td><td><code>bt</code></td></tr>
+      <tr><td><code>info locals</code></td><td><code>fr v</code></td></tr>
+      <tr><td><code>watch x</code></td><td><code>w s v x</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Core dumps (post-mortem)</h3>
+<pre><code>ulimit -c unlimited
+./app                    <span class="cm"># crashes -> ./core file</span>
+gdb ./app core           <span class="cm"># load post-mortem</span>
+
+<span class="cm"># on systemd-based Linux</span>
+coredumpctl gdb          <span class="cm"># picks up the latest crash</span></code></pre>
+
+  <h3>Optional <code>~/.gdbinit</code></h3>
+<pre><code><span class="kw">set</span> print pretty on
+<span class="kw">set</span> print array on
+<span class="kw">set</span> pagination off
+<span class="kw">set</span> history save on</code></pre>
+
+  <h3>When ASan isn't available: valgrind</h3>
+<pre><code>valgrind --leak-check=full --show-leak-kinds=all ./app</code></pre>
+  <p>Slower than ASan, but works without recompiling and sometimes finds different bugs.</p>
+
+  <h3>Time-travel debugging: rr (Linux)</h3>
+<pre><code>rr record ./app
+rr replay                <span class="cm"># reverse-step through any bug</span></code></pre>
+
+  <h3>Standalone GUI debuggers</h3>
+  <ul class="tight">
+    <li><strong>RemedyBG</strong> (paid, Windows/Linux) - built for game-dev iteration speed.</li>
+    <li><strong>RAD Debugger</strong> (free, in development) - from the Handmade community.</li>
+    <li>Both wrap the same DWARF info gdb/lldb use, just with a faster UI.</li>
+  </ul>
+
+  <div class="warn">Never debug optimized binaries unless forced to. <code>-O0 -g</code> first; switch to <code>-O2 -g</code> only if the bug only reproduces under optimization.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 10: HELIX ────────────────────────────────────────── -->
+<section id="helix">
+  <h2><span class="num">10</span> C in Helix Editor</h2>
+
+  <p>Helix is a modal terminal editor with built-in LSP and DAP support. C works out of the box once you install <code>clangd</code>.</p>
+
+  <h3>Install</h3>
+<pre><code><span class="cm"># macOS</span>
+brew install llvm bear helix
+
+<span class="cm"># Debian / Ubuntu</span>
+sudo apt install clang clangd lldb bear gdb
+<span class="cm"># helix from https://helix-editor.com/</span>
+
+<span class="cm"># Arch</span>
+sudo pacman -S clang lldb bear gdb helix
+
+<span class="cm"># Verify</span>
+hx --health c            <span class="cm"># clangd should show "Found"</span></code></pre>
+
+  <h3>Project-level <code>.clangd</code></h3>
+<pre><code><span class="cm"># drop in repo root</span>
+CompileFlags:
+  Add: [-std=c99, -Wall, -Wextra, -Wpedantic]
+Diagnostics:
+  UnusedIncludes: Strict</code></pre>
+
+  <h3><code>compile_commands.json</code></h3>
+  <p>clangd reads this for accurate cross-file analysis.</p>
+<pre><code><span class="cm"># with a Makefile</span>
+bear -- make
+
+<span class="cm"># single-file project</span>
+echo <span class="st">'[{"directory":"'"$(pwd)"'","command":"clang -std=c99 -Wall main.c","file":"main.c"}]'</span> &gt; compile_commands.json</code></pre>
+
+  <h3>Format on save</h3>
+<pre><code><span class="cm"># .clang-format in repo root</span>
+BasedOnStyle: LLVM
+IndentWidth: <span class="nu">4</span>
+ColumnLimit: <span class="nu">100</span>
+AlignConsecutiveDeclarations: true</code></pre>
+<pre><code><span class="cm"># ~/.config/helix/languages.toml</span>
+[[language]]
+name = <span class="st">"c"</span>
+auto-format = true
+formatter = { command = <span class="st">"clang-format"</span> }</code></pre>
+
+  <h3>Debugging in Helix (DAP via lldb-dap)</h3>
+<pre><code><span class="cm"># ~/.config/helix/languages.toml</span>
+[[language]]
+name = <span class="st">"c"</span>
+debugger = { name = <span class="st">"lldb-dap"</span>, transport = <span class="st">"stdio"</span>, command = <span class="st">"lldb-dap"</span> }
+[[language.debugger.templates]]
+name = <span class="st">"binary"</span>
+request = <span class="st">"launch"</span>
+completion = [ { name = <span class="st">"binary"</span>, completion = <span class="st">"filename"</span> } ]
+args = { program = <span class="st">"{0}"</span> }</code></pre>
+  <p>In Helix: <code>:debug-start binary ./app</code>, then <code>Space + g</code> for the debug menu. Build with <code>-g -O0</code>.</p>
+
+  <h3>Useful keybinds for C</h3>
+  <table>
+    <thead><tr><th>Key</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td><code>gd</code></td><td>goto definition</td></tr>
+      <tr><td><code>gr</code></td><td>goto references</td></tr>
+      <tr><td><code>Space r</code></td><td>rename symbol</td></tr>
+      <tr><td><code>Space a</code></td><td>code actions</td></tr>
+      <tr><td><code>Space d</code></td><td>diagnostics list</td></tr>
+      <tr><td><code>Space s</code></td><td>symbol picker</td></tr>
+      <tr><td><code>K</code></td><td>hover (type info)</td></tr>
+    </tbody>
+  </table>
+
+  <p>Tree-sitter highlighting ships built-in. Run <code>hx --grammar fetch &amp;&amp; hx --grammar build</code> once if highlights look off.</p>
+
+  <div class="tip">clangd plus ASan plus a TUI debugger gives you most of what CLion provides, in 30 MB of tooling. No license, no IDE startup time.</div>
+</section>
+
+<hr class="divider">
+
 <!-- ════════════════════════════════════════════════════════════════ -->
 <!--  MODERN PATTERNS                                                -->
 <!-- ════════════════════════════════════════════════════════════════ -->
+
+<!-- ─── UNITY BUILD ──────────────────────────────────────────────── -->
+<section id="unity">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Unity Build (single translation unit)</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>Classic C splits .h and .c, links objects, and people end up in "include hell". It's mostly convention, not language requirement. The single-translation-unit (or "unity") build sidesteps the whole mess.</p>
+
+      <p>Trick: <code>#include</code> every <code>.c</code> from <code>main.c</code>. One compilation unit. One <code>clang main.c -o app</code>. No build system needed for projects up to thousands of lines.</p>
+
+<pre><code><span class="cm">// main.c</span>
+<span class="pp">#include "math_utils.c"</span>
+<span class="pp">#include "render.c"</span>
+<span class="pp">#include "audio.c"</span>
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="cm">// ... use functions from any of the above ...</span>
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</code></pre>
+
+<pre><code><span class="cm"># Build the whole project</span>
+clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app</code></pre>
+
+      <h3>Wins</h3>
+      <ul class="tight">
+        <li>Compiler sees everything at once - whole-program optimization is automatic.</li>
+        <li>No symbol-leak surprises across translation units.</li>
+        <li>No need for separate header guards on every .c (each is included once).</li>
+        <li>Build = one command. No Makefile, no CMake, no meson.</li>
+      </ul>
+
+      <div class="rule">Don't fight C's build model. Embrace one TU until it actually hurts (rare under ~50k lines). When you outgrow it, shard into a few TUs and a tiny script - by then you'll know exactly where the boundaries should fall.</div>
+    </div>
+  </div>
+</section>
 
 <section id="arena">
   <div class="pattern-card">
@@ -535,7 +1011,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
 <span class="pp">#define ARENA_ALLOC(a, T)    ((T*)arena_alloc(a, sizeof(T),    _Alignof(T)))</span>
 <span class="pp">#define ARENA_ALLOC_N(a,T,n) ((T*)arena_alloc(a, sizeof(T)*n,  _Alignof(T)))</span>
 
-<span class="cm">// Free ALL at once — O(1), trivial</span>
+<span class="cm">// Free ALL at once - O(1), trivial</span>
 <span class="kw">void</span> <span class="fn">arena_reset</span>(<span class="ty">Arena</span> *a)   { a-&gt;pos = <span class="nu">0</span>; }
 <span class="kw">void</span> <span class="fn">arena_destroy</span>(<span class="ty">Arena</span> *a) { <span class="fn">free</span>(a-&gt;data); *a = (<span class="ty">Arena</span>){<span class="nu">0</span>}; }
 
@@ -546,7 +1022,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
 <span class="kw">void</span> <span class="fn">game_frame</span>(<span class="kw">void</span>) {
     <span class="ty">Arena</span> frame = <span class="fn">arena_make</span>(<span class="nu">4</span> * <span class="nu">1024</span> * <span class="nu">1024</span>);  <span class="cm">// 4 MB scratch</span>
 
-    <span class="cm">// Allocate as much as you want — no individual frees needed</span>
+    <span class="cm">// Allocate as much as you want - no individual frees needed</span>
     <span class="ty">Entity</span>  *player  = <span class="fn">ARENA_ALLOC</span>(&amp;frame, <span class="ty">Entity</span>);
     <span class="ty">Entity</span>  *enemies = <span class="fn">ARENA_ALLOC_N</span>(&amp;frame, <span class="ty">Entity</span>, <span class="nu">128</span>);
     <span class="ty">char</span>    *buf     = <span class="fn">ARENA_ALLOC_N</span>(&amp;frame, <span class="ty">char</span>, <span class="nu">4096</span>);
@@ -574,7 +1050,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
       <h3>Typed Slices (Fat Pointers)</h3>
     </div>
     <div class="pattern-card-body">
-      <p>A raw pointer tells you nothing about how many items it holds. Bundle the pointer with its length into a <strong>slice</strong>. Functions pass these by value — cheap, safe, self-describing.</p>
+      <p>A raw pointer tells you nothing about how many items it holds. Bundle the pointer with its length into a <strong>slice</strong>. Functions pass these by value - cheap, safe, self-describing.</p>
 
 <pre><code><span class="cm">// Generic macro to define slice types</span>
 <span class="pp">#define SLICE(T) struct { T *data; size_t len; }</span>
@@ -593,14 +1069,14 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
     };
 }
 
-<span class="cm">// Iterate safely — no out-of-bounds by accident</span>
+<span class="cm">// Iterate safely - no out-of-bounds by accident</span>
 <span class="kw">void</span> <span class="fn">print_positions</span>(<span class="ty">Vec2Slice</span> s) {
     <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; s.len; i++) {
         <span class="fn">printf</span>(<span class="st">"(%.2f, %.2f)\n"</span>, s.data[i].x, s.data[i].y);
     }
 }
 
-<span class="cm">// Get a sub-slice — no copy, no alloc</span>
+<span class="cm">// Get a sub-slice - no copy, no alloc</span>
 <span class="ty">Vec2Slice</span> <span class="fn">slice_range</span>(<span class="ty">Vec2Slice</span> s, <span class="ty">size_t</span> start, <span class="ty">size_t</span> end) {
     <span class="kw">return</span> (<span class="ty">Vec2Slice</span>){ s.data + start, end - start };
 }</code></pre>
@@ -659,7 +1135,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
     <span class="kw">if</span> (e) { *e = (<span class="ty">Entity</span>){<span class="nu">0</span>}; }  <span class="cm">// zero = inactive</span>
 }
 
-<span class="cm">// Update all — tight loop, cache-friendly</span>
+<span class="cm">// Update all - tight loop, cache-friendly</span>
 <span class="kw">void</span> <span class="fn">entities_update</span>(<span class="ty">float</span> dt) {
     <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i &lt; <span class="pp">MAX_ENTITIES</span>; i++) {
         <span class="kw">if</span> (!g_entities[i].active) <span class="kw">continue</span>;
@@ -672,6 +1148,57 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
   </div>
 </section>
 
+<!-- ─── INDEXES OVER POINTERS ────────────────────────────────────── -->
+<section id="indexes">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Indexes Over Pointers</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>When one object references another that lives in an array, store the <strong>index</strong>, not a pointer. Resolve through a getter that bounds-checks. This is the same idea as Handle Arrays but for plain references.</p>
+
+      <h3>Why a raw pointer is worse</h3>
+      <ul class="tight">
+        <li>If the target's array resizes, every pointer into it dangles.</li>
+        <li>Pointers bypass any bounds-checking machinery you wrote.</li>
+        <li>Pointers are 8 bytes on 64-bit. <code>uint32_t</code> indexes are 4. Half the memory, twice the density in cache lines.</li>
+        <li>Pointers can't be serialized. ASLR randomizes addresses on every run; indexes are stable across processes.</li>
+      </ul>
+
+<pre><code><span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; } <span class="ty">Vec2</span>;
+<span class="kw">typedef struct</span> { <span class="ty">Vec2</span> *data; <span class="ty">size_t</span> len, cap; } <span class="ty">Vec2Arr</span>;
+
+<span class="kw">static</span> <span class="ty">Vec2</span> g_zero = {<span class="nu">0</span>};
+
+<span class="ty">Vec2</span> *<span class="fn">vec2arr_get</span>(<span class="ty">Vec2Arr</span> *a, <span class="ty">size_t</span> i) {
+    <span class="kw">if</span> (i &gt;= a-&gt;len) {
+        <span class="cm">// breakpoint here in dev; logs/crashes catch the bug</span>
+        <span class="kw">return</span> &amp;g_zero;
+    }
+    <span class="kw">return</span> &amp;a-&gt;data[i];
+}
+
+<span class="cm">// Reference by index instead of pointer</span>
+<span class="kw">typedef struct</span> {
+    <span class="ty">uint32_t</span> owner_idx;       <span class="cm">// index into player array</span>
+    <span class="ty">uint32_t</span> target_idx;      <span class="cm">// index into enemy array</span>
+} <span class="ty">Bullet</span>;</code></pre>
+
+      <h3>Generational indexes</h3>
+      <p>For safe deletion, pair the index with a generation counter (see the <em>Handle Arrays</em> pattern). Stale handles return <code>NULL</code> instead of dangling.</p>
+
+      <h3>The bounds check is free in release</h3>
+      <p>In a tight <code>for (i = 0; i &lt; a-&gt;len; i++)</code> loop, modern compilers prove the check always passes and elide it. The branch predictor handles any leftover. Stop worrying.</p>
+
+      <h3>Serialization for free</h3>
+      <p>Dump <code>Vec2Arr.data[]</code> plus the indexes straight to disk. Restore: indexes still valid. With pointers: every reference broken, every pointer needs fix-up.</p>
+
+      <div class="tip">Use <code>uint32_t</code> indexes by default. 4 billion is more than your program will ever address in one array, and you save 4 bytes per reference vs a pointer.</div>
+    </div>
+  </div>
+</section>
+
 <!-- ─── ERROR HANDLING ─────────────────────────────────────────────── -->
 <section id="errhandle">
   <div class="pattern-card">
@@ -680,7 +1207,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
       <h3>Error Handling Without Exceptions</h3>
     </div>
     <div class="pattern-card-body">
-      <p>C has no exceptions. The modern pattern is to return a <strong>result type</strong> — a struct containing either a value or an error.</p>
+      <p>C has no exceptions. The modern pattern is to return a <strong>result type</strong> - a struct containing either a value or an error.</p>
 
 <pre><code><span class="kw">typedef enum</span> {
     <span class="ty">ERR_OK</span>       = <span class="nu">0</span>,
@@ -706,7 +1233,7 @@ buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span cla
     <span class="kw">return</span> <span class="fn">i32_ok</span>((<span class="ty">int32_t</span>)v);
 }
 
-<span class="cm">// Usage — you MUST check before using the value</span>
+<span class="cm">// Usage - you MUST check before using the value</span>
 <span class="ty">I32Result</span> r = <span class="fn">parse_int</span>(<span class="st">"123"</span>);
 <span class="kw">if</span> (r.err) {
     <span class="fn">fprintf</span>(stderr, <span class="st">"parse failed: %d\n"</span>, r.err);
@@ -759,6 +1286,152 @@ cleanup:
   </div>
 </section>
 
+<!-- ─── OPTIMIZATION JOURNEY ─────────────────────────────────────── -->
+<section id="optjourney">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Optimization Journey</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>A worked example from Nic Barker's CPU performance talk. Start with a typical OO enemy update loop. Apply twelve mechanical changes. End up ~40x faster. Each step is small. The cumulative effect is large because cache pressure makes the gains <em>multiplicative</em>, not additive.</p>
+
+      <h3>Baseline (slow)</h3>
+<pre><code><span class="cm">// What you'd write in your first year of programming</span>
+<span class="kw">class</span> <span class="ty">Enemy</span> {
+    <span class="ty">bool</span>           dead;
+    <span class="ty">string</span>         id;
+    <span class="ty">bool</span>           frenzy;
+    <span class="ty">function</span>       onDeath;     <span class="cm">// callback / delegate</span>
+
+    <span class="kw">void</span> <span class="fn">Update</span>(<span class="ty">float</span> dt) {
+        <span class="kw">if</span> (dead) { <span class="fn">onDeath</span>(id); <span class="kw">return</span>; }
+        <span class="kw">if</span> (frenzy || <span class="fn">config</span>.global_frenzy) { <span class="cm">/* fast path */</span> }
+        <span class="kw">else</span> { <span class="cm">/* normal path */</span> }
+    }
+}
+<span class="cm">// foreach (e in enemies) e.Update(dt);    // ~309 ms baseline</span></code></pre>
+
+      <h3>Twelve mechanical optimizations</h3>
+      <table>
+        <thead><tr><th>#</th><th>Change</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Bulk processing: <code>process_enemies(EnemyArray *)</code> instead of per-object <code>Update()</code></td><td>~285 ms</td></tr>
+          <tr><td>2</td><td>Inline the callback (kill <code>onDeath</code> indirection - it can do anything, breaks cache)</td><td>stable</td></tr>
+          <tr><td>3</td><td>Hoist invariants: <code>bool g_frenzy = config.global_frenzy</code> outside the loop</td><td>~284 ms</td></tr>
+          <tr><td>4</td><td><code>class</code> -> <code>struct</code>: pack contiguously, not array-of-pointers</td><td>~190 ms (~30% faster)</td></tr>
+          <tr><td>5</td><td>Reorder fields, largest first: 24 B -> 16 B struct</td><td>~170 ms</td></tr>
+          <tr><td>6</td><td>Two booleans -> single enum: kills impossible "dead and frenzy" state</td><td>same size, fewer bugs</td></tr>
+          <tr><td>7</td><td><code>enum : uint8_t</code>: 4 B -> 1 B (no win standalone, 4x density in arrays)</td><td>same</td></tr>
+          <tr><td>8</td><td>Drop string ID for <code>uint32_t</code>: 8 B -> 4 B, struct shrinks 16 B -> 8 B</td><td>~153 ms (~50% baseline)</td></tr>
+          <tr><td>9</td><td>Bulk delete instead of <code>RemoveAt</code> per item (list shuffle is O(n) per delete)</td><td>~3x on heavy-delete variant</td></tr>
+          <tr><td>10</td><td>Swap-back array: <code>arr[i] = arr[--len]</code> - no order preservation needed</td><td>~4x again</td></tr>
+          <tr><td>11</td><td>Avoid last-minute decisions: split into <code>normals</code>, <code>frenzies</code>, <code>deads</code> arrays</td><td>~2x again</td></tr>
+          <tr><td>12</td><td>Information out of band: enum disappears - array membership encodes state</td><td>same speed, simpler code</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Final code</h3>
+<pre><code><span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; <span class="ty">uint32_t</span> id; } <span class="ty">Enemy</span>;
+
+<span class="kw">typedef struct</span> {
+    <span class="ty">Enemy</span> *data;
+    <span class="ty">size_t</span> len, cap;
+} <span class="ty">EnemyArray</span>;
+
+<span class="kw">void</span> <span class="fn">update_normals</span>(<span class="ty">EnemyArray</span> *e, <span class="ty">float</span> dt) {
+    <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; e-&gt;len; i++) {
+        e-&gt;data[i].x += <span class="nu">1.0f</span> * dt;   <span class="cm">// no branch, no callback, no alloc</span>
+    }
+}
+
+<span class="kw">void</span> <span class="fn">update_frenzies</span>(<span class="ty">EnemyArray</span> *e, <span class="ty">float</span> dt) {
+    <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; e-&gt;len; i++) {
+        e-&gt;data[i].x += <span class="nu">3.0f</span> * dt;
+    }
+}
+
+<span class="cm">// Swap-back deletion - O(1), order not preserved</span>
+<span class="kw">void</span> <span class="fn">enemy_remove</span>(<span class="ty">EnemyArray</span> *e, <span class="ty">size_t</span> i) {
+    e-&gt;data[i] = e-&gt;data[--e-&gt;len];
+}</code></pre>
+
+      <div class="tip">Each individual change looks like a "pointless micro-opt" in isolation. They compound because they all reduce pressure on the same contested resource (the cache). Same way road traffic gridlocks non-linearly: once you're past the throughput cliff, every car you remove helps disproportionately.</div>
+
+      <div class="warn">"Information out of band" (Andrew Kelley): if a function only takes <em>frenzy</em> enemies, you don't need a frenzy flag on the struct. Array membership encodes the state. This deletes whole categories of bugs ("forgot to clear the flag on death") and shrinks the struct.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── BARKER'S WAY ─────────────────────────────────────────────── -->
+<section id="barker">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Barker's Way (Clay-style C)</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>Lessons from Nic Barker's Clay - a ~6 KB layout library written in pure C99. Distillation of the rules he applies in the Clay source and his "How to write better C" talk.</p>
+
+      <h3>The rules</h3>
+      <ol class="steps">
+        <li><strong>Single-header distribution.</strong> One <code>.h</code>. <code>#ifdef LIB_IMPLEMENTATION</code> reveals function bodies once; user includes elsewhere for declarations only.</li>
+        <li><strong>No malloc inside the library.</strong> Caller hands you a buffer; you arena-allocate inside it. Deterministic memory.</li>
+        <li><strong>Custom string type.</strong> <code>{ const char *chars; int32_t len; }</code>. Drop null-termination - it's a footgun.</li>
+        <li><strong>Compile-time IDs.</strong> Hash literal IDs at compile time via macros (<code>LIB_ID("foo")</code>). No runtime string construction in hot loops.</li>
+        <li><strong>Declarative macro DSL.</strong> <code>LIB_BLOCK(config) { children }</code> reads tree-shaped, compiles imperative.</li>
+        <li><strong>Prefix everything.</strong> <code>Lib_*</code> public types, <code>LIB_*</code> public macros, <code>Lib__*</code> private (double underscore = "do not touch").</li>
+        <li><strong>Renderer-agnostic output.</strong> Emit sorted command structs; let the caller draw.</li>
+        <li><strong>No hidden state.</strong> All context passed by pointer. No globals.</li>
+        <li><strong>C99 + <code>-Wall -Werror -fsanitize=address</code></strong>. Non-negotiable build flags.</li>
+        <li><strong>Unity-build friendly.</strong> Library is one file; user's program is one file.</li>
+      </ol>
+
+      <h3>Single-header library skeleton</h3>
+<pre><code><span class="cm">// tinylib.h</span>
+<span class="pp">#ifndef TINYLIB_H</span>
+<span class="pp">#define TINYLIB_H</span>
+<span class="pp">#include &lt;stdint.h&gt;</span>
+<span class="pp">#include &lt;stddef.h&gt;</span>
+
+<span class="kw">typedef struct</span> { <span class="ty">uint8_t</span> *data; <span class="ty">size_t</span> pos, cap; } <span class="ty">Tiny_Arena</span>;
+<span class="kw">typedef struct</span> { <span class="kw">const</span> <span class="ty">char</span> *chars; <span class="ty">int32_t</span> len; } <span class="ty">Tiny_String</span>;
+
+<span class="kw">void</span>  <span class="fn">Tiny_Init</span>(<span class="ty">Tiny_Arena</span> *a, <span class="kw">void</span> *mem, <span class="ty">size_t</span> cap);
+<span class="kw">void</span> *<span class="fn">Tiny__Alloc</span>(<span class="ty">Tiny_Arena</span> *a, <span class="ty">size_t</span> n, <span class="ty">size_t</span> align);
+
+<span class="pp">#define TINY_PUSH(a, T) ((T*)Tiny__Alloc((a), sizeof(T), _Alignof(T)))</span>
+
+<span class="pp">#ifdef TINYLIB_IMPLEMENTATION</span>
+<span class="kw">void</span> <span class="fn">Tiny_Init</span>(<span class="ty">Tiny_Arena</span> *a, <span class="kw">void</span> *mem, <span class="ty">size_t</span> cap) {
+    a-&gt;data = mem; a-&gt;pos = <span class="nu">0</span>; a-&gt;cap = cap;
+}
+<span class="kw">void</span> *<span class="fn">Tiny__Alloc</span>(<span class="ty">Tiny_Arena</span> *a, <span class="ty">size_t</span> n, <span class="ty">size_t</span> align) {
+    <span class="ty">size_t</span> p = (a-&gt;pos + align - <span class="nu">1</span>) &amp; ~(align - <span class="nu">1</span>);
+    <span class="kw">if</span> (p + n &gt; a-&gt;cap) <span class="kw">return</span> <span class="nu">0</span>;
+    a-&gt;pos = p + n;
+    <span class="kw">return</span> a-&gt;data + p;
+}
+<span class="pp">#endif</span>
+<span class="pp">#endif</span></code></pre>
+
+      <h3>Usage</h3>
+<pre><code><span class="pp">#define TINYLIB_IMPLEMENTATION</span>
+<span class="pp">#include "tinylib.h"</span>
+
+<span class="kw">int</span> <span class="fn">main</span>(<span class="kw">void</span>) {
+    <span class="kw">static</span> <span class="ty">uint8_t</span> mem[<span class="nu">1</span> &lt;&lt; <span class="nu">20</span>];   <span class="cm">// 1 MB static buffer, no malloc</span>
+    <span class="ty">Tiny_Arena</span> a;
+    <span class="fn">Tiny_Init</span>(&amp;a, mem, <span class="kw">sizeof</span> mem);
+    <span class="ty">int32_t</span> *x = <span class="fn">TINY_PUSH</span>(&amp;a, <span class="ty">int32_t</span>);
+    *x = <span class="nu">42</span>;
+}</code></pre>
+
+      <div class="tip">Read <code>clay.h</code> itself - it's a single file, ~3000 lines, and the best living example of every rule above. <a href="https://github.com/nicbarker/clay" style="color: var(--accent)">github.com/nicbarker/clay</a></div>
+    </div>
+  </div>
+</section>
+
 <!-- ─── SUMMARY ─────────────────────────────────────────────────── -->
 <hr class="divider">
 
@@ -775,6 +1448,9 @@ cleanup:
         <li>NULL pointers after free</li>
         <li>Use arenas for short-lived data</li>
         <li><code>#pragma once</code> in every header</li>
+        <li>Build dev with <code>-std=c99 -Wall -Wextra -Werror -fsanitize=address</code></li>
+        <li>Use a debugger from day one</li>
+        <li>Read <code>clang -E</code> when a macro misbehaves</li>
       </ul>
     </div>
     <div class="summary-item">
@@ -782,11 +1458,13 @@ cleanup:
       <ul>
         <li>Large arrays on the stack</li>
         <li>Ignore malloc return value</li>
-        <li>Use <code>gets()</code> — it's deleted</li>
+        <li>Use <code>gets()</code> - it's deleted</li>
         <li>Cast malloc in C (it's unnecessary)</li>
         <li>Write to string literals</li>
         <li>Compare strings with ==</li>
         <li>Forget to free heap memory</li>
+        <li>Debug an optimized binary first</li>
+        <li>Hide allocations inside library APIs</li>
       </ul>
     </div>
     <div class="summary-item">
@@ -795,6 +1473,8 @@ cleanup:
         <li>Arena allocator for lifetimes</li>
         <li>Slice structs (ptr + len)</li>
         <li>Handle arrays for objects</li>
+        <li>Indexes, not pointers, between objects</li>
+        <li>Unity build until it hurts</li>
         <li>Result structs for errors</li>
         <li>goto cleanup for resources</li>
       </ul>
@@ -802,13 +1482,58 @@ cleanup:
     <div class="summary-item">
       <div class="label">Key headers</div>
       <ul>
-        <li><code>stdint.h</code> — fixed types</li>
-        <li><code>stddef.h</code> — size_t, NULL</li>
-        <li><code>stdbool.h</code> — bool</li>
-        <li><code>string.h</code> — mem/str ops</li>
-        <li><code>stdlib.h</code> — malloc/free</li>
-        <li><code>stdio.h</code> — printf/fopen</li>
-        <li><code>assert.h</code> — assert()</li>
+        <li><code>stdint.h</code> - fixed types</li>
+        <li><code>stddef.h</code> - size_t, NULL</li>
+        <li><code>stdbool.h</code> - bool</li>
+        <li><code>string.h</code> - mem/str ops</li>
+        <li><code>stdlib.h</code> - malloc/free</li>
+        <li><code>stdio.h</code> - printf/fopen</li>
+        <li><code>assert.h</code> - assert()</li>
+      </ul>
+    </div>
+    <div class="summary-item">
+      <div class="label">Build flags</div>
+      <ul>
+        <li><code>-std=c99</code> always</li>
+        <li><code>-Wall -Wextra -Wpedantic -Werror</code></li>
+        <li><code>-fsanitize=address,undefined</code> (dev)</li>
+        <li><code>-g -O0</code> debug, <code>-O2 -DNDEBUG</code> release</li>
+        <li><code>-fstack-protector-strong</code> release</li>
+        <li><code>-D_FORTIFY_SOURCE=2</code> release</li>
+      </ul>
+    </div>
+    <div class="summary-item">
+      <div class="label">Cache &amp; perf</div>
+      <ul>
+        <li>64 B cache line - pack tight</li>
+        <li>L1 ~3 cy, L2 ~20, L3 ~100, DRAM 200-300</li>
+        <li>Bulk processing &gt; per-object</li>
+        <li>Pre-compute &gt; runtime</li>
+        <li>Order struct fields largest -&gt; smallest</li>
+        <li>Each core has its own L1/L2</li>
+      </ul>
+    </div>
+    <div class="summary-item">
+      <div class="label">Debug &amp; tools</div>
+      <ul>
+        <li>gdb: <code>b main; r; bt; p var</code></li>
+        <li>lldb: same commands, mostly</li>
+        <li><code>ulimit -c unlimited</code> for cores</li>
+        <li>valgrind / rr fallbacks</li>
+        <li>Helix: <code>hx --health c</code></li>
+        <li>RemedyBG / RAD Debugger for GUI</li>
+      </ul>
+    </div>
+    <div class="summary-item">
+      <div class="label">Barker rules</div>
+      <ul>
+        <li>Single-header + <code>#ifdef IMPL</code></li>
+        <li>Caller-owned arenas</li>
+        <li>String = ptr + len</li>
+        <li>Indexes, not pointers</li>
+        <li>Unity build first</li>
+        <li>No globals, no hidden malloc</li>
+        <li>C99 + ASan, non-negotiable</li>
       </ul>
     </div>
   </div>
