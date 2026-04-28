@@ -2162,7 +2162,7 @@ brew install llvm bear helix
 sudo apt install clang clangd clang-format lldb bear gdb
 <span class="cm"># helix from https://helix-editor.com/</span>
 <span class="cm"># lldb ships the DAP binary as lldb-dap-NN. Symlink it so Helix finds it:</span>
-sudo ln -s <span class="st">"$(ls /usr/bin/lldb-dap-* | sort -V | tail -1)"</span> /usr/local/bin/lldb-dap
+sudo ln -sf <span class="st">"$(ls /usr/bin/lldb-dap-* | sort -V | tail -1)"</span> /usr/local/bin/lldb-dap
 
 <span class="cm"># Arch</span>
 sudo pacman -S clang lldb bear gdb helix
