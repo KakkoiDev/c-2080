@@ -4,7 +4,7 @@ The 20% of C that gets you 80% of results. Pareto-style reference.
 
 Live: https://kakkoidev.github.io/c-2080/
 
-Covers: types, pointers, structs, strings, the preprocessor, build flags, CPU performance foundations, the debugger, Helix setup, and patterns (arenas, slices, handles, errors, defer, unity build, optimization journey, indexes over pointers, Barker's way).
+Covers: types, pointers, arrays & decay, structs, enums & tagged unions, strings, functions, function pointers, linkage & storage, the preprocessor, variadic functions, file I/O, bit manipulation, the standard library survival kit, main/argv/signals, concurrency primer, build flags, undefined behavior, testing, CPU performance foundations, the debugger, Helix setup, and patterns (arenas, stretchy buffers, slices, handles, hash maps, errors, defer, unity build, logging, fuzz harness, optimization journey, indexes over pointers, Barker's way).
 
 ## Attribution
 
