@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C: The 20/80</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700;900&family=DM+Serif+Display:ital@0;1&display=swap');
+
+  :root {
+    --bg: #0d0e0f;
+    --surface: #141618;
+    --border: #222426;
+    --accent: #e8a020;
+    --accent2: #4fc3a1;
+    --accent3: #c06060;
+    --text: #d4cfc8;
+    --muted: #666;
+    --code-bg: #0a0b0c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inconsolata', monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 60px 24px 120px;
+  }
+
+  header {
+    border-left: 4px solid var(--accent);
+    padding-left: 20px;
+    margin-bottom: 64px;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2.4rem, 6vw, 4rem);
+    color: #fff;
+    letter-spacing: -1px;
+    line-height: 1.1;
+  }
+
+  header h1 em {
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  header p {
+    color: var(--muted);
+    margin-top: 12px;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 24px 28px;
+    margin-bottom: 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 32px;
+  }
+
+  .toc-title {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .toc a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--accent); }
+  .toc a::before { content: '→ '; }
+
+  section {
+    margin-bottom: 72px;
+  }
+
+  h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    color: #fff;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  h2 .num {
+    font-family: 'Inconsolata', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    border: 1px solid var(--accent);
+    padding: 2px 8px;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    color: var(--accent2);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 32px 0 12px;
+  }
+
+  p { margin-bottom: 14px; color: var(--text); }
+
+  .rule {
+    border-left: 2px solid var(--accent);
+    padding: 12px 18px;
+    background: rgba(232, 160, 32, 0.05);
+    margin: 20px 0;
+    font-size: 14px;
+  }
+
+  .warn {
+    border-left: 2px solid var(--accent3);
+    padding: 12px 18px;
+    background: rgba(192, 96, 96, 0.06);
+    margin: 20px 0;
+    font-size: 14px;
+    color: #d4a0a0;
+  }
+
+  .tip {
+    border-left: 2px solid var(--accent2);
+    padding: 12px 18px;
+    background: rgba(79, 195, 161, 0.05);
+    margin: 20px 0;
+    font-size: 14px;
+    color: #a0d4c4;
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 20px 22px;
+    overflow-x: auto;
+    margin: 18px 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  code { font-family: 'Inconsolata', monospace; }
+
+  pre code { color: #c8c0b8; }
+
+  .kw  { color: #e8a020; } /* keywords */
+  .ty  { color: #4fc3a1; } /* types */
+  .cm  { color: #556; font-style: italic; } /* comments */
+  .st  { color: #a0c888; } /* strings */
+  .nu  { color: #c48860; } /* numbers */
+  .fn  { color: #88b8d8; } /* function names */
+  .pp  { color: #a080d0; } /* preprocessor */
+  .err { color: #c06060; } /* errors/bad */
+
+  .pattern-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 48px;
+    overflow: hidden;
+  }
+
+  .pattern-card-header {
+    background: #181a1c;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .pattern-card-header .tag {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 2px 8px;
+  }
+
+  .pattern-card-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 1rem;
+    letter-spacing: 0;
+    text-transform: none;
+    font-family: 'DM Serif Display', serif;
+  }
+
+  .pattern-card-body { padding: 22px 22px 8px; }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .summary-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+  }
+
+  .summary-item .label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .summary-item ul {
+    list-style: none;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .summary-item ul li::before { content: '· '; color: var(--accent2); }
+
+  @media (max-width: 600px) {
+    .toc { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>C: The <em>20/80</em></h1>
+  <p>The 20% of C that gets you 80% of results · Modern patterns included</p>
+</header>
+
+<nav class="toc">
+  <div class="toc-title">Contents</div>
+  <a href="#types">Types & Memory Model</a>
+  <a href="#pointers">Pointers (demystified)</a>
+  <a href="#structs">Structs & Composition</a>
+  <a href="#strings">Strings</a>
+  <a href="#functions">Functions & Headers</a>
+  <a href="#arena">Pattern: Arena Allocator</a>
+  <a href="#slices">Pattern: Slices</a>
+  <a href="#handles">Pattern: Handle Arrays</a>
+  <a href="#errhandle">Pattern: Error Handling</a>
+  <a href="#defer">Pattern: Defer / Cleanup</a>
+</nav>
+
+<!-- ─── SECTION 1: TYPES ─────────────────────────────────────────── -->
+<section id="types">
+  <h2><span class="num">01</span> Types & the Memory Model</h2>
+
+  <p>C has no runtime. Every variable is either on the <strong>stack</strong> (automatic, freed when function returns) or the <strong>heap</strong> (manual, lives until you free it). This is everything.</p>
+
+  <h3>The types you'll actually use</h3>
+<pre><code><span class="pp">#include &lt;stdint.h&gt;</span>   <span class="cm">// fixed-width types — use these always</span>
+<span class="pp">#include &lt;stddef.h&gt;</span>   <span class="cm">// size_t, NULL, ptrdiff_t</span>
+<span class="pp">#include &lt;stdbool.h&gt;</span>  <span class="cm">// bool, true, false</span>
+
+<span class="ty">int8_t</span>   a;   <span class="cm">// signed  8-bit  (-128..127)</span>
+<span class="ty">uint8_t</span>  b;   <span class="cm">// unsigned 8-bit  (0..255)  — byte</span>
+<span class="ty">int32_t</span>  c;   <span class="cm">// signed 32-bit  — default int choice</span>
+<span class="ty">int64_t</span>  d;   <span class="cm">// signed 64-bit</span>
+<span class="ty">uint64_t</span> e;   <span class="cm">// unsigned 64-bit</span>
+<span class="ty">size_t</span>   n;   <span class="cm">// for sizes and counts (pointer-sized)</span>
+<span class="ty">float</span>    f;   <span class="cm">// 32-bit float</span>
+<span class="ty">double</span>   g;   <span class="cm">// 64-bit float</span>
+<span class="ty">bool</span>     ok;  <span class="cm">// true / false</span></code></pre>
+
+  <div class="rule">Avoid plain <code>int</code>, <code>long</code>, <code>short</code> — their sizes are platform-defined. Use <code>int32_t</code>, <code>int64_t</code>, etc. for anything you care about.</div>
+
+  <h3>Stack vs Heap at a glance</h3>
+<pre><code><span class="kw">void</span> <span class="fn">example</span>(<span class="kw">void</span>) {
+    <span class="cm">// STACK — automatic, zero overhead, dies with function</span>
+    <span class="ty">int32_t</span> x = <span class="nu">42</span>;
+    <span class="ty">float</span>   buf[<span class="nu">256</span>];   <span class="cm">// 1 KB on stack — fine</span>
+
+    <span class="cm">// HEAP — manual, survives the function</span>
+    <span class="ty">int32_t</span> *data = <span class="fn">malloc</span>(<span class="nu">1024</span> * <span class="kw">sizeof</span>(<span class="ty">int32_t</span>)); <span class="cm">// 4 KB</span>
+    <span class="kw">if</span> (!data) { <span class="cm">/* always check! */</span> <span class="kw">return</span>; }
+
+    data[<span class="nu">0</span>] = <span class="nu">7</span>;
+    <span class="fn">free</span>(data);  <span class="cm">// you MUST free it — there's no GC</span>
+    data = <span class="kw">NULL</span>; <span class="cm">// null it out to catch use-after-free</span>
+}</code></pre>
+
+  <div class="warn">Never put large arrays on the stack (&gt;~16 KB). Stack overflows are silent and deadly. Use the heap or static storage for big data.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 2: POINTERS ──────────────────────────────────────── -->
+<section id="pointers">
+  <h2><span class="num">02</span> Pointers (demystified)</h2>
+
+  <p>A pointer is just an integer holding a memory address. That's the whole mystery.</p>
+
+<pre><code><span class="ty">int32_t</span>  x   = <span class="nu">10</span>;     <span class="cm">// x is the value</span>
+<span class="ty">int32_t</span> *p   = &amp;x;    <span class="cm">// p holds the ADDRESS of x</span>
+<span class="ty">int32_t</span>  val = *p;    <span class="cm">// *p dereferences — reads through address</span>
+*p = <span class="nu">20</span>;              <span class="cm">// write through pointer — x is now 20</span></code></pre>
+
+  <h3>Why pointers exist</h3>
+  <p>1. Pass large data without copying. 2. Let a function mutate a caller's variable. 3. Point into heap memory. 4. Build data structures.</p>
+
+<pre><code><span class="cm">// Without pointer: caller's value unchanged</span>
+<span class="kw">void</span> <span class="fn">bad_add</span>(<span class="ty">int32_t</span> n) { n += <span class="nu">1</span>; }
+
+<span class="cm">// With pointer: caller's value IS changed</span>
+<span class="kw">void</span> <span class="fn">good_add</span>(<span class="ty">int32_t</span> *n) { *n += <span class="nu">1</span>; }
+
+<span class="ty">int32_t</span> val = <span class="nu">5</span>;
+<span class="fn">good_add</span>(&amp;val);  <span class="cm">// val is now 6</span></code></pre>
+
+  <h3>Pointer arithmetic</h3>
+<pre><code><span class="ty">int32_t</span> arr[<span class="nu">4</span>] = {<span class="nu">10</span>, <span class="nu">20</span>, <span class="nu">30</span>, <span class="nu">40</span>};
+<span class="ty">int32_t</span> *p = arr;       <span class="cm">// points to arr[0]</span>
+<span class="ty">int32_t</span>  a = *(p + <span class="nu">2</span>); <span class="cm">// same as arr[2] == 30</span>
+p++;                    <span class="cm">// p now points to arr[1]</span></code></pre>
+
+  <div class="tip"><code>arr[i]</code> is literally syntactic sugar for <code>*(arr + i)</code>. Arrays and pointers are deeply the same thing in C.</div>
+
+  <h3>Pointer to pointer (when you need it)</h3>
+<pre><code><span class="cm">// Needed when a function must allocate and return via param</span>
+<span class="kw">void</span> <span class="fn">alloc_buf</span>(<span class="ty">uint8_t</span> **out, <span class="ty">size_t</span> n) {
+    *out = <span class="fn">malloc</span>(n);
+}
+
+<span class="ty">uint8_t</span> *buf = <span class="kw">NULL</span>;
+<span class="fn">alloc_buf</span>(&amp;buf, <span class="nu">1024</span>);
+<span class="cm">// buf now points to 1024 bytes</span></code></pre>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 3: STRUCTS ────────────────────────────────────────── -->
+<section id="structs">
+  <h2><span class="num">03</span> Structs & Composition</h2>
+  <p>C has no classes. Structs are your objects. Composition over inheritance.</p>
+
+<pre><code><span class="kw">typedef struct</span> {
+    <span class="ty">float</span> x, y;
+} <span class="ty">Vec2</span>;
+
+<span class="kw">typedef struct</span> {
+    <span class="ty">Vec2</span>    pos;      <span class="cm">// embedded struct</span>
+    <span class="ty">Vec2</span>    vel;
+    <span class="ty">float</span>   radius;
+    <span class="ty">bool</span>    active;
+} <span class="ty">Ball</span>;
+
+<span class="cm">// Designated initializers (C99+) — use these, they're clear</span>
+<span class="ty">Ball</span> b = {
+    .pos    = {<span class="nu">100.0f</span>, <span class="nu">200.0f</span>},
+    .vel    = {<span class="nu">3.0f</span>,   <span class="nu">-1.5f</span>},
+    .radius = <span class="nu">16.0f</span>,
+    .active = <span class="kw">true</span>,
+};
+
+<span class="cm">// Accessing fields through pointer</span>
+<span class="ty">Ball</span> *bp = &amp;b;
+bp-&gt;radius = <span class="nu">20.0f</span>;   <span class="cm">// arrow = dereference + access</span>
+(*bp).radius = <span class="nu">20.0f</span>; <span class="cm">// same thing, uglier</span></code></pre>
+
+  <h3>Function "methods" on structs</h3>
+<pre><code><span class="cm">// Convention: first arg is pointer to the struct</span>
+<span class="kw">void</span>  <span class="fn">ball_update</span>(<span class="ty">Ball</span> *b, <span class="ty">float</span> dt);
+<span class="kw">void</span>  <span class="fn">ball_draw</span>  (<span class="kw">const</span> <span class="ty">Ball</span> *b);  <span class="cm">// const = won't mutate</span>
+<span class="ty">bool</span>  <span class="fn">ball_alive</span> (<span class="kw">const</span> <span class="ty">Ball</span> *b);
+
+<span class="cm">// Call-site reads naturally</span>
+<span class="fn">ball_update</span>(&amp;b, <span class="nu">0.016f</span>);
+<span class="fn">ball_draw</span>(&amp;b);</code></pre>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 4: STRINGS ─────────────────────────────────────────── -->
+<section id="strings">
+  <h2><span class="num">04</span> Strings</h2>
+  <p>C strings are null-terminated arrays of <code>char</code>. They are the biggest source of bugs in C. Know the rules.</p>
+
+<pre><code><span class="pp">#include &lt;string.h&gt;</span>
+
+<span class="cm">// String literal — lives in read-only memory, do NOT write to it</span>
+<span class="kw">const</span> <span class="ty">char</span> *s1 = <span class="st">"hello"</span>;
+
+<span class="cm">// Mutable copy on stack — you CAN write to this</span>
+<span class="ty">char</span> buf[<span class="nu">64</span>] = <span class="st">"hello"</span>;
+
+<span class="cm">// NEVER use strcpy/strcat — use the safe n-versions</span>
+<span class="fn">strncpy</span>(buf, <span class="st">"world"</span>, <span class="kw">sizeof</span>(buf) - <span class="nu">1</span>);
+buf[<span class="kw">sizeof</span>(buf) - <span class="nu">1</span>] = <span class="st">'\0'</span>;  <span class="cm">// always null-terminate</span>
+
+<span class="cm">// Better: use snprintf for building strings</span>
+<span class="ty">char</span> msg[<span class="nu">128</span>];
+<span class="fn">snprintf</span>(msg, <span class="kw">sizeof</span>(msg), <span class="st">"Player %d: score=%d"</span>, id, score);
+
+<span class="cm">// Useful string functions</span>
+<span class="ty">size_t</span> len = <span class="fn">strlen</span>(s1);         <span class="cm">// length (not counting \0)</span>
+<span class="ty">int</span>    cmp = <span class="fn">strcmp</span>(s1, <span class="st">"hi"</span>);   <span class="cm">// 0 if equal</span></code></pre>
+
+  <div class="warn">Never compare strings with <code>==</code>. That compares pointer addresses, not content. Always use <code>strcmp</code>.</div>
+
+  <h3>Modern: String View (non-owning slice)</h3>
+<pre><code><span class="cm">// A string that doesn't own its memory — great for parsing</span>
+<span class="kw">typedef struct</span> {
+    <span class="kw">const</span> <span class="ty">char</span> *data;
+    <span class="ty">size_t</span>      len;
+} <span class="ty">Str</span>;
+
+<span class="pp">#define STR(literal) ((Str){ (literal), sizeof(literal)-1 })</span>
+<span class="pp">#define STR_FMT      "%.*s"</span>
+<span class="pp">#define STR_ARG(s)   (int)(s).len, (s).data</span>
+
+<span class="ty">Str</span> name = <span class="fn">STR</span>(<span class="st">"Alice"</span>);
+<span class="fn">printf</span>(<span class="st">"Hello, "</span> STR_FMT <span class="st">"!\n"</span>, <span class="fn">STR_ARG</span>(name));
+<span class="cm">// → Hello, Alice!</span></code></pre>
+</section>
+
+<hr class="divider">
+
+<!-- ─── SECTION 5: FUNCTIONS & HEADERS ────────────────────────────── -->
+<section id="functions">
+  <h2><span class="num">05</span> Functions & Headers</h2>
+
+<pre><code><span class="cm">// mylib.h — declarations only</span>
+<span class="pp">#pragma once</span>           <span class="cm">// include guard (supported everywhere)</span>
+<span class="pp">#include &lt;stdint.h&gt;</span>
+
+<span class="kw">typedef struct</span> <span class="ty">MyLib</span> <span class="ty">MyLib</span>;  <span class="cm">// forward declare</span>
+
+<span class="ty">MyLib</span>  *<span class="fn">mylib_create</span>(<span class="ty">size_t</span> capacity);
+<span class="kw">void</span>    <span class="fn">mylib_destroy</span>(<span class="ty">MyLib</span> *lib);
+<span class="ty">int32_t</span> <span class="fn">mylib_process</span>(<span class="ty">MyLib</span> *lib, <span class="kw">const</span> <span class="ty">uint8_t</span> *data, <span class="ty">size_t</span> n);</code></pre>
+
+<pre><code><span class="cm">// mylib.c — definitions</span>
+<span class="pp">#include "mylib.h"</span>
+<span class="pp">#include &lt;stdlib.h&gt;</span>
+
+<span class="kw">struct</span> <span class="ty">MyLib</span> {
+    <span class="ty">uint8_t</span> *buf;
+    <span class="ty">size_t</span>   cap;
+    <span class="ty">size_t</span>   len;
+};
+
+<span class="ty">MyLib</span> *<span class="fn">mylib_create</span>(<span class="ty">size_t</span> capacity) {
+    <span class="ty">MyLib</span> *lib = <span class="fn">calloc</span>(<span class="nu">1</span>, <span class="kw">sizeof</span>(*lib));  <span class="cm">// calloc = malloc + zero</span>
+    <span class="kw">if</span> (!lib) <span class="kw">return</span> <span class="kw">NULL</span>;
+    lib-&gt;buf = <span class="fn">malloc</span>(capacity);
+    <span class="kw">if</span> (!lib-&gt;buf) { <span class="fn">free</span>(lib); <span class="kw">return</span> <span class="kw">NULL</span>; }
+    lib-&gt;cap = capacity;
+    <span class="kw">return</span> lib;
+}
+
+<span class="kw">void</span> <span class="fn">mylib_destroy</span>(<span class="ty">MyLib</span> *lib) {
+    <span class="kw">if</span> (!lib) <span class="kw">return</span>;
+    <span class="fn">free</span>(lib-&gt;buf);
+    <span class="fn">free</span>(lib);
+}</code></pre>
+
+  <div class="rule">Put only <em>declarations</em> in headers. Definitions (function bodies, global variable storage) go in .c files. <code>#pragma once</code> prevents double-inclusion.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!--  MODERN PATTERNS                                                -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<section id="arena">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Arena Allocator</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>The single most useful pattern in systems C. An arena (also called a bump allocator or linear allocator) is a block of memory you carve forward-only. <strong>Free everything at once</strong> by resetting the offset to 0. No fragmentation, no double-frees, no tracking individual lifetimes.</p>
+
+      <p>Use it for: per-frame data in games, per-request in servers, scratch memory for parsers, temp strings.</p>
+
+<pre><code><span class="pp">#include &lt;stdint.h&gt;</span>
+<span class="pp">#include &lt;stddef.h&gt;</span>
+<span class="pp">#include &lt;stdlib.h&gt;</span>
+<span class="pp">#include &lt;string.h&gt;</span>
+<span class="pp">#include &lt;assert.h&gt;</span>
+
+<span class="kw">typedef struct</span> {
+    <span class="ty">uint8_t</span> *data;
+    <span class="ty">size_t</span>   pos;   <span class="cm">// next free byte</span>
+    <span class="ty">size_t</span>   cap;   <span class="cm">// total size</span>
+} <span class="ty">Arena</span>;
+
+<span class="cm">// Create an arena backed by a heap allocation</span>
+<span class="ty">Arena</span> <span class="fn">arena_make</span>(<span class="ty">size_t</span> cap) {
+    <span class="kw">return</span> (<span class="ty">Arena</span>){ .data = <span class="fn">malloc</span>(cap), .cap = cap };
+}
+
+<span class="cm">// Allocate n bytes, aligned to 'align' bytes (usually 8 or 16)</span>
+<span class="kw">void</span> *<span class="fn">arena_alloc</span>(<span class="ty">Arena</span> *a, <span class="ty">size_t</span> n, <span class="ty">size_t</span> align) {
+    <span class="ty">size_t</span> pos  = (a-&gt;pos + align - <span class="nu">1</span>) &amp; ~(align - <span class="nu">1</span>); <span class="cm">// align up</span>
+    <span class="ty">size_t</span> next = pos + n;
+    <span class="kw">if</span> (next &gt; a-&gt;cap) <span class="kw">return</span> <span class="kw">NULL</span>;  <span class="cm">// out of space</span>
+    a-&gt;pos = next;
+    <span class="kw">return</span> a-&gt;data + pos;
+}
+
+<span class="cm">// Convenience macro: alloc + zero + type-safe</span>
+<span class="pp">#define ARENA_ALLOC(a, T)    ((T*)arena_alloc(a, sizeof(T),    _Alignof(T)))</span>
+<span class="pp">#define ARENA_ALLOC_N(a,T,n) ((T*)arena_alloc(a, sizeof(T)*n,  _Alignof(T)))</span>
+
+<span class="cm">// Free ALL at once — O(1), trivial</span>
+<span class="kw">void</span> <span class="fn">arena_reset</span>(<span class="ty">Arena</span> *a)   { a-&gt;pos = <span class="nu">0</span>; }
+<span class="kw">void</span> <span class="fn">arena_destroy</span>(<span class="ty">Arena</span> *a) { <span class="fn">free</span>(a-&gt;data); *a = (<span class="ty">Arena</span>){<span class="nu">0</span>}; }
+
+<span class="cm">// ── Usage ──────────────────────────────────────────────────────</span>
+
+<span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; <span class="ty">int32_t</span> id; } <span class="ty">Entity</span>;
+
+<span class="kw">void</span> <span class="fn">game_frame</span>(<span class="kw">void</span>) {
+    <span class="ty">Arena</span> frame = <span class="fn">arena_make</span>(<span class="nu">4</span> * <span class="nu">1024</span> * <span class="nu">1024</span>);  <span class="cm">// 4 MB scratch</span>
+
+    <span class="cm">// Allocate as much as you want — no individual frees needed</span>
+    <span class="ty">Entity</span>  *player  = <span class="fn">ARENA_ALLOC</span>(&amp;frame, <span class="ty">Entity</span>);
+    <span class="ty">Entity</span>  *enemies = <span class="fn">ARENA_ALLOC_N</span>(&amp;frame, <span class="ty">Entity</span>, <span class="nu">128</span>);
+    <span class="ty">char</span>    *buf     = <span class="fn">ARENA_ALLOC_N</span>(&amp;frame, <span class="ty">char</span>, <span class="nu">4096</span>);
+
+    player-&gt;x = <span class="nu">100.0f</span>;
+    <span class="cm">// ... do game work ...</span>
+
+    <span class="fn">arena_destroy</span>(&amp;frame);  <span class="cm">// one free, everything gone</span>
+}
+
+<span class="cm">// Or for permanent + per-frame arenas:</span>
+<span class="kw">static</span> <span class="ty">Arena</span> g_perm;    <span class="cm">// program lifetime, never reset</span>
+<span class="kw">static</span> <span class="ty">Arena</span> g_frame;   <span class="cm">// reset every frame</span></code></pre>
+
+      <div class="tip">Use two arenas: a <strong>permanent</strong> arena for the game's lifetime and a <strong>scratch</strong> arena you reset each frame. This eliminates almost all malloc/free bookkeeping.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SLICES ─────────────────────────────────────────────────── -->
+<section id="slices">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Typed Slices (Fat Pointers)</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>A raw pointer tells you nothing about how many items it holds. Bundle the pointer with its length into a <strong>slice</strong>. Functions pass these by value — cheap, safe, self-describing.</p>
+
+<pre><code><span class="cm">// Generic macro to define slice types</span>
+<span class="pp">#define SLICE(T) struct { T *data; size_t len; }</span>
+
+<span class="kw">typedef</span> <span class="pp">SLICE</span>(<span class="ty">int32_t</span>) <span class="ty">I32Slice</span>;
+<span class="kw">typedef</span> <span class="pp">SLICE</span>(<span class="ty">float</span>)   <span class="ty">F32Slice</span>;
+
+<span class="kw">typedef struct</span> { <span class="ty">float</span> x, y; } <span class="ty">Vec2</span>;
+<span class="kw">typedef</span> <span class="pp">SLICE</span>(<span class="ty">Vec2</span>) <span class="ty">Vec2Slice</span>;
+
+<span class="cm">// Allocate a slice from an arena</span>
+<span class="ty">Vec2Slice</span> <span class="fn">make_positions</span>(<span class="ty">Arena</span> *a, <span class="ty">size_t</span> count) {
+    <span class="kw">return</span> (<span class="ty">Vec2Slice</span>){
+        .data = <span class="fn">ARENA_ALLOC_N</span>(a, <span class="ty">Vec2</span>, count),
+        .len  = count,
+    };
+}
+
+<span class="cm">// Iterate safely — no out-of-bounds by accident</span>
+<span class="kw">void</span> <span class="fn">print_positions</span>(<span class="ty">Vec2Slice</span> s) {
+    <span class="kw">for</span> (<span class="ty">size_t</span> i = <span class="nu">0</span>; i &lt; s.len; i++) {
+        <span class="fn">printf</span>(<span class="st">"(%.2f, %.2f)\n"</span>, s.data[i].x, s.data[i].y);
+    }
+}
+
+<span class="cm">// Get a sub-slice — no copy, no alloc</span>
+<span class="ty">Vec2Slice</span> <span class="fn">slice_range</span>(<span class="ty">Vec2Slice</span> s, <span class="ty">size_t</span> start, <span class="ty">size_t</span> end) {
+    <span class="kw">return</span> (<span class="ty">Vec2Slice</span>){ s.data + start, end - start };
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ─── HANDLE ARRAYS ─────────────────────────────────────────────── -->
+<section id="handles">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Handle Arrays (Pool)</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>Instead of pointers to heap-allocated objects (bad for cache, fragmentation, dangling pointers), store all objects in a flat array and hand out <strong>integer handles</strong>. Handles can be validated, versioned, and never dangle.</p>
+
+<pre><code><span class="pp">#define MAX_ENTITIES 1024</span>
+
+<span class="kw">typedef struct</span> {
+    <span class="ty">float</span>   x, y;
+    <span class="ty">float</span>   speed;
+    <span class="ty">bool</span>    active;
+    <span class="ty">uint32_t</span> generation;  <span class="cm">// version counter</span>
+} <span class="ty">Entity</span>;
+
+<span class="kw">typedef struct</span> {
+    <span class="ty">uint32_t</span> index;
+    <span class="ty">uint32_t</span> generation;  <span class="cm">// must match slot's generation</span>
+} <span class="ty">EntityHandle</span>;
+
+<span class="kw">static</span> <span class="ty">Entity</span>   g_entities[<span class="pp">MAX_ENTITIES</span>];
+<span class="kw">static</span> <span class="ty">uint32_t</span> g_count = <span class="nu">0</span>;
+
+<span class="ty">EntityHandle</span> <span class="fn">entity_create</span>(<span class="kw">void</span>) {
+    <span class="kw">for</span> (<span class="ty">uint32_t</span> i = <span class="nu">0</span>; i &lt; <span class="pp">MAX_ENTITIES</span>; i++) {
+        <span class="kw">if</span> (!g_entities[i].active) {
+            g_entities[i].active = <span class="kw">true</span>;
+            g_entities[i].generation++;
+            <span class="kw">return</span> (<span class="ty">EntityHandle</span>){ i, g_entities[i].generation };
+        }
+    }
+    <span class="kw">return</span> (<span class="ty">EntityHandle</span>){ <span class="nu">0</span>, <span class="nu">0</span> }; <span class="cm">// null handle</span>
+}
+
+<span class="cm">// Returns NULL if handle is stale or invalid</span>
+<span class="ty">Entity</span> *<span class="fn">entity_get</span>(<span class="ty">EntityHandle</span> h) {
+    <span class="kw">if</span> (h.index &gt;= <span class="pp">MAX_ENTITIES</span>) <span class="kw">return</span> <span class="kw">NULL</span>;
+    <span class="ty">Entity</span> *e = &amp;g_entities[h.index];
+    <span class="kw">if</span> (!e-&gt;active || e-&gt;generation != h.generation) <span class="kw">return</span> <span class="kw">NULL</span>;
+    <span class="kw">return</span> e;
+}
+
+<span class="kw">void</span> <span class="fn">entity_destroy</span>(<span class="ty">EntityHandle</span> h) {
+    <span class="ty">Entity</span> *e = <span class="fn">entity_get</span>(h);
+    <span class="kw">if</span> (e) { *e = (<span class="ty">Entity</span>){<span class="nu">0</span>}; }  <span class="cm">// zero = inactive</span>
+}
+
+<span class="cm">// Update all — tight loop, cache-friendly</span>
+<span class="kw">void</span> <span class="fn">entities_update</span>(<span class="ty">float</span> dt) {
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i &lt; <span class="pp">MAX_ENTITIES</span>; i++) {
+        <span class="kw">if</span> (!g_entities[i].active) <span class="kw">continue</span>;
+        g_entities[i].x += g_entities[i].speed * dt;
+    }
+}</code></pre>
+
+      <div class="tip">Iterating a flat array of structs is dramatically faster than following pointers to scattered heap objects. This is the core of data-oriented design.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── ERROR HANDLING ─────────────────────────────────────────────── -->
+<section id="errhandle">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Error Handling Without Exceptions</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>C has no exceptions. The modern pattern is to return a <strong>result type</strong> — a struct containing either a value or an error.</p>
+
+<pre><code><span class="kw">typedef enum</span> {
+    <span class="ty">ERR_OK</span>       = <span class="nu">0</span>,
+    <span class="ty">ERR_OOM</span>,      <span class="cm">// out of memory</span>
+    <span class="ty">ERR_NOT_FOUND</span>,
+    <span class="ty">ERR_INVALID</span>,
+} <span class="ty">Error</span>;
+
+<span class="kw">typedef struct</span> {
+    <span class="ty">int32_t</span> value;
+    <span class="ty">Error</span>   err;
+} <span class="ty">I32Result</span>;
+
+<span class="cm">// Constructor helpers</span>
+<span class="kw">static inline</span> <span class="ty">I32Result</span> <span class="fn">i32_ok</span>(<span class="ty">int32_t</span> v) { <span class="kw">return</span> (<span class="ty">I32Result</span>){v, <span class="ty">ERR_OK</span>}; }
+<span class="kw">static inline</span> <span class="ty">I32Result</span> <span class="fn">i32_err</span>(<span class="ty">Error</span> e) { <span class="kw">return</span> (<span class="ty">I32Result</span>){<span class="nu">0</span>, e}; }
+
+<span class="ty">I32Result</span> <span class="fn">parse_int</span>(<span class="kw">const</span> <span class="ty">char</span> *s) {
+    <span class="kw">if</span> (!s || !*s) <span class="kw">return</span> <span class="fn">i32_err</span>(<span class="ty">ERR_INVALID</span>);
+    <span class="ty">char</span> *end;
+    <span class="ty">long</span> v = <span class="fn">strtol</span>(s, &amp;end, <span class="nu">10</span>);
+    <span class="kw">if</span> (*end != <span class="st">'\0'</span>) <span class="kw">return</span> <span class="fn">i32_err</span>(<span class="ty">ERR_INVALID</span>);
+    <span class="kw">return</span> <span class="fn">i32_ok</span>((<span class="ty">int32_t</span>)v);
+}
+
+<span class="cm">// Usage — you MUST check before using the value</span>
+<span class="ty">I32Result</span> r = <span class="fn">parse_int</span>(<span class="st">"123"</span>);
+<span class="kw">if</span> (r.err) {
+    <span class="fn">fprintf</span>(stderr, <span class="st">"parse failed: %d\n"</span>, r.err);
+} <span class="kw">else</span> {
+    <span class="fn">printf</span>(<span class="st">"got: %d\n"</span>, r.value);
+}</code></pre>
+
+      <div class="tip">For simple functions, returning <code>NULL</code> on failure is fine. Reserve result types for places where you need to distinguish <em>why</em> something failed.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DEFER ─────────────────────────────────────────────────────── -->
+<section id="defer">
+  <div class="pattern-card">
+    <div class="pattern-card-header">
+      <span class="tag">Pattern</span>
+      <h3>Cleanup / Defer with goto</h3>
+    </div>
+    <div class="pattern-card-body">
+      <p>When a function acquires multiple resources, the <code>goto cleanup</code> pattern gives you structured cleanup without nesting hell. It's the idiomatic C way to get Go/Zig-style <code>defer</code>.</p>
+
+<pre><code><span class="ty">int32_t</span> <span class="fn">load_and_process</span>(<span class="kw">const</span> <span class="ty">char</span> *path) {
+    <span class="ty">int32_t</span>  result = -<span class="nu">1</span>;
+    <span class="ty">FILE</span>    *f      = <span class="kw">NULL</span>;
+    <span class="ty">uint8_t</span> *buf    = <span class="kw">NULL</span>;
+
+    f = <span class="fn">fopen</span>(path, <span class="st">"rb"</span>);
+    <span class="kw">if</span> (!f) <span class="kw">goto</span> cleanup;
+
+    buf = <span class="fn">malloc</span>(<span class="nu">4096</span>);
+    <span class="kw">if</span> (!buf) <span class="kw">goto</span> cleanup;
+
+    <span class="ty">size_t</span> n = <span class="fn">fread</span>(buf, <span class="nu">1</span>, <span class="nu">4096</span>, f);
+    <span class="kw">if</span> (n == <span class="nu">0</span>) <span class="kw">goto</span> cleanup;
+
+    <span class="cm">// ... process buf ...</span>
+    result = (<span class="ty">int32_t</span>)n;  <span class="cm">// success</span>
+
+cleanup:
+    <span class="fn">free</span>(buf);    <span class="cm">// free(NULL) is safe in C</span>
+    <span class="kw">if</span> (f) <span class="fn">fclose</span>(f);
+    <span class="kw">return</span> result;
+}
+<span class="cm">// No matter how we exit, cleanup always runs.</span>
+<span class="cm">// No nested ifs. No leaked resources.</span></code></pre>
+
+      <div class="rule">Always initialize resources to <code>NULL</code> at the top. <code>free(NULL)</code> is a no-op in C, so your cleanup block is always safe to call unconditionally.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SUMMARY ─────────────────────────────────────────────────── -->
+<hr class="divider">
+
+<section>
+  <h2><span class="num">∑</span> Quick Reference</h2>
+  <div class="summary-grid">
+    <div class="summary-item">
+      <div class="label">Always do</div>
+      <ul>
+        <li>Use <code>stdint.h</code> fixed-width types</li>
+        <li>Check every malloc/fopen for NULL</li>
+        <li>Use <code>snprintf</code> not <code>sprintf</code></li>
+        <li>Use <code>strcmp</code> not <code>==</code> for strings</li>
+        <li>NULL pointers after free</li>
+        <li>Use arenas for short-lived data</li>
+        <li><code>#pragma once</code> in every header</li>
+      </ul>
+    </div>
+    <div class="summary-item">
+      <div class="label">Never do</div>
+      <ul>
+        <li>Large arrays on the stack</li>
+        <li>Ignore malloc return value</li>
+        <li>Use <code>gets()</code> — it's deleted</li>
+        <li>Cast malloc in C (it's unnecessary)</li>
+        <li>Write to string literals</li>
+        <li>Compare strings with ==</li>
+        <li>Forget to free heap memory</li>
+      </ul>
+    </div>
+    <div class="summary-item">
+      <div class="label">Core patterns</div>
+      <ul>
+        <li>Arena allocator for lifetimes</li>
+        <li>Slice structs (ptr + len)</li>
+        <li>Handle arrays for objects</li>
+        <li>Result structs for errors</li>
+        <li>goto cleanup for resources</li>
+      </ul>
+    </div>
+    <div class="summary-item">
+      <div class="label">Key headers</div>
+      <ul>
+        <li><code>stdint.h</code> — fixed types</li>
+        <li><code>stddef.h</code> — size_t, NULL</li>
+        <li><code>stdbool.h</code> — bool</li>
+        <li><code>string.h</code> — mem/str ops</li>
+        <li><code>stdlib.h</code> — malloc/free</li>
+        <li><code>stdio.h</code> — printf/fopen</li>
+        <li><code>assert.h</code> — assert()</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
