@@ -1683,8 +1683,8 @@ x = (x &amp; ~bit) | (val ? bit : <span class="nu">0</span>);  <span class="cm">
   <div class="rule">C89: variables must be declared at the top of a function, loop counters leak, struct init is positional (you can swap two same-typed fields by mistake). C99 fixes all of this.</div>
 
   <h3>Always-on warning flags</h3>
-<pre><code>-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wformat=<span class="nu">2</span> -Wnull-dereference</code></pre>
-  <p>Add <code>-Werror</code> to make warnings stop the build. Switch it on from day one - it's much harder to clean up later.</p>
+<pre><code>-Wall -Wextra -Wshadow -Wconversion -Wformat=<span class="nu">2</span> -Wnull-dereference</code></pre>
+  <p>Add <code>-Werror</code> to make warnings stop the build. Switch it on from day one - it's much harder to clean up later. <code>-Wpedantic</code> is useful when you want maximum portability, but it flags widely-used compiler extensions (like <code>_Alignof</code> in C99 mode) - add it when you specifically need ISO conformance.</p>
 
   <h3>Sanitizers</h3>
 <pre><code><span class="cm"># AddressSanitizer (heap/stack overflow, use-after-free, double-free, leaks)</span>
