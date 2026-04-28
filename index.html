@@ -2171,37 +2171,34 @@ sudo pacman -S clang lldb bear gdb helix
 <span class="cm"># Verify</span>
 hx --health c            <span class="cm"># clangd should show "Found"</span></code></pre>
 
-  <h3>Project-level <code>.clangd</code></h3>
-<pre><code><span class="cm"># drop in repo root</span>
-CompileFlags:
+  <h3>Project file: <code>./.clangd</code></h3>
+  <p>Save this in your repo root.</p>
+<pre><code>CompileFlags:
   Add: [-std=c99, -Wall, -Wextra, -Wpedantic]
 Diagnostics:
   UnusedIncludes: Strict</code></pre>
 
-  <h3><code>compile_commands.json</code></h3>
-  <p>clangd reads this for accurate cross-file analysis.</p>
-<pre><code><span class="cm"># with a Makefile</span>
+  <h3>Project file: <code>./compile_commands.json</code></h3>
+  <p>clangd reads this for accurate cross-file analysis. Generate it with one of:</p>
+<pre><code><span class="cm"># with a Makefile (bear records each clang invocation)</span>
 bear -- make
 
-<span class="cm"># single-file project</span>
+<span class="cm"># single-file project (write the file directly)</span>
 echo <span class="st">'[{"directory":"'"$(pwd)"'","command":"clang -std=c99 -Wall main.c","file":"main.c"}]'</span> &gt; compile_commands.json</code></pre>
 
-  <h3>Format on save</h3>
-<pre><code><span class="cm"># .clang-format in repo root</span>
-BasedOnStyle: LLVM
+  <h3>Project file: <code>./.clang-format</code></h3>
+  <p>Save this in your repo root. <code>clang-format</code> picks it up automatically.</p>
+<pre><code>BasedOnStyle: LLVM
 IndentWidth: <span class="nu">4</span>
 ColumnLimit: <span class="nu">100</span>
 AlignConsecutiveDeclarations: true</code></pre>
-<pre><code><span class="cm"># ~/.config/helix/languages.toml</span>
-[[language]]
+
+  <h3>User config: <code>~/.config/helix/languages.toml</code></h3>
+  <p>Add this single <code>[[language]]</code> entry. Wires up format-on-save and DAP debugging in one block. Create the file if it doesn't exist (<code>mkdir -p ~/.config/helix</code> first).</p>
+<pre><code>[[language]]
 name = <span class="st">"c"</span>
 auto-format = true
-formatter = { command = <span class="st">"clang-format"</span> }</code></pre>
-
-  <h3>Debugging in Helix (DAP via lldb-dap)</h3>
-<pre><code><span class="cm"># ~/.config/helix/languages.toml</span>
-[[language]]
-name = <span class="st">"c"</span>
+formatter = { command = <span class="st">"clang-format"</span> }
 debugger = { name = <span class="st">"lldb-dap"</span>, transport = <span class="st">"stdio"</span>, command = <span class="st">"lldb-dap"</span> }
 [[language.debugger.templates]]
 name = <span class="st">"binary"</span>
