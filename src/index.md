@@ -1,3 +1,58 @@
+## 00 Study Roadmap {#roadmap data-toc="Study Roadmap"}
+
+TL;DR: don't read this guide front-to-back. Pick a path below, write code as you go, and treat the rest as reference.
+
+### Time-boxed paths
+
+**Day 1 (3-4 hours).** Read these only:
+
+- 01 Types & Memory Model
+- 02 Pointers
+- 03 Arrays & Decay
+- 06 Strings
+- 27 Build System Minimum
+
+Then write a `wc` clone (counts lines, words, bytes from a file). That's enough to start writing C.
+
+**Week 1.** Day 1 plus:
+
+- 04 Structs & Composition
+- 05 Enums & Tagged Unions
+- 07 Functions & Headers
+- 17 Building & Safety (focus on the compile flags)
+- 23 Memory Management
+- 24 Error Handling Idioms
+- 26 Common Rookie Traps
+
+Build: a hash table (open addressing) and a tiny JSON parser.
+
+**Month 1.** Week 1 plus everything else, plus:
+
+- 28 Drills (do at least 5 per major topic)
+- The full project ladder below
+
+### Project ladder
+
+Five projects, each forces a different muscle. Build them in order. If you finish all five with sanitizers clean, you know enough C to ship real software.
+
+| # | Project | Forces |
+|---|---------|--------|
+| 1 | `echo` clone | argv, exit codes, no allocations |
+| 2 | `wc` clone | file I/O, loops, edge cases (empty file, no trailing newline) |
+| 3 | Hash table (open addressing) | malloc/free, structs, hashing, resizing |
+| 4 | Arena allocator | pointer arithmetic, alignment, lifetimes |
+| 5 | Tiny shell (fork + exec + pipe) | syscalls, signals, processes |
+
+::: tip
+Build every project under `-fsanitize=address,undefined`. If the sanitizers complain, fix it before moving on. Most C bugs hide for years; the sanitizers find them in seconds.
+:::
+
+::: rule
+Read fast, write slow. Spend more time at the keyboard than at the page. C is a muscle skill: typing `malloc`/`free`/`memcpy` until they're automatic is the actual point.
+:::
+
+---
+
 ## 01 Types & the Memory Model {#types data-toc="Types & Memory Model"}
 
 C has no runtime. Every variable is either on the **stack** (automatic, freed when function returns) or the **heap** (manual, lives until you free it). This is everything.
@@ -51,6 +106,10 @@ Never put large arrays on the stack (>~16 KB). Stack overflows are silent and de
 ## 02 Pointers (demystified) {#pointers}
 
 A pointer is just an integer holding a memory address. That's the whole mystery.
+
+::: tip
+**Coming from Python/JS:** every variable in Python/JS is already a reference under the hood. C exposes the machinery. `int x = 5` puts the value 5 in a memory cell; `int *p = &x` is a second cell holding the address of the first. There is no magic indirection layer. The asterisk (`*`) and ampersand (`&`) are how you cross between "value" and "where it lives".
+:::
 
 ```c
 int32_t  x   = 10;     // x is the value
@@ -162,7 +221,122 @@ Read `**` right-to-left: `char **argv` = "argv is a pointer to a pointer to char
 
 ---
 
-## 03 Arrays & Decay {#arrays}
+## 03 Visual Memory Models {#diagrams data-toc="Visual Memory Models"}
+
+TL;DR: when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.
+
+### Process memory layout
+
+```text
+    high addresses
+    +------------------+
+    |  command line    |
+    |  environment     |
+    +------------------+
+    |  STACK           |  <- grows DOWN
+    |  ----------      |
+    |  local vars      |
+    |  return addr     |
+    |  saved regs      |
+    |       v          |
+    |                  |
+    |       ^          |
+    |  HEAP            |  <- grows UP (malloc)
+    +------------------+
+    |  .bss            |  uninitialised globals (zeroed)
+    |  .data           |  initialised globals
+    |  .rodata         |  string literals (read-only)
+    |  .text           |  the code
+    +------------------+
+    low addresses
+```
+
+### A pointer in pictures
+
+```text
+int x = 42;
+int *p = &x;
+
+  STACK
+  +-----------+   address: 0x7ffd_a0
+  |    42     |   <-- x
+  +-----------+
+
+  +-----------+   address: 0x7ffd_a8
+  | 0x7ffd_a0 |   <-- p (holds the address of x)
+  +-----------+
+
+  *p reads through the arrow: 0x7ffd_a8 -> 0x7ffd_a0 -> 42
+```
+
+### Pointer to pointer (argv)
+
+```text
+char **argv;
+
+  +-------+      +---+---+---+---+---+
+  | argv  | ---> | * | * | * |...| 0 |   <- array of char*
+  +-------+      +---+---+---+---+---+
+                   |   |   |
+                   v   v   v
+                "./a" "x" "yz"           <- the actual strings
+```
+
+### A struct in memory
+
+```text
+struct Point { int32_t x; int32_t y; };
+Point p = {3, 7};
+
+  +---+---+---+---+---+---+---+---+
+  | 03  00  00  00 | 07  00  00  00 |   little-endian, 8 bytes total
+  +---+---+---+---+---+---+---+---+
+   ^                ^
+   p.x  (offset 0)  p.y  (offset 4)
+```
+
+### Array decay
+
+```text
+int arr[4] = {10, 20, 30, 40};
+
+In its own scope:
+  arr     -->  the whole array, sizeof(arr) == 16
+  &arr    -->  pointer to int[4]
+
+Passed to a function:
+  void f(int a[]) { ... }
+  f(arr);
+        arr decays to &arr[0] - a plain int*
+        sizeof(a) inside f == sizeof(int*) (8 on 64-bit), NOT 16
+```
+
+::: warn
+This decay is the most common source of `sizeof` bugs. Inside a function parameter, `int a[]` and `int *a` are the same type. The size of the original array is gone forever; pass the length explicitly.
+:::
+
+### Stack frame layout
+
+```text
+caller calls callee(x, y):
+
+  +---------------------+   <- top of stack BEFORE call
+  | caller locals       |
+  +---------------------+
+  | y           (arg)   |     args (or in registers, x86_64 SysV)
+  | x           (arg)   |
+  | return addr         |     saved by `call`
+  | saved frame ptr     |
+  | callee locals       |     callee allocates
+  +---------------------+   <- top during call
+
+On return: restore frame ptr, jump to return addr.
+Caller's stack is exactly as it was.
+```
+
+---
+
+## 04 Arrays & Decay {#arrays}
 
 An array is a contiguous run of elements. In C it is *not* a pointer, but it silently turns into one almost everywhere you use it. Knowing exactly when that happens is the difference between code that works and code that quietly reads garbage.
 
@@ -301,7 +475,57 @@ Reading or writing outside an array is undefined behaviour, even by one element.
 
 ---
 
-## 04 Structs & Composition {#structs}
+## 05 Strings {#strings}
+
+C strings are null-terminated arrays of `char`. They are the biggest source of bugs in C. Know the rules.
+
+```c
+#include <string.h>
+
+// String literal - lives in read-only memory, do NOT write to it
+const char *s1 = "hello";
+
+// Mutable copy on stack - you CAN write to this
+char buf[64] = "hello";
+
+// NEVER use strcpy/strcat - use the safe n-versions
+strncpy(buf, "world", sizeof(buf) - 1);
+buf[sizeof(buf) - 1] = '\0';  // always null-terminate
+
+// Better: use snprintf for building strings
+char msg[128];
+snprintf(msg, sizeof(msg), "Player %d: score=%d", id, score);
+
+// Useful string functions
+size_t len = strlen(s1);         // length (not counting \0)
+int    cmp = strcmp(s1, "hi");   // 0 if equal
+```
+
+::: warn
+Never compare strings with `==`. That compares pointer addresses, not content. Always use `strcmp`.
+:::
+
+### Modern: String View (non-owning slice)
+
+```c
+// A string that doesn't own its memory - great for parsing
+typedef struct {
+    const char *data;
+    size_t      len;
+} Str;
+
+#define STR(literal) ((Str){ (literal), sizeof(literal)-1 })
+#define STR_FMT      "%.*s"
+#define STR_ARG(s)   (int)(s).len, (s).data
+
+Str name = STR("Alice");
+printf("Hello, " STR_FMT "!\n", STR_ARG(name));
+// → Hello, Alice!
+```
+
+---
+
+## 06 Structs & Composition {#structs}
 
 C has no classes. Structs are your objects. Composition over inheritance.
 
@@ -346,7 +570,7 @@ ball_draw(&b);
 
 ---
 
-## 05 Enums & Tagged Unions {#enums}
+## 07 Enums & Tagged Unions {#enums}
 
 Enums give you typed names instead of magic numbers. Unions let one piece of memory hold one of several types. Combined, they encode *sum types*: "this thing is exactly one of these variants". This is the C answer to Rust's `enum` and Haskell's algebraic data types.
 
@@ -507,57 +731,208 @@ memcpy(&u, &f, sizeof(u));   // well-defined, optimizes to a register move
 
 ---
 
-## 06 Strings {#strings}
+## 08 Memory Management {#memory data-toc="Memory Management"}
 
-C strings are null-terminated arrays of `char`. They are the biggest source of bugs in C. Know the rules.
+TL;DR: malloc takes memory, free returns it. Lose the pointer and you've leaked. Free twice and you've corrupted the heap. Use arenas to make ownership obvious.
+
+### The four allocators
 
 ```c
-#include <string.h>
+#include <stdlib.h>
 
-// String literal - lives in read-only memory, do NOT write to it
-const char *s1 = "hello";
+void *malloc(size_t n);                  // n bytes, uninitialised
+void *calloc(size_t count, size_t size); // count*size bytes, zeroed
+void *realloc(void *p, size_t n);        // grow/shrink an existing block
+void  free(void *p);                     // release back to the heap
+```
 
-// Mutable copy on stack - you CAN write to this
-char buf[64] = "hello";
+```c
+// malloc - fastest, contents are garbage
+char *buf = malloc(1024);
+if (!buf) abort();         // ALWAYS check
+memset(buf, 0, 1024);      // zero it yourself if needed
 
-// NEVER use strcpy/strcat - use the safe n-versions
-strncpy(buf, "world", sizeof(buf) - 1);
-buf[sizeof(buf) - 1] = '\0';  // always null-terminate
+// calloc - zero-initialised, slightly slower
+int32_t *counts = calloc(256, sizeof *counts);
 
-// Better: use snprintf for building strings
-char msg[128];
-snprintf(msg, sizeof(msg), "Player %d: score=%d", id, score);
+// realloc done WRONG - leaks original block on failure
+buf = realloc(buf, 4096);
 
-// Useful string functions
-size_t len = strlen(s1);         // length (not counting \0)
-int    cmp = strcmp(s1, "hi");   // 0 if equal
+// realloc done right
+char *tmp = realloc(buf, 4096);
+if (!tmp) { free(buf); abort(); }
+buf = tmp;
 ```
 
 ::: warn
-Never compare strings with `==`. That compares pointer addresses, not content. Always use `strcmp`.
+`realloc(NULL, n)` behaves like `malloc(n)`, and `realloc(p, 0)` is implementation-defined. Don't rely on either; spell out the intent explicitly.
 :::
 
-### Modern: String View (non-owning slice)
+### Coming from Python/JS
+
+In Python/JS, the runtime tracks every reference and frees memory when the last one goes out of scope. C has no runtime. **You** decide when memory is freed. If you don't, it lives until the process exits (a "leak"). If you free too early, every remaining pointer to it is a bomb.
+
+| Concept | Python / JS | C |
+|---------|-------------|---|
+| Allocate | `[]`, `{}`, `new Foo()` | `malloc(sizeof(Foo))` |
+| Free | implicit (GC) | explicit (`free`) |
+| Variable holds | reference | value or pointer |
+| Out of scope | maybe collected later | freed (stack) or leaked (heap) |
+
+### Ownership
+
+Every heap allocation has exactly one owner. The owner is responsible for freeing it. Document this in the API.
 
 ```c
-// A string that doesn't own its memory - great for parsing
-typedef struct {
-    const char *data;
-    size_t      len;
-} Str;
+// pattern 1: caller owns - function returns, caller frees
+char *read_file(const char *path);          // caller MUST free()
 
-#define STR(literal) ((Str){ (literal), sizeof(literal)-1 })
-#define STR_FMT      "%.*s"
-#define STR_ARG(s)   (int)(s).len, (s).data
+// pattern 2: callee owns - caller hands off
+void log_take_ownership(char *msg);         // log frees msg eventually
 
-Str name = STR("Alice");
-printf("Hello, " STR_FMT "!\n", STR_ARG(name));
-// → Hello, Alice!
+// pattern 3: borrowed - lifetime tied to something else
+const char *get_name(const Person *p);      // valid while p is valid
 ```
+
+::: rule
+If a function name contains `make`, `new`, `clone`, `dup`, or `read_*`, the caller almost always owns the result. State it in the header comment.
+:::
+
+### Arenas (the lifetime trick)
+
+Per-allocation `free` is bug-prone. An arena groups allocations that all die together; you free the whole arena in one shot.
+
+```c
+typedef struct {
+    uint8_t *base;
+    size_t   cap;
+    size_t   used;
+} Arena;
+
+void *arena_alloc(Arena *a, size_t n) {
+    if (a->used + n > a->cap) return NULL;
+    void *p = a->base + a->used;
+    a->used += n;
+    return p;
+}
+
+void arena_reset(Arena *a) { a->used = 0; }   // reuse - O(1)
+```
+
+Use one arena per request, per frame, per parse. Free is just `arena_reset` or `free(arena.base)`. No leaks, no double-frees, no shared ownership.
+
+### Detecting leaks
+
+Don't audit by hand. Run the binary under AddressSanitizer:
+
+```bash
+clang -g -O0 -fsanitize=address,undefined main.c -o main
+ASAN_OPTIONS=detect_leaks=1 ./main
+```
+
+ASan prints every leaked block with a stack trace at exit. Treat any leak found this way as a bug.
+
+::: warn
+On Linux, `malloc` can succeed even when the system is out of memory and only fail later when you touch the page (overcommit). Always check the return, but don't rely on it as your OOM strategy.
+:::
+
+::: tip
+`free(NULL)` is a defined no-op. You don't need to null-check before freeing. Only file/socket cleanup needs the guard.
+:::
 
 ---
 
-## 07 Functions & Headers {#functions}
+## 09 Error Handling Idioms {#errors data-toc="Error Handling"}
+
+TL;DR: C has no exceptions. Pick one error convention per project and hold the line. Cleanup goes through `goto`.
+
+### The three conventions
+
+```c
+// 1. Return an int: 0 = ok, non-zero = error code
+int parse(const char *s, int32_t *out);
+if (parse(s, &x) != 0) { /* handle */ }
+
+// 2. Return a pointer: NULL = error, errno set by libc
+FILE *f = fopen(path, "r");
+if (!f) { perror("fopen"); }
+
+// 3. Result struct: explicit ok flag, no out-parameter
+typedef struct { int32_t value; bool ok; } ParseInt;
+ParseInt parse_int(const char *s);
+ParseInt r = parse_int(s);
+if (!r.ok) { /* handle */ }
+```
+
+::: rule
+Pick one and use it everywhere. Mixing conventions inside one codebase is the leading cause of "we forgot to check this".
+:::
+
+### errno
+
+`errno` is the global C error variable, set by libc on failure.
+
+```c
+#include <errno.h>
+#include <string.h>
+
+FILE *f = fopen(path, "r");
+if (!f) {
+    fprintf(stderr, "fopen %s: %s\n", path, strerror(errno));
+    return -1;
+}
+```
+
+::: warn
+`errno` is only valid right after a libc call that documents setting it. Anything else (even a `printf`) can clobber it. Save it immediately if you're going to log later: `int e = errno;`.
+:::
+
+### Cleanup with goto
+
+C has no destructors. `goto` to a single cleanup label is the canonical pattern. The Linux kernel and every serious C codebase use it. Don't fight it.
+
+```c
+int run(void) {
+    void *a = NULL, *b = NULL, *c = NULL;
+    int rc = -1;
+
+    if (!(a = step1())) goto fail;
+    if (!(b = step2())) goto fail;
+    if (!(c = step3())) goto fail;
+
+    do_work(a, b, c);
+    rc = 0;
+fail:
+    free(c); free(b); free(a);
+    return rc;
+}
+```
+
+::: tip
+Forward `goto` only. Never goto backwards (that's a loop). Never jump into the middle of a block. Keep cleanup labels at function scope, never inside an `if`.
+:::
+
+### Asserts vs returns
+
+```c
+#include <assert.h>
+
+int process(Buf *b, size_t i) {
+    assert(b != NULL);          // INVARIANT: a bug if false. Crashes in debug.
+    if (i >= b->len) return -1; // RUNTIME: legitimate error path.
+    return 0;
+}
+```
+
+`assert` is for things that should never happen. Errors that *can* happen at runtime (bad user input, network failures, missing files) need a real return path.
+
+::: warn
+`assert` is compiled out under `-DNDEBUG` (release builds). Don't put side effects inside it: `assert(do_thing() == 0)` becomes nothing in release.
+:::
+
+---
+
+## 10 Functions & Headers {#functions}
 
 ```c
 // mylib.h - declarations only
@@ -604,7 +979,7 @@ Put only *declarations* in headers. Definitions (function bodies, global variabl
 
 ---
 
-## 08 Function Pointers {#funcptr}
+## 11 Function Pointers {#funcptr}
 
 A function pointer holds the address of executable code. It lets you choose at runtime which function to call. That's the entire mechanism behind callbacks, plugin tables, dispatch in interpreters, and C's stand-in for virtual methods.
 
@@ -739,7 +1114,7 @@ A function pointer with the wrong signature is undefined behaviour to call, even
 
 ---
 
-## 09 Linkage & Storage {#linkage}
+## 12 Linkage & Storage {#linkage}
 
 "Linkage" is C's word for "who can see this name". "Storage" is "where does this object live and how long". Get these two right and most "weird header bug" disappears.
 
@@ -833,7 +1208,7 @@ Mark every file-local symbol in a `.c` file `static`.
 
 ---
 
-## 10 The Preprocessor & `#define` {#preprocessor data-toc="Preprocessor & #define"}
+## 13 The Preprocessor & `#define` {#preprocessor data-toc="Preprocessor & #define"}
 
 The preprocessor is a textual phase that runs before the compiler. It does three things: pastes files (`#include`), substitutes text (`#define`), and conditionally keeps or drops code (`#ifdef`). That's it.
 
@@ -920,7 +1295,7 @@ Macros do text substitution, not function calls. They have no type checking and 
 
 ---
 
-## 11 Variadic Functions {#variadic}
+## 14 Variadic Functions {#variadic}
 
 A variadic function takes a variable number of arguments. `printf` is the famous one. You almost never write new variadic functions in modern C; what you do write are *wrappers* around `printf`/`vprintf` for logging, formatting, error reporting.
 
@@ -1005,7 +1380,7 @@ Modern alternative: pass an array. `void emit(size_t n, const Event *evs)` beats
 
 ---
 
-## 12 File I/O {#fileio}
+## 15 File I/O {#fileio}
 
 The `<stdio.h>` stream API is the 80% of file I/O. `fopen`, read or write, `fclose`. For very large files or zero-copy workflows, drop down to `mmap`.
 
@@ -1139,7 +1514,7 @@ if (!f) {
 
 ---
 
-## 13 Bit Manipulation {#bits}
+## 16 Bit Manipulation {#bits}
 
 Bits are how computers really store everything. C exposes them directly. Bit manipulation is unavoidable for flag sets, packed formats, hardware registers, fast lookup tables, hash mixers, and protocol headers.
 
@@ -1246,7 +1621,7 @@ Bit fields (`uint32_t flags : 4;` inside structs) are tempting for protocol head
 
 ---
 
-## 14 Standard Library Survival Kit {#stdlib data-toc="Standard Library Kit"}
+## 17 Standard Library Survival Kit {#stdlib data-toc="Standard Library Kit"}
 
 The C standard library is small but uneven. Some functions are essential, some are obsolete, a few are actively dangerous. This is a per-header guide to what's worth using.
 
@@ -1339,7 +1714,7 @@ Five headers cover 90% of real C code: `stdint.h`, `stddef.h`, `stdbool.h`, `str
 
 ---
 
-## 15 main / argv / signals {#mainargv}
+## 18 main / argv / signals {#mainargv}
 
 Every C program starts at `main`. The OS hands you arguments, an environment, and a way to send the program signals. This section is the survival kit for entry points.
 
@@ -1471,7 +1846,7 @@ Long-running daemons usually catch `SIGINT`+`SIGTERM` for clean shutdown and ign
 
 ---
 
-## 16 Concurrency Primer {#concurrency}
+## 19 Concurrency Primer {#concurrency}
 
 Threads let independent work run on independent cores. The C11 standard provides `<threads.h>`; in practice most code targets POSIX `pthread.h` on Linux/macOS and Win32 threads on Windows. The 80% you need is: spawn a thread, join it, protect shared state with a mutex, communicate small flags with atomics.
 
@@ -1581,7 +1956,94 @@ Build threaded code with `-fsanitize=thread` (ThreadSanitizer). It instruments e
 
 ---
 
-## 17 Building & Safety {#building}
+## 20 Build System Minimum {#build-min data-toc="Build System Minimum"}
+
+TL;DR: copy these files, edit the SRCS line, you're shipping.
+
+### Just `cc` (one file, dev workflow)
+
+For a single .c file you don't need any build system at all:
+
+```bash
+cc -std=c99 -Wall -Wextra -g -O0 \
+   -fsanitize=address,undefined \
+   main.c -o main
+./main
+```
+
+Wrap that in a `run.sh`. You can build a real project with this for a long time.
+
+### Minimum Makefile
+
+```makefile
+CC      := cc
+CFLAGS  := -std=c99 -Wall -Wextra -Wpedantic -g
+LDFLAGS :=
+SRCS    := main.c parser.c table.c
+OBJS    := $(SRCS:.c=.o)
+BIN     := myprog
+
+.PHONY: all clean run dev
+
+all: $(BIN)
+
+$(BIN): $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+dev: CFLAGS  += -O0 -fsanitize=address,undefined
+dev: LDFLAGS += -fsanitize=address,undefined
+dev: $(BIN)
+
+clean:
+	rm -f $(OBJS) $(BIN)
+
+run: all
+	./$(BIN)
+```
+
+`make` for release. `make dev` for sanitizers. `make clean` to reset.
+
+### Minimum CMakeLists.txt
+
+```cmake
+cmake_minimum_required(VERSION 3.16)
+project(myprog C)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # enables clangd / Helix LSP
+
+add_compile_options(-Wall -Wextra -Wpedantic)
+
+add_executable(myprog
+    src/main.c
+    src/parser.c
+    src/table.c
+)
+
+option(DEV "developer build" OFF)
+if (DEV)
+    target_compile_options(myprog PRIVATE -O0 -g -fsanitize=address,undefined)
+    target_link_options   (myprog PRIVATE     -fsanitize=address,undefined)
+endif()
+```
+
+```bash
+cmake -B build -DDEV=ON
+cmake --build build
+./build/myprog
+```
+
+::: tip
+`compile_commands.json` is what every modern C tool reads (clangd, Helix, IDEs). CMake generates one with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`; for Make, run `bear -- make`. Without it, your editor cannot find symbols.
+:::
+
+---
+
+## 21 Building & Safety {#building}
 
 The C standard, the compiler, and the sanitizers form your safety net. This section is what every C project's build script should look like.
 
@@ -1657,161 +2119,9 @@ A segfault is a *lucky* outcome. The unlucky version is silent corruption: your 
 
 ---
 
-## 18 Undefined Behavior Catalog {#ub data-toc="Undefined Behavior"}
+## 22 Testing {#testing}
 
-Undefined behaviour (UB) is the C standard's term for "anything can happen, including looking like it works". The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the "but it worked on my machine" class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.
-
-### Signed integer overflow
-
-```c
-int32_t a = INT32_MAX;
-int32_t b = a + 1;          // UB: signed overflow
-
-// Compiler may assume a + 1 > a always - which deletes overflow checks like:
-if (a + 1 < a) { /* overflowed */ }    // dead code at -O2
-```
-
-::: rule
-Use **unsigned** integer types when you want defined wrap-around. Unsigned overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The compiler exploits this difference for optimizations.
-:::
-
-### Strict aliasing
-
-```c
-float     f = 3.14f;
-uint32_t *p = (uint32_t*)&f;     // UB: pointer to one type, accessed as another
-uint32_t  bits = *p;             // undefined
-
-// Defined alternative:
-uint32_t bits;
-memcpy(&bits, &f, sizeof(bits));    // optimizes to a register move
-```
-
-Two pointers of unrelated types may not legally read or write the same object. The compiler relies on this to keep things in registers across function calls. `memcpy` is the escape hatch and it generates the same machine code at any optimization level.
-
-::: warn
-The exception: `char*`, `signed char*`, `unsigned char*` may alias anything. That is why `memcpy` is implemented in terms of `unsigned char*` and is safe.
-:::
-
-### NULL dereference
-
-```c
-int32_t *p = NULL;
-int32_t  v = *p;                // UB - usually segfault on modern OSes
-
-// More subtle: dereference happens BEFORE the if-check
-int32_t v2 = p->x;
-if (p) { /* useless check - the deref already happened */ }
-// At -O2, gcc may delete the if-check entirely. Yes really.
-```
-
-::: rule
-Once the compiler proves a pointer is dereferenced, it assumes the pointer is non-NULL afterwards and may eliminate later NULL checks as dead code. Always check *before* the deref.
-:::
-
-### Out-of-bounds access
-
-```c
-int32_t arr[4];
-arr[4] = 99;          // UB: one past the end
-arr[-1] = 99;         // UB: before the start
-
-// Even taking the address is UB beyond one past the end:
-int32_t *p = &arr[5];   // UB: arr+4 is OK, arr+5 is not
-```
-
-### Use after free / use after scope
-
-```c
-int32_t *leak(void) {
-    int32_t local = 42;
-    return &local;            // UB: returning address of automatic var
-}
-
-void *p = malloc(100);
-free(p);
-memcpy(p, src, 10);          // UB: p is no longer a valid pointer
-```
-
-::: tip
-Set freed pointers to `NULL` as a habit. The next use becomes a clean NULL deref (segfault) instead of silent reuse of recycled memory.
-:::
-
-### Shifting too far / by negative
-
-```c
-uint32_t x = 1;
-uint32_t y = x << 32;       // UB: shift by >= width of type
-uint32_t z = x << -1;       // UB: negative shift
-```
-
-Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer "0" feels right. ARM hardware actually does that; x86 silently masks the shift count. The C standard says: undefined.
-
-### Reading uninitialized memory
-
-```c
-int32_t x;            // indeterminate value
-if (x) { /* UB: reading x before any write */ }
-
-// Designated init or memset to zero:
-int32_t y = 0;
-struct Big b = {0};   // zeroes everything, including padding
-```
-
-### Sequencing and side effects
-
-```c
-int32_t i = 0;
-int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined
-
-int32_t j = 0;
-printf("%d %d\n", j++, j);          // UB: j read and j++ unsequenced
-
-int32_t k = 0;
-k = k++ + 1;                          // UB: two writes, no sequencing
-```
-
-::: rule
-If the same scalar is read and written, or written twice, in the same expression with no sequence point between them, it is UB. Split into separate statements.
-:::
-
-### Misaligned access
-
-```c
-uint8_t buf[16] = {0};
-uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned
-uint32_t v = *p;                       // UB on architectures requiring alignment
-
-// Use memcpy from any byte offset
-uint32_t v2;
-memcpy(&v2, buf + 1, sizeof(v2));      // always defined
-```
-
-x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS, RISC-V and others may trap. Even on x86, vector instructions require alignment. `memcpy` handles arbitrary alignment portably.
-
-### Undefined and implementation-defined are different
-
-- **Implementation-defined**: behaviour is consistent on a platform but varies across platforms (e.g., right-shift of negative integers). Document and isolate it.
-- **Unspecified**: behaviour comes from a fixed set, but the spec doesn't pick (e.g., evaluation order of function arguments). Don't depend on it.
-- **Undefined**: anything is allowed, including time travel. Avoid at all costs.
-
-### Defenses, in order
-
-1. **Run with sanitizers in dev.** `-fsanitize=address,undefined` catches the bulk: OOB, UAF, alignment, signed overflow, shifts, NULL deref.
-2. **Enable warnings.** `-Wall -Wextra -Wpedantic -Werror`, plus `-Wstrict-aliasing`, `-Wnull-dereference`, `-Wshift-overflow`.
-3. **Prefer unsigned for arithmetic that may wrap.** Use `memcpy` for type punning. Initialize all variables. Always check pointers before deref.
-4. **Build production with `-D_FORTIFY_SOURCE=2`** for runtime libc bounds checks on the most common functions.
-{.steps}
-
-::: warn
-Cross-link: most testing frameworks run their suites under sanitizers - see the [Testing](#testing) section. Sanitizers turn UB from "silently miscompiled" into "crashes at the bad line", which is exactly what tests want.
-:::
-
----
-
-## 19 Testing {#testing}
-
-C has no built-in test framework. The good news is you don't need one for the 80%: a single `tests.c` file plus `assert.h` plus the sanitizers from §17 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.
+C has no built-in test framework. The good news is you don't need one for the 80%: a single `tests.c` file plus `assert.h` plus the sanitizers from §21 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.
 
 ### The minimum viable test
 
@@ -2018,66 +2328,7 @@ CTest then runs the binary as part of `ctest` and surfaces non-zero exit codes a
 
 ---
 
-## 20 CPU Performance Foundations {#cpuperf data-toc="CPU Performance"}
-
-A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.
-
-### The kitchen analogy
-
-Borrowed from Nic Barker's CPU performance talk. The mental model holds remarkably well.
-
-| Kitchen | Computer |
-|---|---|
-| Chef | CPU core |
-| Knives, pans, boards | Instructions |
-| Ingredients | Data |
-| Chopping board (only place work happens) | Registers |
-| Box on the bench | L1 cache |
-| Shelves | L2 cache |
-| Storage room | L3 cache |
-| Supermarket run | Main memory (DRAM) |
-| Farm delivery | Disk / SSD |
-
-### Cache hierarchy: the headline numbers
-
-| Storage | Size | Latency (cycles) |
-|---|---|---|
-| Register | 8 B | 0 |
-| L1 | ~64 KB | ~3 |
-| L2 | ~2 MB | ~20 |
-| L3 | ~32 MB | ~100 |
-| DRAM | GB | 200-300 |
-| SSD (random read) | TB | ~300,000 |
-
-::: rule
-Cache line = **64 bytes**. Every memory fetch brings 64 bytes whether you wanted them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per call. A single cache miss costs 200-300. One miss is 7-10x more expensive than the most famous optimization in game-dev history.
-:::
-
-Each core has its own L1 and L2. Single-core code throws away the rest. With 8 cores you have 8x the L1 you'd think.
-
-### The four rules of thumb
-
-1. **Pack data tight.** Smallest types that fit. Group fields by locality of use. Don't waste the cache line.
-2. **Do work in bulk.** Functions take *arrays* of things, not one thing at a time. Amortize setup cost.
-3. **Pre-compute at startup, not at runtime.** Why do you think it's called *baking*? Lighting, lookup tables, parsed configs, sorted indices. Anything stable before the frame loop should be ready at frame zero.
-4. **Use multiple cores.** Independent streams of work, cheap join at the end. Avoid synchronization in the inner loops.
-{.steps}
-
-### The silent killer
-
-When you access `enemy.hp`, the cache line you paid 200+ cycles for also contains the *next 60 bytes after `hp`*. Was that next 60 bytes useful? If yes, the next access is free. If no, you wasted the trip. This is invisible in source. Big-O notation does not capture it.
-
-::: tip
-When in doubt, lay out struct fields from largest to smallest. Compilers pack in declaration order; mis-ordering wastes bytes via alignment padding. Order matters.
-:::
-
-::: warn
-An O(n) walk over a packed array beats an O(log n) traversal of a pointer-chained tree at most realistic sizes. The tree's pointers each cost a cache miss; the array streams in 64-byte gulps.
-:::
-
----
-
-## 21 Debugger Tips {#debugger}
+## 23 Debugger Tips {#debugger}
 
 You absolutely need a debugger to be productive in C. Print debugging will not scale. The good news: gdb and lldb are 90% the same and you only need a dozen commands.
 
@@ -2165,7 +2416,7 @@ Never debug optimized binaries unless forced to. `-O0 -g` first; switch to `-O2 
 
 ---
 
-## 22 C in Helix Editor {#helix data-toc="Helix Setup"}
+## 24 C in Helix Editor {#helix data-toc="Helix Setup"}
 
 Helix is a modal terminal editor with built-in LSP and DAP support. C works out of the box once you install `clangd`.
 
@@ -3079,6 +3330,542 @@ int main(void) {
 Read `clay.h` itself - it's a single file, ~3000 lines, and the best living example of every rule above. [github.com/nicbarker/clay](https://github.com/nicbarker/clay)
 :::
 ::::
+
+---
+
+## 25 Common Rookie Traps {#traps data-toc="Rookie Traps"}
+
+TL;DR: 90% of "weird C bugs" are on this list. If your code misbehaves, scan here first.
+
+### sizeof on a decayed array
+
+```c
+void bad(int arr[]) {
+    size_t n = sizeof(arr) / sizeof(arr[0]);  // WRONG: sizeof(int*)/sizeof(int)
+}
+void good(int *arr, size_t n) { /* take length */ }
+```
+
+### String literals are read-only
+
+```c
+char *s = "hello";
+s[0] = 'H';            // SEGFAULT: writes to .rodata
+
+char a[] = "hello";    // OK: a is a char[6] on the stack, mutable
+a[0] = 'H';
+```
+
+### Comparing strings with ==
+
+```c
+if (s == "hello")              // compares pointers, NOT contents
+if (strcmp(s, "hello") == 0)   // correct
+```
+
+### gets and scanf("%s", ...)
+
+```c
+char buf[16];
+gets(buf);                      // GONE FROM C11. Don't even mention it.
+scanf("%s", buf);               // unbounded - same problem
+fgets(buf, sizeof buf, stdin);  // bounded - correct
+```
+
+### Off-by-one on the null terminator
+
+```c
+char buf[5];
+strcpy(buf, "hello");   // 6 bytes (5 + '\0') into 5 - corrupts the stack
+```
+
+### Integer overflow in size math
+
+```c
+size_t n = user_input;
+char *p = malloc(n * 32);   // wraps to small if n is huge - tiny alloc, huge memcpy
+```
+
+### Signed/unsigned compare
+
+```c
+size_t len = ...;
+for (int i = 0; i < len; i++) { ... }       // i signed, len unsigned - warning
+for (size_t i = 0; i < len; i++) { ... }    // correct
+```
+
+### Returning a pointer to a local
+
+```c
+char *make_msg(int x) {
+    char buf[64];
+    snprintf(buf, sizeof buf, "%d", x);
+    return buf;        // UB: buf dies when function returns
+}
+```
+
+### Using == with floats
+
+```c
+if (a == b) { ... }                    // brittle
+if (fabs(a - b) < 1e-9) { ... }        // tolerance-based
+```
+
+### Forgetting `void` in zero-arg declarations
+
+```c
+int f();         // historic: "any args, unchecked"
+int f(void);     // explicit: "no args" - prefer this
+```
+
+### Macro arg evaluated twice
+
+```c
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+int x = MAX(i++, j);    // i++ evaluated twice when i > j - bug
+```
+
+Use a `static inline` function instead.
+
+### Free + reuse
+
+```c
+free(p);
+p->next = NULL;        // use after free - UB
+free(p);               // double free - UB
+```
+
+Always: `free(p); p = NULL;`.
+
+### Unchecked malloc
+
+```c
+char *buf = malloc(n);
+buf[0] = 'x';      // segfault if n was huge or system was OOM
+```
+
+### printf format mismatch
+
+```c
+size_t n = 5;
+printf("%d\n", n);     // %d expects int; size_t is usually larger - UB
+printf("%zu\n", n);    // correct
+```
+
+### Returning -1 from an unsigned
+
+```c
+size_t find(const char *s, char c) {
+    for (size_t i = 0; s[i]; i++) if (s[i] == c) return i;
+    return -1;     // becomes SIZE_MAX - caller's `< n` check accidentally passes
+}
+```
+
+Use a sentinel (`SIZE_MAX`) explicitly, or return `(bool found, size_t out)` as a struct.
+
+---
+
+## 26 Undefined Behavior Catalog {#ub data-toc="Undefined Behavior"}
+
+Undefined behaviour (UB) is the C standard's term for "anything can happen, including looking like it works". The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the "but it worked on my machine" class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.
+
+### Signed integer overflow
+
+```c
+int32_t a = INT32_MAX;
+int32_t b = a + 1;          // UB: signed overflow
+
+// Compiler may assume a + 1 > a always - which deletes overflow checks like:
+if (a + 1 < a) { /* overflowed */ }    // dead code at -O2
+```
+
+::: rule
+Use **unsigned** integer types when you want defined wrap-around. Unsigned overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The compiler exploits this difference for optimizations.
+:::
+
+### Strict aliasing
+
+```c
+float     f = 3.14f;
+uint32_t *p = (uint32_t*)&f;     // UB: pointer to one type, accessed as another
+uint32_t  bits = *p;             // undefined
+
+// Defined alternative:
+uint32_t bits;
+memcpy(&bits, &f, sizeof(bits));    // optimizes to a register move
+```
+
+Two pointers of unrelated types may not legally read or write the same object. The compiler relies on this to keep things in registers across function calls. `memcpy` is the escape hatch and it generates the same machine code at any optimization level.
+
+::: warn
+The exception: `char*`, `signed char*`, `unsigned char*` may alias anything. That is why `memcpy` is implemented in terms of `unsigned char*` and is safe.
+:::
+
+### NULL dereference
+
+```c
+int32_t *p = NULL;
+int32_t  v = *p;                // UB - usually segfault on modern OSes
+
+// More subtle: dereference happens BEFORE the if-check
+int32_t v2 = p->x;
+if (p) { /* useless check - the deref already happened */ }
+// At -O2, gcc may delete the if-check entirely. Yes really.
+```
+
+::: rule
+Once the compiler proves a pointer is dereferenced, it assumes the pointer is non-NULL afterwards and may eliminate later NULL checks as dead code. Always check *before* the deref.
+:::
+
+### Out-of-bounds access
+
+```c
+int32_t arr[4];
+arr[4] = 99;          // UB: one past the end
+arr[-1] = 99;         // UB: before the start
+
+// Even taking the address is UB beyond one past the end:
+int32_t *p = &arr[5];   // UB: arr+4 is OK, arr+5 is not
+```
+
+### Use after free / use after scope
+
+```c
+int32_t *leak(void) {
+    int32_t local = 42;
+    return &local;            // UB: returning address of automatic var
+}
+
+void *p = malloc(100);
+free(p);
+memcpy(p, src, 10);          // UB: p is no longer a valid pointer
+```
+
+::: tip
+Set freed pointers to `NULL` as a habit. The next use becomes a clean NULL deref (segfault) instead of silent reuse of recycled memory.
+:::
+
+### Shifting too far / by negative
+
+```c
+uint32_t x = 1;
+uint32_t y = x << 32;       // UB: shift by >= width of type
+uint32_t z = x << -1;       // UB: negative shift
+```
+
+Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer "0" feels right. ARM hardware actually does that; x86 silently masks the shift count. The C standard says: undefined.
+
+### Reading uninitialized memory
+
+```c
+int32_t x;            // indeterminate value
+if (x) { /* UB: reading x before any write */ }
+
+// Designated init or memset to zero:
+int32_t y = 0;
+struct Big b = {0};   // zeroes everything, including padding
+```
+
+### Sequencing and side effects
+
+```c
+int32_t i = 0;
+int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined
+
+int32_t j = 0;
+printf("%d %d\n", j++, j);          // UB: j read and j++ unsequenced
+
+int32_t k = 0;
+k = k++ + 1;                          // UB: two writes, no sequencing
+```
+
+::: rule
+If the same scalar is read and written, or written twice, in the same expression with no sequence point between them, it is UB. Split into separate statements.
+:::
+
+### Misaligned access
+
+```c
+uint8_t buf[16] = {0};
+uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned
+uint32_t v = *p;                       // UB on architectures requiring alignment
+
+// Use memcpy from any byte offset
+uint32_t v2;
+memcpy(&v2, buf + 1, sizeof(v2));      // always defined
+```
+
+x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS, RISC-V and others may trap. Even on x86, vector instructions require alignment. `memcpy` handles arbitrary alignment portably.
+
+### Undefined and implementation-defined are different
+
+- **Implementation-defined**: behaviour is consistent on a platform but varies across platforms (e.g., right-shift of negative integers). Document and isolate it.
+- **Unspecified**: behaviour comes from a fixed set, but the spec doesn't pick (e.g., evaluation order of function arguments). Don't depend on it.
+- **Undefined**: anything is allowed, including time travel. Avoid at all costs.
+
+### Defenses, in order
+
+1. **Run with sanitizers in dev.** `-fsanitize=address,undefined` catches the bulk: OOB, UAF, alignment, signed overflow, shifts, NULL deref.
+2. **Enable warnings.** `-Wall -Wextra -Wpedantic -Werror`, plus `-Wstrict-aliasing`, `-Wnull-dereference`, `-Wshift-overflow`.
+3. **Prefer unsigned for arithmetic that may wrap.** Use `memcpy` for type punning. Initialize all variables. Always check pointers before deref.
+4. **Build production with `-D_FORTIFY_SOURCE=2`** for runtime libc bounds checks on the most common functions.
+{.steps}
+
+::: warn
+Cross-link: most testing frameworks run their suites under sanitizers - see the [Testing](#testing) section. Sanitizers turn UB from "silently miscompiled" into "crashes at the bad line", which is exactly what tests want.
+:::
+
+---
+
+## 27 CPU Performance Foundations {#cpuperf data-toc="CPU Performance"}
+
+A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.
+
+### The kitchen analogy
+
+Borrowed from Nic Barker's CPU performance talk. The mental model holds remarkably well.
+
+| Kitchen | Computer |
+|---|---|
+| Chef | CPU core |
+| Knives, pans, boards | Instructions |
+| Ingredients | Data |
+| Chopping board (only place work happens) | Registers |
+| Box on the bench | L1 cache |
+| Shelves | L2 cache |
+| Storage room | L3 cache |
+| Supermarket run | Main memory (DRAM) |
+| Farm delivery | Disk / SSD |
+
+### Cache hierarchy: the headline numbers
+
+| Storage | Size | Latency (cycles) |
+|---|---|---|
+| Register | 8 B | 0 |
+| L1 | ~64 KB | ~3 |
+| L2 | ~2 MB | ~20 |
+| L3 | ~32 MB | ~100 |
+| DRAM | GB | 200-300 |
+| SSD (random read) | TB | ~300,000 |
+
+::: rule
+Cache line = **64 bytes**. Every memory fetch brings 64 bytes whether you wanted them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per call. A single cache miss costs 200-300. One miss is 7-10x more expensive than the most famous optimization in game-dev history.
+:::
+
+Each core has its own L1 and L2. Single-core code throws away the rest. With 8 cores you have 8x the L1 you'd think.
+
+### The four rules of thumb
+
+1. **Pack data tight.** Smallest types that fit. Group fields by locality of use. Don't waste the cache line.
+2. **Do work in bulk.** Functions take *arrays* of things, not one thing at a time. Amortize setup cost.
+3. **Pre-compute at startup, not at runtime.** Why do you think it's called *baking*? Lighting, lookup tables, parsed configs, sorted indices. Anything stable before the frame loop should be ready at frame zero.
+4. **Use multiple cores.** Independent streams of work, cheap join at the end. Avoid synchronization in the inner loops.
+{.steps}
+
+### The silent killer
+
+When you access `enemy.hp`, the cache line you paid 200+ cycles for also contains the *next 60 bytes after `hp`*. Was that next 60 bytes useful? If yes, the next access is free. If no, you wasted the trip. This is invisible in source. Big-O notation does not capture it.
+
+::: tip
+When in doubt, lay out struct fields from largest to smallest. Compilers pack in declaration order; mis-ordering wastes bytes via alignment padding. Order matters.
+:::
+
+::: warn
+An O(n) walk over a packed array beats an O(log n) traversal of a pointer-chained tree at most realistic sizes. The tree's pointers each cost a cache miss; the array streams in 64-byte gulps.
+:::
+
+---
+
+## 28 Drills {#drills data-toc="Drills"}
+
+TL;DR: reading alone gets you nowhere. Each drill has a hidden answer; try first, then expand.
+
+### Pointers
+
+**D-1.** What does this print? Why?
+
+```c
+int x = 5;
+int *p = &x;
+int **pp = &p;
+**pp = 10;
+printf("%d\n", x);
+```
+
+<details><summary>answer</summary>
+
+`10`. `pp` points to `p`; `*pp` is `p`; `**pp` reads/writes through `p`, which targets `x`.
+
+</details>
+
+**D-2.** Spot the bug:
+
+```c
+char *make(void) {
+    char s[] = "hello";
+    return s;
+}
+```
+
+<details><summary>answer</summary>
+
+`s` is on the stack; the pointer dangles after return. Fix: `return strdup("hello");` (caller must free) or use a static buffer.
+
+</details>
+
+**D-3.** Why is `int *a, b;` rarely what you want?
+
+<details><summary>answer</summary>
+
+`a` is `int*`, but `b` is just `int`. `*` binds to the variable, not the type. Always declare on separate lines, or write `int *a, *b;`.
+
+</details>
+
+### Arrays & decay
+
+**D-4.** Inside `void f(int a[100])`, what is `sizeof(a)`?
+
+<details><summary>answer</summary>
+
+`sizeof(int*)` (8 on 64-bit). `[100]` is a hint for humans; the compiler ignores it on parameters. `a` is just a pointer.
+
+</details>
+
+**D-5.** Here's a wrong read; what's the smallest fix?
+
+```c
+char buf[8];
+fread(buf, 1, 10, f);   // wrong: writes 10 bytes into 8-byte buffer
+```
+
+<details><summary>answer</summary>
+
+Make the buffer big enough (`char buf[10];`) or read at most `sizeof buf`: `fread(buf, 1, sizeof buf, f);`. Both, ideally.
+
+</details>
+
+### Structs & memory
+
+**D-6.** What does `sizeof(S)` give you?
+
+```c
+struct S { char a; int32_t b; char c; };
+```
+
+<details><summary>answer</summary>
+
+12 on most platforms. Padding: `a` (1) + 3 pad + `b` (4) + `c` (1) + 3 trailing pad = 12. Reorder largest-first to shrink: `{ int32_t b; char a; char c; }` -> 8 bytes.
+
+</details>
+
+**D-7.** Allocate a struct and an array of doubles in one shot:
+
+<details><summary>answer</summary>
+
+```c
+typedef struct { size_t n; double data[]; } Vec;
+Vec *v = malloc(sizeof(Vec) + n * sizeof(double));
+v->n = n;
+// v->data[i] is contiguous with the struct - one alloc, one free
+```
+
+This is the "flexible array member" trick.
+
+</details>
+
+### Strings
+
+**D-8.** Why is `strncpy` *not* a safe `strcpy`?
+
+<details><summary>answer</summary>
+
+`strncpy` does not null-terminate if the source is at least `n` bytes. The result might not be a C string. Use `snprintf(dst, sizeof dst, "%s", src)` for safe bounded copy.
+
+</details>
+
+### Memory management
+
+**D-9.** Spot the leak:
+
+```c
+char *buf = malloc(1024);
+buf = realloc(buf, 4096);
+if (!buf) return -1;
+```
+
+<details><summary>answer</summary>
+
+If `realloc` returns NULL, the original `buf` still points to a live block but you've overwritten the variable -> leak. Always: `tmp = realloc(buf, n); if (!tmp) { free(buf); return -1; } buf = tmp;`.
+
+</details>
+
+**D-10.** Which of these is/are UB?
+
+```c
+char *p = malloc(8);
+free(p);
+free(p);             // (a)
+p[0] = 'x';          // (b)
+free(NULL);          // (c)
+char *q = NULL;
+*q = 'x';            // (d)
+```
+
+<details><summary>answer</summary>
+
+`(a)`, `(b)`, `(d)` are UB. `(c)` is defined as a no-op.
+
+</details>
+
+### Bit twiddling
+
+**D-11.** Set bit 3 of `x`. Clear bit 5. Toggle bit 7. Test bit 0.
+
+<details><summary>answer</summary>
+
+```c
+x |=  (1u << 3);          // set
+x &= ~(1u << 5);          // clear
+x ^=  (1u << 7);          // toggle
+bool b = x & (1u << 0);   // test
+```
+
+</details>
+
+### Build & safety
+
+**D-12.** What flags would catch the most C bugs at zero cost?
+
+<details><summary>answer</summary>
+
+`-Wall -Wextra -Werror` for warnings-as-errors, plus `-fsanitize=address,undefined` for runtime. Optional: `-Wpedantic`, `-Wconversion`.
+
+</details>
+
+---
+
+## 29 Glossary {#glossary data-toc="Glossary"}
+
+TL;DR: shorthand C developers throw around. Skim once.
+
+| Term | Meaning |
+|------|---------|
+| **UB** | Undefined Behavior. The standard imposes no requirement; the compiler may do anything. |
+| **IB** | Implementation-defined Behavior. The standard lets each compiler choose, but it must document the choice (e.g. `int` width). |
+| **TU** | Translation Unit. One `.c` file plus all its `#include`d content, after the preprocessor runs. The unit the compiler sees. |
+| **ODR** | One Definition Rule. Each non-`static` function or global must have exactly one definition across all TUs of a program. |
+| **lvalue** | Expression with an address you can take. `x`, `*p`, `arr[i]`. Can appear on the left of `=`. |
+| **rvalue** | Expression without an address. `42`, `a + b`, function return. Right side of `=` only. |
+| **Linkage** | Visibility across TUs. `static` = internal (this TU only). Default = external (visible to linker). |
+| **Storage duration** | How long an object lives. Automatic (stack), Static (process lifetime), Allocated (heap, until `free`), Thread (C11 `_Thread_local`). |
+| **Sequence point** | Boundary in evaluation order. Between full expressions, after `&&`/`||`, after function args. UB if you read AND write the same value without one. |
+| **Strict aliasing** | The rule that says you can't read a `T*` through a `U*` (with exceptions: `char*`, `unsigned char*`). Violations are UB. |
+| **VLA** | Variable Length Array. `int a[n]` where `n` isn't a constant. Stack-allocated; can blow the stack. C99 mandatory, C11 optional. |
+| **POD** | Plain Old Data. A struct with no constructors/destructors (a C-only concept by definition; comes up at C++/ABI boundaries). |
+| **ABI** | Application Binary Interface. The contract between compiled binaries: calling convention, struct layout, name mangling. |
+| **TLS** | Thread-Local Storage. Per-thread copies of a variable. C11: `_Thread_local`. |
+| **MMU** | Memory Management Unit. CPU hardware that translates virtual addresses to physical. Why each process sees its own address space. |
+| **Cache line** | Unit of memory the CPU loads from RAM. 64 bytes on x86/ARM. Writes invalidate sibling cores' copies. |
 
 ---
 

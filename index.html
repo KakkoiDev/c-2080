@@ -335,12 +335,16 @@
 
 <nav class="toc">
   <div class="toc-title">Contents</div>
-    <a href="#types">Types &amp; Memory Model</a>
+    <a href="#roadmap">Study Roadmap</a>
+  <a href="#types">Types &amp; Memory Model</a>
   <a href="#pointers">Pointers (demystified)</a>
+  <a href="#diagrams">Visual Memory Models</a>
   <a href="#arrays">Arrays &amp; Decay</a>
+  <a href="#strings">Strings</a>
   <a href="#structs">Structs &amp; Composition</a>
   <a href="#enums">Enums &amp; Tagged Unions</a>
-  <a href="#strings">Strings</a>
+  <a href="#memory">Memory Management</a>
+  <a href="#errors">Error Handling</a>
   <a href="#functions">Functions &amp; Headers</a>
   <a href="#funcptr">Function Pointers</a>
   <a href="#linkage">Linkage &amp; Storage</a>
@@ -351,10 +355,9 @@
   <a href="#stdlib">Standard Library Kit</a>
   <a href="#mainargv">main / argv / signals</a>
   <a href="#concurrency">Concurrency Primer</a>
+  <a href="#build-min">Build System Minimum</a>
   <a href="#building">Building &amp; Safety</a>
-  <a href="#ub">Undefined Behavior</a>
   <a href="#testing">Testing</a>
-  <a href="#cpuperf">CPU Performance</a>
   <a href="#debugger">Debugger Tips</a>
   <a href="#helix">Helix Setup</a>
   <a href="#unity">Pattern: Unity Build</a>
@@ -370,8 +373,86 @@
   <a href="#fuzz">Pattern: Fuzz Harness</a>
   <a href="#optjourney">Pattern: Optimization Journey</a>
   <a href="#barker">Pattern: Barker's Way</a>
+  <a href="#traps">Rookie Traps</a>
+  <a href="#ub">Undefined Behavior</a>
+  <a href="#cpuperf">CPU Performance</a>
+  <a href="#drills">Drills</a>
+  <a href="#glossary">Glossary</a>
 </nav>
 
+<h2 id="roadmap" data-toc="Study Roadmap"><span class="num">00</span>Study Roadmap</h2>
+<p>TL;DR: don't read this guide front-to-back. Pick a path below, write code as you go, and treat the rest as reference.</p>
+<h3>Time-boxed paths</h3>
+<p><strong>Day 1 (3-4 hours).</strong> Read these only:</p>
+<ul class="tight">
+<li>01 Types &amp; Memory Model</li>
+<li>02 Pointers</li>
+<li>03 Arrays &amp; Decay</li>
+<li>06 Strings</li>
+<li>27 Build System Minimum</li>
+</ul>
+<p>Then write a <code>wc</code> clone (counts lines, words, bytes from a file). That's enough to start writing C.</p>
+<p><strong>Week 1.</strong> Day 1 plus:</p>
+<ul class="tight">
+<li>04 Structs &amp; Composition</li>
+<li>05 Enums &amp; Tagged Unions</li>
+<li>07 Functions &amp; Headers</li>
+<li>17 Building &amp; Safety (focus on the compile flags)</li>
+<li>23 Memory Management</li>
+<li>24 Error Handling Idioms</li>
+<li>26 Common Rookie Traps</li>
+</ul>
+<p>Build: a hash table (open addressing) and a tiny JSON parser.</p>
+<p><strong>Month 1.</strong> Week 1 plus everything else, plus:</p>
+<ul class="tight">
+<li>28 Drills (do at least 5 per major topic)</li>
+<li>The full project ladder below</li>
+</ul>
+<h3>Project ladder</h3>
+<p>Five projects, each forces a different muscle. Build them in order. If you finish all five with sanitizers clean, you know enough C to ship real software.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Project</th>
+<th>Forces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>echo</code> clone</td>
+<td>argv, exit codes, no allocations</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>wc</code> clone</td>
+<td>file I/O, loops, edge cases (empty file, no trailing newline)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Hash table (open addressing)</td>
+<td>malloc/free, structs, hashing, resizing</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Arena allocator</td>
+<td>pointer arithmetic, alignment, lifetimes</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Tiny shell (fork + exec + pipe)</td>
+<td>syscalls, signals, processes</td>
+</tr>
+</tbody>
+</table>
+<div class="tip">
+<p>Build every project under <code>-fsanitize=address,undefined</code>. If the sanitizers complain, fix it before moving on. Most C bugs hide for years; the sanitizers find them in seconds.</p>
+</div>
+<div class="rule">
+<p>Read fast, write slow. Spend more time at the keyboard than at the page. C is a muscle skill: typing <code>malloc</code>/<code>free</code>/<code>memcpy</code> until they're automatic is the actual point.</p>
+</div>
+<hr>
 <h2 id="types" data-toc="Types &amp; Memory Model"><span class="num">01</span>Types &amp; the Memory Model</h2>
 <p>C has no runtime. Every variable is either on the <strong>stack</strong> (automatic, freed when function returns) or the <strong>heap</strong> (manual, lives until you free it). This is everything.</p>
 <h3>The types you'll actually use</h3>
@@ -413,6 +494,9 @@ bool     ok;  // true / false
 <hr>
 <h2 id="pointers"><span class="num">02</span>Pointers (demystified)</h2>
 <p>A pointer is just an integer holding a memory address. That's the whole mystery.</p>
+<div class="tip">
+<p><strong>Coming from Python/JS:</strong> every variable in Python/JS is already a reference under the hood. C exposes the machinery. <code>int x = 5</code> puts the value 5 in a memory cell; <code>int *p = &amp;x</code> is a second cell holding the address of the first. There is no magic indirection layer. The asterisk (<code>*</code>) and ampersand (<code>&amp;</code>) are how you cross between &quot;value&quot; and &quot;where it lives&quot;.</p>
+</div>
 <pre><code class="language-c">int32_t  x   = 10;     // x is the value
 int32_t *p   = &amp;x;    // p holds the ADDRESS of x
 int32_t  val = *p;    // *p dereferences - reads through address
@@ -499,7 +583,100 @@ push_front(&amp;list, 42);
 <p>Read <code>**</code> right-to-left: <code>char **argv</code> = &quot;argv is a pointer to a pointer to char&quot; = &quot;an array of strings&quot;. Same pattern works for any output-parameter or container-of-pointers situation.</p>
 </div>
 <hr>
-<h2 id="arrays"><span class="num">03</span>Arrays &amp; Decay</h2>
+<h2 id="diagrams" data-toc="Visual Memory Models"><span class="num">03</span>Visual Memory Models</h2>
+<p>TL;DR: when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.</p>
+<h3>Process memory layout</h3>
+<pre><code class="language-text">    high addresses
+    +------------------+
+    |  command line    |
+    |  environment     |
+    +------------------+
+    |  STACK           |  &lt;- grows DOWN
+    |  ----------      |
+    |  local vars      |
+    |  return addr     |
+    |  saved regs      |
+    |       v          |
+    |                  |
+    |       ^          |
+    |  HEAP            |  &lt;- grows UP (malloc)
+    +------------------+
+    |  .bss            |  uninitialised globals (zeroed)
+    |  .data           |  initialised globals
+    |  .rodata         |  string literals (read-only)
+    |  .text           |  the code
+    +------------------+
+    low addresses
+</code></pre>
+<h3>A pointer in pictures</h3>
+<pre><code class="language-text">int x = 42;
+int *p = &amp;x;
+
+  STACK
+  +-----------+   address: 0x7ffd_a0
+  |    42     |   &lt;-- x
+  +-----------+
+
+  +-----------+   address: 0x7ffd_a8
+  | 0x7ffd_a0 |   &lt;-- p (holds the address of x)
+  +-----------+
+
+  *p reads through the arrow: 0x7ffd_a8 -&gt; 0x7ffd_a0 -&gt; 42
+</code></pre>
+<h3>Pointer to pointer (argv)</h3>
+<pre><code class="language-text">char **argv;
+
+  +-------+      +---+---+---+---+---+
+  | argv  | ---&gt; | * | * | * |...| 0 |   &lt;- array of char*
+  +-------+      +---+---+---+---+---+
+                   |   |   |
+                   v   v   v
+                &quot;./a&quot; &quot;x&quot; &quot;yz&quot;           &lt;- the actual strings
+</code></pre>
+<h3>A struct in memory</h3>
+<pre><code class="language-text">struct Point { int32_t x; int32_t y; };
+Point p = {3, 7};
+
+  +---+---+---+---+---+---+---+---+
+  | 03  00  00  00 | 07  00  00  00 |   little-endian, 8 bytes total
+  +---+---+---+---+---+---+---+---+
+   ^                ^
+   p.x  (offset 0)  p.y  (offset 4)
+</code></pre>
+<h3>Array decay</h3>
+<pre><code class="language-text">int arr[4] = {10, 20, 30, 40};
+
+In its own scope:
+  arr     --&gt;  the whole array, sizeof(arr) == 16
+  &amp;arr    --&gt;  pointer to int[4]
+
+Passed to a function:
+  void f(int a[]) { ... }
+  f(arr);
+        arr decays to &amp;arr[0] - a plain int*
+        sizeof(a) inside f == sizeof(int*) (8 on 64-bit), NOT 16
+</code></pre>
+<div class="warn">
+<p>This decay is the most common source of <code>sizeof</code> bugs. Inside a function parameter, <code>int a[]</code> and <code>int *a</code> are the same type. The size of the original array is gone forever; pass the length explicitly.</p>
+</div>
+<h3>Stack frame layout</h3>
+<pre><code class="language-text">caller calls callee(x, y):
+
+  +---------------------+   &lt;- top of stack BEFORE call
+  | caller locals       |
+  +---------------------+
+  | y           (arg)   |     args (or in registers, x86_64 SysV)
+  | x           (arg)   |
+  | return addr         |     saved by `call`
+  | saved frame ptr     |
+  | callee locals       |     callee allocates
+  +---------------------+   &lt;- top during call
+
+On return: restore frame ptr, jump to return addr.
+Caller's stack is exactly as it was.
+</code></pre>
+<hr>
+<h2 id="arrays"><span class="num">04</span>Arrays &amp; Decay</h2>
 <p>An array is a contiguous run of elements. In C it is <em>not</em> a pointer, but it silently turns into one almost everywhere you use it. Knowing exactly when that happens is the difference between code that works and code that quietly reads garbage.</p>
 <h3>Declaration vs decay</h3>
 <pre><code class="language-c">int32_t arr[5] = {10, 20, 30, 40, 50};
@@ -604,7 +781,48 @@ arr[-1] = 99;    // UB: before the array
 <p>Reading or writing outside an array is undefined behaviour, even by one element. The hardware will not stop you. Build with <code>-fsanitize=address</code> in dev and the bug surfaces at the offending line; without it, you corrupt a neighbour and the symptom appears anywhere.</p>
 </div>
 <hr>
-<h2 id="structs"><span class="num">04</span>Structs &amp; Composition</h2>
+<h2 id="strings"><span class="num">05</span>Strings</h2>
+<p>C strings are null-terminated arrays of <code>char</code>. They are the biggest source of bugs in C. Know the rules.</p>
+<pre><code class="language-c">#include &lt;string.h&gt;
+
+// String literal - lives in read-only memory, do NOT write to it
+const char *s1 = &quot;hello&quot;;
+
+// Mutable copy on stack - you CAN write to this
+char buf[64] = &quot;hello&quot;;
+
+// NEVER use strcpy/strcat - use the safe n-versions
+strncpy(buf, &quot;world&quot;, sizeof(buf) - 1);
+buf[sizeof(buf) - 1] = '\0';  // always null-terminate
+
+// Better: use snprintf for building strings
+char msg[128];
+snprintf(msg, sizeof(msg), &quot;Player %d: score=%d&quot;, id, score);
+
+// Useful string functions
+size_t len = strlen(s1);         // length (not counting \0)
+int    cmp = strcmp(s1, &quot;hi&quot;);   // 0 if equal
+</code></pre>
+<div class="warn">
+<p>Never compare strings with <code>==</code>. That compares pointer addresses, not content. Always use <code>strcmp</code>.</p>
+</div>
+<h3>Modern: String View (non-owning slice)</h3>
+<pre><code class="language-c">// A string that doesn't own its memory - great for parsing
+typedef struct {
+    const char *data;
+    size_t      len;
+} Str;
+
+#define STR(literal) ((Str){ (literal), sizeof(literal)-1 })
+#define STR_FMT      &quot;%.*s&quot;
+#define STR_ARG(s)   (int)(s).len, (s).data
+
+Str name = STR(&quot;Alice&quot;);
+printf(&quot;Hello, &quot; STR_FMT &quot;!\n&quot;, STR_ARG(name));
+// → Hello, Alice!
+</code></pre>
+<hr>
+<h2 id="structs"><span class="num">06</span>Structs &amp; Composition</h2>
 <p>C has no classes. Structs are your objects. Composition over inheritance.</p>
 <pre><code class="language-c">typedef struct {
     float x, y;
@@ -641,7 +859,7 @@ ball_update(&amp;b, 0.016f);
 ball_draw(&amp;b);
 </code></pre>
 <hr>
-<h2 id="enums"><span class="num">05</span>Enums &amp; Tagged Unions</h2>
+<h2 id="enums"><span class="num">07</span>Enums &amp; Tagged Unions</h2>
 <p>Enums give you typed names instead of magic numbers. Unions let one piece of memory hold one of several types. Combined, they encode <em>sum types</em>: &quot;this thing is exactly one of these variants&quot;. This is the C answer to Rust's <code>enum</code> and Haskell's algebraic data types.</p>
 <h3>Plain enums</h3>
 <pre><code class="language-c">typedef enum {
@@ -771,48 +989,182 @@ memcpy(&amp;u, &amp;f, sizeof(u));   // well-defined, optimizes to a register mo
 <p><code>memcpy</code> between same-sized objects is the portable, defined way to reinterpret bytes. Casting through a different pointer type is undefined behaviour under the strict-aliasing rules - see <a href="#ub">Undefined Behavior</a>.</p>
 </div>
 <hr>
-<h2 id="strings"><span class="num">06</span>Strings</h2>
-<p>C strings are null-terminated arrays of <code>char</code>. They are the biggest source of bugs in C. Know the rules.</p>
-<pre><code class="language-c">#include &lt;string.h&gt;
+<h2 id="memory" data-toc="Memory Management"><span class="num">08</span>Memory Management</h2>
+<p>TL;DR: malloc takes memory, free returns it. Lose the pointer and you've leaked. Free twice and you've corrupted the heap. Use arenas to make ownership obvious.</p>
+<h3>The four allocators</h3>
+<pre><code class="language-c">#include &lt;stdlib.h&gt;
 
-// String literal - lives in read-only memory, do NOT write to it
-const char *s1 = &quot;hello&quot;;
+void *malloc(size_t n);                  // n bytes, uninitialised
+void *calloc(size_t count, size_t size); // count*size bytes, zeroed
+void *realloc(void *p, size_t n);        // grow/shrink an existing block
+void  free(void *p);                     // release back to the heap
+</code></pre>
+<pre><code class="language-c">// malloc - fastest, contents are garbage
+char *buf = malloc(1024);
+if (!buf) abort();         // ALWAYS check
+memset(buf, 0, 1024);      // zero it yourself if needed
 
-// Mutable copy on stack - you CAN write to this
-char buf[64] = &quot;hello&quot;;
+// calloc - zero-initialised, slightly slower
+int32_t *counts = calloc(256, sizeof *counts);
 
-// NEVER use strcpy/strcat - use the safe n-versions
-strncpy(buf, &quot;world&quot;, sizeof(buf) - 1);
-buf[sizeof(buf) - 1] = '\0';  // always null-terminate
+// realloc done WRONG - leaks original block on failure
+buf = realloc(buf, 4096);
 
-// Better: use snprintf for building strings
-char msg[128];
-snprintf(msg, sizeof(msg), &quot;Player %d: score=%d&quot;, id, score);
-
-// Useful string functions
-size_t len = strlen(s1);         // length (not counting \0)
-int    cmp = strcmp(s1, &quot;hi&quot;);   // 0 if equal
+// realloc done right
+char *tmp = realloc(buf, 4096);
+if (!tmp) { free(buf); abort(); }
+buf = tmp;
 </code></pre>
 <div class="warn">
-<p>Never compare strings with <code>==</code>. That compares pointer addresses, not content. Always use <code>strcmp</code>.</p>
+<p><code>realloc(NULL, n)</code> behaves like <code>malloc(n)</code>, and <code>realloc(p, 0)</code> is implementation-defined. Don't rely on either; spell out the intent explicitly.</p>
 </div>
-<h3>Modern: String View (non-owning slice)</h3>
-<pre><code class="language-c">// A string that doesn't own its memory - great for parsing
-typedef struct {
-    const char *data;
-    size_t      len;
-} Str;
+<h3>Coming from Python/JS</h3>
+<p>In Python/JS, the runtime tracks every reference and frees memory when the last one goes out of scope. C has no runtime. <strong>You</strong> decide when memory is freed. If you don't, it lives until the process exits (a &quot;leak&quot;). If you free too early, every remaining pointer to it is a bomb.</p>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Python / JS</th>
+<th>C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Allocate</td>
+<td><code>[]</code>, <code>{}</code>, <code>new Foo()</code></td>
+<td><code>malloc(sizeof(Foo))</code></td>
+</tr>
+<tr>
+<td>Free</td>
+<td>implicit (GC)</td>
+<td>explicit (<code>free</code>)</td>
+</tr>
+<tr>
+<td>Variable holds</td>
+<td>reference</td>
+<td>value or pointer</td>
+</tr>
+<tr>
+<td>Out of scope</td>
+<td>maybe collected later</td>
+<td>freed (stack) or leaked (heap)</td>
+</tr>
+</tbody>
+</table>
+<h3>Ownership</h3>
+<p>Every heap allocation has exactly one owner. The owner is responsible for freeing it. Document this in the API.</p>
+<pre><code class="language-c">// pattern 1: caller owns - function returns, caller frees
+char *read_file(const char *path);          // caller MUST free()
 
-#define STR(literal) ((Str){ (literal), sizeof(literal)-1 })
-#define STR_FMT      &quot;%.*s&quot;
-#define STR_ARG(s)   (int)(s).len, (s).data
+// pattern 2: callee owns - caller hands off
+void log_take_ownership(char *msg);         // log frees msg eventually
 
-Str name = STR(&quot;Alice&quot;);
-printf(&quot;Hello, &quot; STR_FMT &quot;!\n&quot;, STR_ARG(name));
-// → Hello, Alice!
+// pattern 3: borrowed - lifetime tied to something else
+const char *get_name(const Person *p);      // valid while p is valid
 </code></pre>
+<div class="rule">
+<p>If a function name contains <code>make</code>, <code>new</code>, <code>clone</code>, <code>dup</code>, or <code>read_*</code>, the caller almost always owns the result. State it in the header comment.</p>
+</div>
+<h3>Arenas (the lifetime trick)</h3>
+<p>Per-allocation <code>free</code> is bug-prone. An arena groups allocations that all die together; you free the whole arena in one shot.</p>
+<pre><code class="language-c">typedef struct {
+    uint8_t *base;
+    size_t   cap;
+    size_t   used;
+} Arena;
+
+void *arena_alloc(Arena *a, size_t n) {
+    if (a-&gt;used + n &gt; a-&gt;cap) return NULL;
+    void *p = a-&gt;base + a-&gt;used;
+    a-&gt;used += n;
+    return p;
+}
+
+void arena_reset(Arena *a) { a-&gt;used = 0; }   // reuse - O(1)
+</code></pre>
+<p>Use one arena per request, per frame, per parse. Free is just <code>arena_reset</code> or <code>free(arena.base)</code>. No leaks, no double-frees, no shared ownership.</p>
+<h3>Detecting leaks</h3>
+<p>Don't audit by hand. Run the binary under AddressSanitizer:</p>
+<pre><code class="language-bash">clang -g -O0 -fsanitize=address,undefined main.c -o main
+ASAN_OPTIONS=detect_leaks=1 ./main
+</code></pre>
+<p>ASan prints every leaked block with a stack trace at exit. Treat any leak found this way as a bug.</p>
+<div class="warn">
+<p>On Linux, <code>malloc</code> can succeed even when the system is out of memory and only fail later when you touch the page (overcommit). Always check the return, but don't rely on it as your OOM strategy.</p>
+</div>
+<div class="tip">
+<p><code>free(NULL)</code> is a defined no-op. You don't need to null-check before freeing. Only file/socket cleanup needs the guard.</p>
+</div>
 <hr>
-<h2 id="functions"><span class="num">07</span>Functions &amp; Headers</h2>
+<h2 id="errors" data-toc="Error Handling"><span class="num">09</span>Error Handling Idioms</h2>
+<p>TL;DR: C has no exceptions. Pick one error convention per project and hold the line. Cleanup goes through <code>goto</code>.</p>
+<h3>The three conventions</h3>
+<pre><code class="language-c">// 1. Return an int: 0 = ok, non-zero = error code
+int parse(const char *s, int32_t *out);
+if (parse(s, &amp;x) != 0) { /* handle */ }
+
+// 2. Return a pointer: NULL = error, errno set by libc
+FILE *f = fopen(path, &quot;r&quot;);
+if (!f) { perror(&quot;fopen&quot;); }
+
+// 3. Result struct: explicit ok flag, no out-parameter
+typedef struct { int32_t value; bool ok; } ParseInt;
+ParseInt parse_int(const char *s);
+ParseInt r = parse_int(s);
+if (!r.ok) { /* handle */ }
+</code></pre>
+<div class="rule">
+<p>Pick one and use it everywhere. Mixing conventions inside one codebase is the leading cause of &quot;we forgot to check this&quot;.</p>
+</div>
+<h3>errno</h3>
+<p><code>errno</code> is the global C error variable, set by libc on failure.</p>
+<pre><code class="language-c">#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
+
+FILE *f = fopen(path, &quot;r&quot;);
+if (!f) {
+    fprintf(stderr, &quot;fopen %s: %s\n&quot;, path, strerror(errno));
+    return -1;
+}
+</code></pre>
+<div class="warn">
+<p><code>errno</code> is only valid right after a libc call that documents setting it. Anything else (even a <code>printf</code>) can clobber it. Save it immediately if you're going to log later: <code>int e = errno;</code>.</p>
+</div>
+<h3>Cleanup with goto</h3>
+<p>C has no destructors. <code>goto</code> to a single cleanup label is the canonical pattern. The Linux kernel and every serious C codebase use it. Don't fight it.</p>
+<pre><code class="language-c">int run(void) {
+    void *a = NULL, *b = NULL, *c = NULL;
+    int rc = -1;
+
+    if (!(a = step1())) goto fail;
+    if (!(b = step2())) goto fail;
+    if (!(c = step3())) goto fail;
+
+    do_work(a, b, c);
+    rc = 0;
+fail:
+    free(c); free(b); free(a);
+    return rc;
+}
+</code></pre>
+<div class="tip">
+<p>Forward <code>goto</code> only. Never goto backwards (that's a loop). Never jump into the middle of a block. Keep cleanup labels at function scope, never inside an <code>if</code>.</p>
+</div>
+<h3>Asserts vs returns</h3>
+<pre><code class="language-c">#include &lt;assert.h&gt;
+
+int process(Buf *b, size_t i) {
+    assert(b != NULL);          // INVARIANT: a bug if false. Crashes in debug.
+    if (i &gt;= b-&gt;len) return -1; // RUNTIME: legitimate error path.
+    return 0;
+}
+</code></pre>
+<p><code>assert</code> is for things that should never happen. Errors that <em>can</em> happen at runtime (bad user input, network failures, missing files) need a real return path.</p>
+<div class="warn">
+<p><code>assert</code> is compiled out under <code>-DNDEBUG</code> (release builds). Don't put side effects inside it: <code>assert(do_thing() == 0)</code> becomes nothing in release.</p>
+</div>
+<hr>
+<h2 id="functions"><span class="num">10</span>Functions &amp; Headers</h2>
 <pre><code class="language-c">// mylib.h - declarations only
 #pragma once           // include guard (supported everywhere)
 #include &lt;stdint.h&gt;
@@ -852,7 +1204,7 @@ void mylib_destroy(MyLib *lib) {
 <p>Put only <em>declarations</em> in headers. Definitions (function bodies, global variable storage) go in .c files. <code>#pragma once</code> prevents double-inclusion.</p>
 </div>
 <hr>
-<h2 id="funcptr"><span class="num">08</span>Function Pointers</h2>
+<h2 id="funcptr"><span class="num">11</span>Function Pointers</h2>
 <p>A function pointer holds the address of executable code. It lets you choose at runtime which function to call. That's the entire mechanism behind callbacks, plugin tables, dispatch in interpreters, and C's stand-in for virtual methods.</p>
 <h3>The syntax</h3>
 <pre><code class="language-c">// A function
@@ -961,7 +1313,7 @@ static const EntityVTable kDefaultVT = {
 <p>A function pointer with the wrong signature is undefined behaviour to call, even if the cast compiled. Match prototypes exactly. Use the typedef and let the compiler check the assignment.</p>
 </div>
 <hr>
-<h2 id="linkage"><span class="num">09</span>Linkage &amp; Storage</h2>
+<h2 id="linkage"><span class="num">12</span>Linkage &amp; Storage</h2>
 <p>&quot;Linkage&quot; is C's word for &quot;who can see this name&quot;. &quot;Storage&quot; is &quot;where does this object live and how long&quot;. Get these two right and most &quot;weird header bug&quot; disappears.</p>
 <h3>Translation units</h3>
 <p>A translation unit (TU) is one <code>.c</code> file plus everything its preprocessor pulls in. Each TU is compiled to an object file independently. The <em>linker</em> stitches object files together by matching names. <code>#pragma once</code> stops a header pasting twice into the same TU; it does nothing across TUs.</p>
@@ -1080,7 +1432,7 @@ Use <code>#pragma once</code> at the top.<br>
 Mark every file-local symbol in a <code>.c</code> file <code>static</code>.</p>
 </div>
 <hr>
-<h2 id="preprocessor" data-toc="Preprocessor &amp; #define"><span class="num">10</span>The Preprocessor &amp; <code>#define</code></h2>
+<h2 id="preprocessor" data-toc="Preprocessor &amp; #define"><span class="num">13</span>The Preprocessor &amp; <code>#define</code></h2>
 <p>The preprocessor is a textual phase that runs before the compiler. It does three things: pastes files (<code>#include</code>), substitutes text (<code>#define</code>), and conditionally keeps or drops code (<code>#ifdef</code>). That's it.</p>
 <pre><code class="language-bash">// See exactly what the preprocessor produced:
 clang -E main.c              # prints expanded source to stdout
@@ -1142,7 +1494,7 @@ int32_t CAT(my_, var) = 7;       // declares my_var
 <p>Macros do text substitution, not function calls. They have no type checking and side effects in arguments are evaluated more than once: <code>SQUARE(i++)</code> increments <code>i</code> twice. Prefer <code>static inline</code> functions when you need behaviour, not text.</p>
 </div>
 <hr>
-<h2 id="variadic"><span class="num">11</span>Variadic Functions</h2>
+<h2 id="variadic"><span class="num">14</span>Variadic Functions</h2>
 <p>A variadic function takes a variable number of arguments. <code>printf</code> is the famous one. You almost never write new variadic functions in modern C; what you do write are <em>wrappers</em> around <code>printf</code>/<code>vprintf</code> for logging, formatting, error reporting.</p>
 <h3>Calling variadic functions</h3>
 <pre><code class="language-c">#include &lt;stdio.h&gt;
@@ -1207,7 +1559,7 @@ int32_t sum_until_neg1(int32_t first, ...) {
 <p>Modern alternative: pass an array. <code>void emit(size_t n, const Event *evs)</code> beats <code>void emit(int dummy, ...)</code> on every metric - type checking, no promotion mess, no sentinel, easy to grow.</p>
 </div>
 <hr>
-<h2 id="fileio"><span class="num">12</span>File I/O</h2>
+<h2 id="fileio"><span class="num">15</span>File I/O</h2>
 <p>The <code>&lt;stdio.h&gt;</code> stream API is the 80% of file I/O. <code>fopen</code>, read or write, <code>fclose</code>. For very large files or zero-copy workflows, drop down to <code>mmap</code>.</p>
 <h3>Open, read, close</h3>
 <pre><code class="language-c">#include &lt;stdio.h&gt;
@@ -1315,7 +1667,7 @@ if (!f) {
 <p><code>errno</code> is only meaningful immediately after a libc call has failed. Reading it later (after a <code>printf</code>, even) gives stale data. Capture into a local variable on the failure path.</p>
 </div>
 <hr>
-<h2 id="bits"><span class="num">13</span>Bit Manipulation</h2>
+<h2 id="bits"><span class="num">16</span>Bit Manipulation</h2>
 <p>Bits are how computers really store everything. C exposes them directly. Bit manipulation is unavoidable for flag sets, packed formats, hardware registers, fast lookup tables, hash mixers, and protocol headers.</p>
 <h3>The operators</h3>
 <table>
@@ -1430,7 +1782,7 @@ uint32_t read_be32(const uint8_t *p) {
 <p>Bit fields (<code>uint32_t flags : 4;</code> inside structs) are tempting for protocol headers but their layout is implementation-defined - bit order, padding, signedness all vary. Do the masking by hand for portability.</p>
 </div>
 <hr>
-<h2 id="stdlib" data-toc="Standard Library Kit"><span class="num">14</span>Standard Library Survival Kit</h2>
+<h2 id="stdlib" data-toc="Standard Library Kit"><span class="num">17</span>Standard Library Survival Kit</h2>
 <p>The C standard library is small but uneven. Some functions are essential, some are obsolete, a few are actively dangerous. This is a per-header guide to what's worth using.</p>
 <h3><code>&lt;stdio.h&gt;</code> - I/O</h3>
 <table>
@@ -1597,7 +1949,7 @@ double ms = (b.tv_sec - a.tv_sec) * 1e3
 <p>Five headers cover 90% of real C code: <code>stdint.h</code>, <code>stddef.h</code>, <code>stdbool.h</code>, <code>string.h</code>, <code>stdio.h</code>. Pull in <code>stdlib.h</code> when you allocate, <code>math.h</code> when you compute, <code>time.h</code> when you measure.</p>
 </div>
 <hr>
-<h2 id="mainargv"><span class="num">15</span>main / argv / signals</h2>
+<h2 id="mainargv"><span class="num">18</span>main / argv / signals</h2>
 <p>Every C program starts at <code>main</code>. The OS hands you arguments, an environment, and a way to send the program signals. This section is the survival kit for entry points.</p>
 <h3>The two valid signatures</h3>
 <pre><code class="language-c">int main(void);                              // no args needed
@@ -1735,7 +2087,7 @@ int main(void) {
 <p>Long-running daemons usually catch <code>SIGINT</code>+<code>SIGTERM</code> for clean shutdown and ignore <code>SIGPIPE</code> (set the disposition to <code>SIG_IGN</code>) so a closed connection returns <code>EPIPE</code> from <code>write()</code> instead of killing the process.</p>
 </div>
 <hr>
-<h2 id="concurrency"><span class="num">16</span>Concurrency Primer</h2>
+<h2 id="concurrency"><span class="num">19</span>Concurrency Primer</h2>
 <p>Threads let independent work run on independent cores. The C11 standard provides <code>&lt;threads.h&gt;</code>; in practice most code targets POSIX <code>pthread.h</code> on Linux/macOS and Win32 threads on Windows. The 80% you need is: spawn a thread, join it, protect shared state with a mutex, communicate small flags with atomics.</p>
 <h3>POSIX threads (the de-facto standard)</h3>
 <pre><code class="language-c">#include &lt;pthread.h&gt;
@@ -1821,7 +2173,76 @@ static _Thread_local char g_buf[256];   // or `thread_local` from &lt;threads.h&
 <p>Build threaded code with <code>-fsanitize=thread</code> (ThreadSanitizer). It instruments every load and store and reports data races at runtime with both stacks. Like ASan for memory bugs, but for races - completely worth the slowdown during development.</p>
 </div>
 <hr>
-<h2 id="building"><span class="num">17</span>Building &amp; Safety</h2>
+<h2 id="build-min" data-toc="Build System Minimum"><span class="num">20</span>Build System Minimum</h2>
+<p>TL;DR: copy these files, edit the SRCS line, you're shipping.</p>
+<h3>Just <code>cc</code> (one file, dev workflow)</h3>
+<p>For a single .c file you don't need any build system at all:</p>
+<pre><code class="language-bash">cc -std=c99 -Wall -Wextra -g -O0 \
+   -fsanitize=address,undefined \
+   main.c -o main
+./main
+</code></pre>
+<p>Wrap that in a <code>run.sh</code>. You can build a real project with this for a long time.</p>
+<h3>Minimum Makefile</h3>
+<pre><code class="language-makefile">CC      := cc
+CFLAGS  := -std=c99 -Wall -Wextra -Wpedantic -g
+LDFLAGS :=
+SRCS    := main.c parser.c table.c
+OBJS    := $(SRCS:.c=.o)
+BIN     := myprog
+
+.PHONY: all clean run dev
+
+all: $(BIN)
+
+$(BIN): $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c {{CONTENT}}lt; -o $@
+
+dev: CFLAGS  += -O0 -fsanitize=address,undefined
+dev: LDFLAGS += -fsanitize=address,undefined
+dev: $(BIN)
+
+clean:
+	rm -f $(OBJS) $(BIN)
+
+run: all
+	./$(BIN)
+</code></pre>
+<p><code>make</code> for release. <code>make dev</code> for sanitizers. <code>make clean</code> to reset.</p>
+<h3>Minimum CMakeLists.txt</h3>
+<pre><code class="language-cmake">cmake_minimum_required(VERSION 3.16)
+project(myprog C)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # enables clangd / Helix LSP
+
+add_compile_options(-Wall -Wextra -Wpedantic)
+
+add_executable(myprog
+    src/main.c
+    src/parser.c
+    src/table.c
+)
+
+option(DEV &quot;developer build&quot; OFF)
+if (DEV)
+    target_compile_options(myprog PRIVATE -O0 -g -fsanitize=address,undefined)
+    target_link_options   (myprog PRIVATE     -fsanitize=address,undefined)
+endif()
+</code></pre>
+<pre><code class="language-bash">cmake -B build -DDEV=ON
+cmake --build build
+./build/myprog
+</code></pre>
+<div class="tip">
+<p><code>compile_commands.json</code> is what every modern C tool reads (clangd, Helix, IDEs). CMake generates one with <code>-DCMAKE_EXPORT_COMPILE_COMMANDS=ON</code>; for Make, run <code>bear -- make</code>. Without it, your editor cannot find symbols.</p>
+</div>
+<hr>
+<h2 id="building"><span class="num">21</span>Building &amp; Safety</h2>
 <p>The C standard, the compiler, and the sanitizers form your safety net. This section is what every C project's build script should look like.</p>
 <h3>C99: the version to pick</h3>
 <p>C89 is widely supported but cumbersome. C99 fixes the main pain points and is supported by every modern compiler. C11/17/23 are fine, but C99 has the broadest reach and covers the 80%.</p>
@@ -1875,120 +2296,8 @@ clang -std=c99 -O2 -DNDEBUG -Wall -Wextra \
 <p>A segfault is a <em>lucky</em> outcome. The unlucky version is silent corruption: your bad write lands inside a different valid allocation and the program keeps running with garbage data until something visible breaks much later.</p>
 </div>
 <hr>
-<h2 id="ub" data-toc="Undefined Behavior"><span class="num">18</span>Undefined Behavior Catalog</h2>
-<p>Undefined behaviour (UB) is the C standard's term for &quot;anything can happen, including looking like it works&quot;. The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the &quot;but it worked on my machine&quot; class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.</p>
-<h3>Signed integer overflow</h3>
-<pre><code class="language-c">int32_t a = INT32_MAX;
-int32_t b = a + 1;          // UB: signed overflow
-
-// Compiler may assume a + 1 &gt; a always - which deletes overflow checks like:
-if (a + 1 &lt; a) { /* overflowed */ }    // dead code at -O2
-</code></pre>
-<div class="rule">
-<p>Use <strong>unsigned</strong> integer types when you want defined wrap-around. Unsigned overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The compiler exploits this difference for optimizations.</p>
-</div>
-<h3>Strict aliasing</h3>
-<pre><code class="language-c">float     f = 3.14f;
-uint32_t *p = (uint32_t*)&amp;f;     // UB: pointer to one type, accessed as another
-uint32_t  bits = *p;             // undefined
-
-// Defined alternative:
-uint32_t bits;
-memcpy(&amp;bits, &amp;f, sizeof(bits));    // optimizes to a register move
-</code></pre>
-<p>Two pointers of unrelated types may not legally read or write the same object. The compiler relies on this to keep things in registers across function calls. <code>memcpy</code> is the escape hatch and it generates the same machine code at any optimization level.</p>
-<div class="warn">
-<p>The exception: <code>char*</code>, <code>signed char*</code>, <code>unsigned char*</code> may alias anything. That is why <code>memcpy</code> is implemented in terms of <code>unsigned char*</code> and is safe.</p>
-</div>
-<h3>NULL dereference</h3>
-<pre><code class="language-c">int32_t *p = NULL;
-int32_t  v = *p;                // UB - usually segfault on modern OSes
-
-// More subtle: dereference happens BEFORE the if-check
-int32_t v2 = p-&gt;x;
-if (p) { /* useless check - the deref already happened */ }
-// At -O2, gcc may delete the if-check entirely. Yes really.
-</code></pre>
-<div class="rule">
-<p>Once the compiler proves a pointer is dereferenced, it assumes the pointer is non-NULL afterwards and may eliminate later NULL checks as dead code. Always check <em>before</em> the deref.</p>
-</div>
-<h3>Out-of-bounds access</h3>
-<pre><code class="language-c">int32_t arr[4];
-arr[4] = 99;          // UB: one past the end
-arr[-1] = 99;         // UB: before the start
-
-// Even taking the address is UB beyond one past the end:
-int32_t *p = &amp;arr[5];   // UB: arr+4 is OK, arr+5 is not
-</code></pre>
-<h3>Use after free / use after scope</h3>
-<pre><code class="language-c">int32_t *leak(void) {
-    int32_t local = 42;
-    return &amp;local;            // UB: returning address of automatic var
-}
-
-void *p = malloc(100);
-free(p);
-memcpy(p, src, 10);          // UB: p is no longer a valid pointer
-</code></pre>
-<div class="tip">
-<p>Set freed pointers to <code>NULL</code> as a habit. The next use becomes a clean NULL deref (segfault) instead of silent reuse of recycled memory.</p>
-</div>
-<h3>Shifting too far / by negative</h3>
-<pre><code class="language-c">uint32_t x = 1;
-uint32_t y = x &lt;&lt; 32;       // UB: shift by &gt;= width of type
-uint32_t z = x &lt;&lt; -1;       // UB: negative shift
-</code></pre>
-<p>Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer &quot;0&quot; feels right. ARM hardware actually does that; x86 silently masks the shift count. The C standard says: undefined.</p>
-<h3>Reading uninitialized memory</h3>
-<pre><code class="language-c">int32_t x;            // indeterminate value
-if (x) { /* UB: reading x before any write */ }
-
-// Designated init or memset to zero:
-int32_t y = 0;
-struct Big b = {0};   // zeroes everything, including padding
-</code></pre>
-<h3>Sequencing and side effects</h3>
-<pre><code class="language-c">int32_t i = 0;
-int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined
-
-int32_t j = 0;
-printf(&quot;%d %d\n&quot;, j++, j);          // UB: j read and j++ unsequenced
-
-int32_t k = 0;
-k = k++ + 1;                          // UB: two writes, no sequencing
-</code></pre>
-<div class="rule">
-<p>If the same scalar is read and written, or written twice, in the same expression with no sequence point between them, it is UB. Split into separate statements.</p>
-</div>
-<h3>Misaligned access</h3>
-<pre><code class="language-c">uint8_t buf[16] = {0};
-uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned
-uint32_t v = *p;                       // UB on architectures requiring alignment
-
-// Use memcpy from any byte offset
-uint32_t v2;
-memcpy(&amp;v2, buf + 1, sizeof(v2));      // always defined
-</code></pre>
-<p>x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS, RISC-V and others may trap. Even on x86, vector instructions require alignment. <code>memcpy</code> handles arbitrary alignment portably.</p>
-<h3>Undefined and implementation-defined are different</h3>
-<ul class="tight">
-<li><strong>Implementation-defined</strong>: behaviour is consistent on a platform but varies across platforms (e.g., right-shift of negative integers). Document and isolate it.</li>
-<li><strong>Unspecified</strong>: behaviour comes from a fixed set, but the spec doesn't pick (e.g., evaluation order of function arguments). Don't depend on it.</li>
-<li><strong>Undefined</strong>: anything is allowed, including time travel. Avoid at all costs.</li>
-</ul>
-<h3>Defenses, in order</h3>
-<ol class="steps">
-<li><strong>Run with sanitizers in dev.</strong> <code>-fsanitize=address,undefined</code> catches the bulk: OOB, UAF, alignment, signed overflow, shifts, NULL deref.</li>
-<li><strong>Enable warnings.</strong> <code>-Wall -Wextra -Wpedantic -Werror</code>, plus <code>-Wstrict-aliasing</code>, <code>-Wnull-dereference</code>, <code>-Wshift-overflow</code>.</li>
-<li><strong>Prefer unsigned for arithmetic that may wrap.</strong> Use <code>memcpy</code> for type punning. Initialize all variables. Always check pointers before deref.</li>
-<li><strong>Build production with <code>-D_FORTIFY_SOURCE=2</code></strong> for runtime libc bounds checks on the most common functions.</li>
-</ol>
-<div class="warn">
-<p>Cross-link: most testing frameworks run their suites under sanitizers - see the <a href="#testing">Testing</a> section. Sanitizers turn UB from &quot;silently miscompiled&quot; into &quot;crashes at the bad line&quot;, which is exactly what tests want.</p>
-</div>
-<hr>
-<h2 id="testing"><span class="num">19</span>Testing</h2>
-<p>C has no built-in test framework. The good news is you don't need one for the 80%: a single <code>tests.c</code> file plus <code>assert.h</code> plus the sanitizers from §17 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.</p>
+<h2 id="testing"><span class="num">22</span>Testing</h2>
+<p>C has no built-in test framework. The good news is you don't need one for the 80%: a single <code>tests.c</code> file plus <code>assert.h</code> plus the sanitizers from §21 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.</p>
 <h3>The minimum viable test</h3>
 <pre><code class="language-c">// tests.c
 #include &lt;assert.h&gt;
@@ -2174,119 +2483,7 @@ add_test(NAME unit COMMAND tests)
 </code></pre>
 <p>CTest then runs the binary as part of <code>ctest</code> and surfaces non-zero exit codes as failures. That is enough to plug into any CI.</p>
 <hr>
-<h2 id="cpuperf" data-toc="CPU Performance"><span class="num">20</span>CPU Performance Foundations</h2>
-<p>A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.</p>
-<h3>The kitchen analogy</h3>
-<p>Borrowed from Nic Barker's CPU performance talk. The mental model holds remarkably well.</p>
-<table>
-<thead>
-<tr>
-<th>Kitchen</th>
-<th>Computer</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Chef</td>
-<td>CPU core</td>
-</tr>
-<tr>
-<td>Knives, pans, boards</td>
-<td>Instructions</td>
-</tr>
-<tr>
-<td>Ingredients</td>
-<td>Data</td>
-</tr>
-<tr>
-<td>Chopping board (only place work happens)</td>
-<td>Registers</td>
-</tr>
-<tr>
-<td>Box on the bench</td>
-<td>L1 cache</td>
-</tr>
-<tr>
-<td>Shelves</td>
-<td>L2 cache</td>
-</tr>
-<tr>
-<td>Storage room</td>
-<td>L3 cache</td>
-</tr>
-<tr>
-<td>Supermarket run</td>
-<td>Main memory (DRAM)</td>
-</tr>
-<tr>
-<td>Farm delivery</td>
-<td>Disk / SSD</td>
-</tr>
-</tbody>
-</table>
-<h3>Cache hierarchy: the headline numbers</h3>
-<table>
-<thead>
-<tr>
-<th>Storage</th>
-<th>Size</th>
-<th>Latency (cycles)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Register</td>
-<td>8 B</td>
-<td>0</td>
-</tr>
-<tr>
-<td>L1</td>
-<td>~64 KB</td>
-<td>~3</td>
-</tr>
-<tr>
-<td>L2</td>
-<td>~2 MB</td>
-<td>~20</td>
-</tr>
-<tr>
-<td>L3</td>
-<td>~32 MB</td>
-<td>~100</td>
-</tr>
-<tr>
-<td>DRAM</td>
-<td>GB</td>
-<td>200-300</td>
-</tr>
-<tr>
-<td>SSD (random read)</td>
-<td>TB</td>
-<td>~300,000</td>
-</tr>
-</tbody>
-</table>
-<div class="rule">
-<p>Cache line = <strong>64 bytes</strong>. Every memory fetch brings 64 bytes whether you wanted them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per call. A single cache miss costs 200-300. One miss is 7-10x more expensive than the most famous optimization in game-dev history.</p>
-</div>
-<p>Each core has its own L1 and L2. Single-core code throws away the rest. With 8 cores you have 8x the L1 you'd think.</p>
-<h3>The four rules of thumb</h3>
-<ol class="steps">
-<li><strong>Pack data tight.</strong> Smallest types that fit. Group fields by locality of use. Don't waste the cache line.</li>
-<li><strong>Do work in bulk.</strong> Functions take <em>arrays</em> of things, not one thing at a time. Amortize setup cost.</li>
-<li><strong>Pre-compute at startup, not at runtime.</strong> Why do you think it's called <em>baking</em>? Lighting, lookup tables, parsed configs, sorted indices. Anything stable before the frame loop should be ready at frame zero.</li>
-<li><strong>Use multiple cores.</strong> Independent streams of work, cheap join at the end. Avoid synchronization in the inner loops.</li>
-</ol>
-<h3>The silent killer</h3>
-<p>When you access <code>enemy.hp</code>, the cache line you paid 200+ cycles for also contains the <em>next 60 bytes after <code>hp</code></em>. Was that next 60 bytes useful? If yes, the next access is free. If no, you wasted the trip. This is invisible in source. Big-O notation does not capture it.</p>
-<div class="tip">
-<p>When in doubt, lay out struct fields from largest to smallest. Compilers pack in declaration order; mis-ordering wastes bytes via alignment padding. Order matters.</p>
-</div>
-<div class="warn">
-<p>An O(n) walk over a packed array beats an O(log n) traversal of a pointer-chained tree at most realistic sizes. The tree's pointers each cost a cache miss; the array streams in 64-byte gulps.</p>
-</div>
-<hr>
-<h2 id="debugger"><span class="num">21</span>Debugger Tips</h2>
+<h2 id="debugger"><span class="num">23</span>Debugger Tips</h2>
 <p>You absolutely need a debugger to be productive in C. Print debugging will not scale. The good news: gdb and lldb are 90% the same and you only need a dozen commands.</p>
 <div class="rule">
 <p>Compile with <code>-g -O0</code> for clean debug info. Optimization mangles line numbers and elides locals - the debugger will refuse to show variables that the optimizer &quot;doesn't believe&quot; exist.</p>
@@ -2377,7 +2574,7 @@ rr replay                # reverse-step through any bug
 <p>Never debug optimized binaries unless forced to. <code>-O0 -g</code> first; switch to <code>-O2 -g</code> only if the bug only reproduces under optimization.</p>
 </div>
 <hr>
-<h2 id="helix" data-toc="Helix Setup"><span class="num">22</span>C in Helix Editor</h2>
+<h2 id="helix" data-toc="Helix Setup"><span class="num">24</span>C in Helix Editor</h2>
 <p>Helix is a modal terminal editor with built-in LSP and DAP support. C works out of the box once you install <code>clangd</code>.</p>
 <h3>Install</h3>
 <pre><code class="language-bash"># macOS
@@ -3279,6 +3476,483 @@ int main(void) {
 <p>Read <code>clay.h</code> itself - it's a single file, ~3000 lines, and the best living example of every rule above. <a href="https://github.com/nicbarker/clay">github.com/nicbarker/clay</a></p>
 </div>
 </div></div>
+<hr>
+<h2 id="traps" data-toc="Rookie Traps"><span class="num">25</span>Common Rookie Traps</h2>
+<p>TL;DR: 90% of &quot;weird C bugs&quot; are on this list. If your code misbehaves, scan here first.</p>
+<h3>sizeof on a decayed array</h3>
+<pre><code class="language-c">void bad(int arr[]) {
+    size_t n = sizeof(arr) / sizeof(arr[0]);  // WRONG: sizeof(int*)/sizeof(int)
+}
+void good(int *arr, size_t n) { /* take length */ }
+</code></pre>
+<h3>String literals are read-only</h3>
+<pre><code class="language-c">char *s = &quot;hello&quot;;
+s[0] = 'H';            // SEGFAULT: writes to .rodata
+
+char a[] = &quot;hello&quot;;    // OK: a is a char[6] on the stack, mutable
+a[0] = 'H';
+</code></pre>
+<h3>Comparing strings with ==</h3>
+<pre><code class="language-c">if (s == &quot;hello&quot;)              // compares pointers, NOT contents
+if (strcmp(s, &quot;hello&quot;) == 0)   // correct
+</code></pre>
+<h3>gets and scanf(&quot;%s&quot;, ...)</h3>
+<pre><code class="language-c">char buf[16];
+gets(buf);                      // GONE FROM C11. Don't even mention it.
+scanf(&quot;%s&quot;, buf);               // unbounded - same problem
+fgets(buf, sizeof buf, stdin);  // bounded - correct
+</code></pre>
+<h3>Off-by-one on the null terminator</h3>
+<pre><code class="language-c">char buf[5];
+strcpy(buf, &quot;hello&quot;);   // 6 bytes (5 + '\0') into 5 - corrupts the stack
+</code></pre>
+<h3>Integer overflow in size math</h3>
+<pre><code class="language-c">size_t n = user_input;
+char *p = malloc(n * 32);   // wraps to small if n is huge - tiny alloc, huge memcpy
+</code></pre>
+<h3>Signed/unsigned compare</h3>
+<pre><code class="language-c">size_t len = ...;
+for (int i = 0; i &lt; len; i++) { ... }       // i signed, len unsigned - warning
+for (size_t i = 0; i &lt; len; i++) { ... }    // correct
+</code></pre>
+<h3>Returning a pointer to a local</h3>
+<pre><code class="language-c">char *make_msg(int x) {
+    char buf[64];
+    snprintf(buf, sizeof buf, &quot;%d&quot;, x);
+    return buf;        // UB: buf dies when function returns
+}
+</code></pre>
+<h3>Using == with floats</h3>
+<pre><code class="language-c">if (a == b) { ... }                    // brittle
+if (fabs(a - b) &lt; 1e-9) { ... }        // tolerance-based
+</code></pre>
+<h3>Forgetting <code>void</code> in zero-arg declarations</h3>
+<pre><code class="language-c">int f();         // historic: &quot;any args, unchecked&quot;
+int f(void);     // explicit: &quot;no args&quot; - prefer this
+</code></pre>
+<h3>Macro arg evaluated twice</h3>
+<pre><code class="language-c">#define MAX(a, b) ((a) &gt; (b) ? (a) : (b))
+int x = MAX(i++, j);    // i++ evaluated twice when i &gt; j - bug
+</code></pre>
+<p>Use a <code>static inline</code> function instead.</p>
+<h3>Free + reuse</h3>
+<pre><code class="language-c">free(p);
+p-&gt;next = NULL;        // use after free - UB
+free(p);               // double free - UB
+</code></pre>
+<p>Always: <code>free(p); p = NULL;</code>.</p>
+<h3>Unchecked malloc</h3>
+<pre><code class="language-c">char *buf = malloc(n);
+buf[0] = 'x';      // segfault if n was huge or system was OOM
+</code></pre>
+<h3>printf format mismatch</h3>
+<pre><code class="language-c">size_t n = 5;
+printf(&quot;%d\n&quot;, n);     // %d expects int; size_t is usually larger - UB
+printf(&quot;%zu\n&quot;, n);    // correct
+</code></pre>
+<h3>Returning -1 from an unsigned</h3>
+<pre><code class="language-c">size_t find(const char *s, char c) {
+    for (size_t i = 0; s[i]; i++) if (s[i] == c) return i;
+    return -1;     // becomes SIZE_MAX - caller's `&lt; n` check accidentally passes
+}
+</code></pre>
+<p>Use a sentinel (<code>SIZE_MAX</code>) explicitly, or return <code>(bool found, size_t out)</code> as a struct.</p>
+<hr>
+<h2 id="ub" data-toc="Undefined Behavior"><span class="num">26</span>Undefined Behavior Catalog</h2>
+<p>Undefined behaviour (UB) is the C standard's term for &quot;anything can happen, including looking like it works&quot;. The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the &quot;but it worked on my machine&quot; class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.</p>
+<h3>Signed integer overflow</h3>
+<pre><code class="language-c">int32_t a = INT32_MAX;
+int32_t b = a + 1;          // UB: signed overflow
+
+// Compiler may assume a + 1 &gt; a always - which deletes overflow checks like:
+if (a + 1 &lt; a) { /* overflowed */ }    // dead code at -O2
+</code></pre>
+<div class="rule">
+<p>Use <strong>unsigned</strong> integer types when you want defined wrap-around. Unsigned overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The compiler exploits this difference for optimizations.</p>
+</div>
+<h3>Strict aliasing</h3>
+<pre><code class="language-c">float     f = 3.14f;
+uint32_t *p = (uint32_t*)&amp;f;     // UB: pointer to one type, accessed as another
+uint32_t  bits = *p;             // undefined
+
+// Defined alternative:
+uint32_t bits;
+memcpy(&amp;bits, &amp;f, sizeof(bits));    // optimizes to a register move
+</code></pre>
+<p>Two pointers of unrelated types may not legally read or write the same object. The compiler relies on this to keep things in registers across function calls. <code>memcpy</code> is the escape hatch and it generates the same machine code at any optimization level.</p>
+<div class="warn">
+<p>The exception: <code>char*</code>, <code>signed char*</code>, <code>unsigned char*</code> may alias anything. That is why <code>memcpy</code> is implemented in terms of <code>unsigned char*</code> and is safe.</p>
+</div>
+<h3>NULL dereference</h3>
+<pre><code class="language-c">int32_t *p = NULL;
+int32_t  v = *p;                // UB - usually segfault on modern OSes
+
+// More subtle: dereference happens BEFORE the if-check
+int32_t v2 = p-&gt;x;
+if (p) { /* useless check - the deref already happened */ }
+// At -O2, gcc may delete the if-check entirely. Yes really.
+</code></pre>
+<div class="rule">
+<p>Once the compiler proves a pointer is dereferenced, it assumes the pointer is non-NULL afterwards and may eliminate later NULL checks as dead code. Always check <em>before</em> the deref.</p>
+</div>
+<h3>Out-of-bounds access</h3>
+<pre><code class="language-c">int32_t arr[4];
+arr[4] = 99;          // UB: one past the end
+arr[-1] = 99;         // UB: before the start
+
+// Even taking the address is UB beyond one past the end:
+int32_t *p = &amp;arr[5];   // UB: arr+4 is OK, arr+5 is not
+</code></pre>
+<h3>Use after free / use after scope</h3>
+<pre><code class="language-c">int32_t *leak(void) {
+    int32_t local = 42;
+    return &amp;local;            // UB: returning address of automatic var
+}
+
+void *p = malloc(100);
+free(p);
+memcpy(p, src, 10);          // UB: p is no longer a valid pointer
+</code></pre>
+<div class="tip">
+<p>Set freed pointers to <code>NULL</code> as a habit. The next use becomes a clean NULL deref (segfault) instead of silent reuse of recycled memory.</p>
+</div>
+<h3>Shifting too far / by negative</h3>
+<pre><code class="language-c">uint32_t x = 1;
+uint32_t y = x &lt;&lt; 32;       // UB: shift by &gt;= width of type
+uint32_t z = x &lt;&lt; -1;       // UB: negative shift
+</code></pre>
+<p>Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer &quot;0&quot; feels right. ARM hardware actually does that; x86 silently masks the shift count. The C standard says: undefined.</p>
+<h3>Reading uninitialized memory</h3>
+<pre><code class="language-c">int32_t x;            // indeterminate value
+if (x) { /* UB: reading x before any write */ }
+
+// Designated init or memset to zero:
+int32_t y = 0;
+struct Big b = {0};   // zeroes everything, including padding
+</code></pre>
+<h3>Sequencing and side effects</h3>
+<pre><code class="language-c">int32_t i = 0;
+int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined
+
+int32_t j = 0;
+printf(&quot;%d %d\n&quot;, j++, j);          // UB: j read and j++ unsequenced
+
+int32_t k = 0;
+k = k++ + 1;                          // UB: two writes, no sequencing
+</code></pre>
+<div class="rule">
+<p>If the same scalar is read and written, or written twice, in the same expression with no sequence point between them, it is UB. Split into separate statements.</p>
+</div>
+<h3>Misaligned access</h3>
+<pre><code class="language-c">uint8_t buf[16] = {0};
+uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned
+uint32_t v = *p;                       // UB on architectures requiring alignment
+
+// Use memcpy from any byte offset
+uint32_t v2;
+memcpy(&amp;v2, buf + 1, sizeof(v2));      // always defined
+</code></pre>
+<p>x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS, RISC-V and others may trap. Even on x86, vector instructions require alignment. <code>memcpy</code> handles arbitrary alignment portably.</p>
+<h3>Undefined and implementation-defined are different</h3>
+<ul class="tight">
+<li><strong>Implementation-defined</strong>: behaviour is consistent on a platform but varies across platforms (e.g., right-shift of negative integers). Document and isolate it.</li>
+<li><strong>Unspecified</strong>: behaviour comes from a fixed set, but the spec doesn't pick (e.g., evaluation order of function arguments). Don't depend on it.</li>
+<li><strong>Undefined</strong>: anything is allowed, including time travel. Avoid at all costs.</li>
+</ul>
+<h3>Defenses, in order</h3>
+<ol class="steps">
+<li><strong>Run with sanitizers in dev.</strong> <code>-fsanitize=address,undefined</code> catches the bulk: OOB, UAF, alignment, signed overflow, shifts, NULL deref.</li>
+<li><strong>Enable warnings.</strong> <code>-Wall -Wextra -Wpedantic -Werror</code>, plus <code>-Wstrict-aliasing</code>, <code>-Wnull-dereference</code>, <code>-Wshift-overflow</code>.</li>
+<li><strong>Prefer unsigned for arithmetic that may wrap.</strong> Use <code>memcpy</code> for type punning. Initialize all variables. Always check pointers before deref.</li>
+<li><strong>Build production with <code>-D_FORTIFY_SOURCE=2</code></strong> for runtime libc bounds checks on the most common functions.</li>
+</ol>
+<div class="warn">
+<p>Cross-link: most testing frameworks run their suites under sanitizers - see the <a href="#testing">Testing</a> section. Sanitizers turn UB from &quot;silently miscompiled&quot; into &quot;crashes at the bad line&quot;, which is exactly what tests want.</p>
+</div>
+<hr>
+<h2 id="cpuperf" data-toc="CPU Performance"><span class="num">27</span>CPU Performance Foundations</h2>
+<p>A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.</p>
+<h3>The kitchen analogy</h3>
+<p>Borrowed from Nic Barker's CPU performance talk. The mental model holds remarkably well.</p>
+<table>
+<thead>
+<tr>
+<th>Kitchen</th>
+<th>Computer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chef</td>
+<td>CPU core</td>
+</tr>
+<tr>
+<td>Knives, pans, boards</td>
+<td>Instructions</td>
+</tr>
+<tr>
+<td>Ingredients</td>
+<td>Data</td>
+</tr>
+<tr>
+<td>Chopping board (only place work happens)</td>
+<td>Registers</td>
+</tr>
+<tr>
+<td>Box on the bench</td>
+<td>L1 cache</td>
+</tr>
+<tr>
+<td>Shelves</td>
+<td>L2 cache</td>
+</tr>
+<tr>
+<td>Storage room</td>
+<td>L3 cache</td>
+</tr>
+<tr>
+<td>Supermarket run</td>
+<td>Main memory (DRAM)</td>
+</tr>
+<tr>
+<td>Farm delivery</td>
+<td>Disk / SSD</td>
+</tr>
+</tbody>
+</table>
+<h3>Cache hierarchy: the headline numbers</h3>
+<table>
+<thead>
+<tr>
+<th>Storage</th>
+<th>Size</th>
+<th>Latency (cycles)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Register</td>
+<td>8 B</td>
+<td>0</td>
+</tr>
+<tr>
+<td>L1</td>
+<td>~64 KB</td>
+<td>~3</td>
+</tr>
+<tr>
+<td>L2</td>
+<td>~2 MB</td>
+<td>~20</td>
+</tr>
+<tr>
+<td>L3</td>
+<td>~32 MB</td>
+<td>~100</td>
+</tr>
+<tr>
+<td>DRAM</td>
+<td>GB</td>
+<td>200-300</td>
+</tr>
+<tr>
+<td>SSD (random read)</td>
+<td>TB</td>
+<td>~300,000</td>
+</tr>
+</tbody>
+</table>
+<div class="rule">
+<p>Cache line = <strong>64 bytes</strong>. Every memory fetch brings 64 bytes whether you wanted them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per call. A single cache miss costs 200-300. One miss is 7-10x more expensive than the most famous optimization in game-dev history.</p>
+</div>
+<p>Each core has its own L1 and L2. Single-core code throws away the rest. With 8 cores you have 8x the L1 you'd think.</p>
+<h3>The four rules of thumb</h3>
+<ol class="steps">
+<li><strong>Pack data tight.</strong> Smallest types that fit. Group fields by locality of use. Don't waste the cache line.</li>
+<li><strong>Do work in bulk.</strong> Functions take <em>arrays</em> of things, not one thing at a time. Amortize setup cost.</li>
+<li><strong>Pre-compute at startup, not at runtime.</strong> Why do you think it's called <em>baking</em>? Lighting, lookup tables, parsed configs, sorted indices. Anything stable before the frame loop should be ready at frame zero.</li>
+<li><strong>Use multiple cores.</strong> Independent streams of work, cheap join at the end. Avoid synchronization in the inner loops.</li>
+</ol>
+<h3>The silent killer</h3>
+<p>When you access <code>enemy.hp</code>, the cache line you paid 200+ cycles for also contains the <em>next 60 bytes after <code>hp</code></em>. Was that next 60 bytes useful? If yes, the next access is free. If no, you wasted the trip. This is invisible in source. Big-O notation does not capture it.</p>
+<div class="tip">
+<p>When in doubt, lay out struct fields from largest to smallest. Compilers pack in declaration order; mis-ordering wastes bytes via alignment padding. Order matters.</p>
+</div>
+<div class="warn">
+<p>An O(n) walk over a packed array beats an O(log n) traversal of a pointer-chained tree at most realistic sizes. The tree's pointers each cost a cache miss; the array streams in 64-byte gulps.</p>
+</div>
+<hr>
+<h2 id="drills" data-toc="Drills"><span class="num">28</span>Drills</h2>
+<p>TL;DR: reading alone gets you nowhere. Each drill has a hidden answer; try first, then expand.</p>
+<h3>Pointers</h3>
+<p><strong>D-1.</strong> What does this print? Why?</p>
+<pre><code class="language-c">int x = 5;
+int *p = &amp;x;
+int **pp = &amp;p;
+**pp = 10;
+printf(&quot;%d\n&quot;, x);
+</code></pre>
+<details><summary>answer</summary>
+<p><code>10</code>. <code>pp</code> points to <code>p</code>; <code>*pp</code> is <code>p</code>; <code>**pp</code> reads/writes through <code>p</code>, which targets <code>x</code>.</p>
+</details>
+<p><strong>D-2.</strong> Spot the bug:</p>
+<pre><code class="language-c">char *make(void) {
+    char s[] = &quot;hello&quot;;
+    return s;
+}
+</code></pre>
+<details><summary>answer</summary>
+<p><code>s</code> is on the stack; the pointer dangles after return. Fix: <code>return strdup(&quot;hello&quot;);</code> (caller must free) or use a static buffer.</p>
+</details>
+<p><strong>D-3.</strong> Why is <code>int *a, b;</code> rarely what you want?</p>
+<details><summary>answer</summary>
+<p><code>a</code> is <code>int*</code>, but <code>b</code> is just <code>int</code>. <code>*</code> binds to the variable, not the type. Always declare on separate lines, or write <code>int *a, *b;</code>.</p>
+</details>
+<h3>Arrays &amp; decay</h3>
+<p><strong>D-4.</strong> Inside <code>void f(int a[100])</code>, what is <code>sizeof(a)</code>?</p>
+<details><summary>answer</summary>
+<p><code>sizeof(int*)</code> (8 on 64-bit). <code>[100]</code> is a hint for humans; the compiler ignores it on parameters. <code>a</code> is just a pointer.</p>
+</details>
+<p><strong>D-5.</strong> Here's a wrong read; what's the smallest fix?</p>
+<pre><code class="language-c">char buf[8];
+fread(buf, 1, 10, f);   // wrong: writes 10 bytes into 8-byte buffer
+</code></pre>
+<details><summary>answer</summary>
+<p>Make the buffer big enough (<code>char buf[10];</code>) or read at most <code>sizeof buf</code>: <code>fread(buf, 1, sizeof buf, f);</code>. Both, ideally.</p>
+</details>
+<h3>Structs &amp; memory</h3>
+<p><strong>D-6.</strong> What does <code>sizeof(S)</code> give you?</p>
+<pre><code class="language-c">struct S { char a; int32_t b; char c; };
+</code></pre>
+<details><summary>answer</summary>
+<p>12 on most platforms. Padding: <code>a</code> (1) + 3 pad + <code>b</code> (4) + <code>c</code> (1) + 3 trailing pad = 12. Reorder largest-first to shrink: <code>{ int32_t b; char a; char c; }</code> -&gt; 8 bytes.</p>
+</details>
+<p><strong>D-7.</strong> Allocate a struct and an array of doubles in one shot:</p>
+<details><summary>answer</summary>
+<pre><code class="language-c">typedef struct { size_t n; double data[]; } Vec;
+Vec *v = malloc(sizeof(Vec) + n * sizeof(double));
+v-&gt;n = n;
+// v-&gt;data[i] is contiguous with the struct - one alloc, one free
+</code></pre>
+<p>This is the &quot;flexible array member&quot; trick.</p>
+</details>
+<h3>Strings</h3>
+<p><strong>D-8.</strong> Why is <code>strncpy</code> <em>not</em> a safe <code>strcpy</code>?</p>
+<details><summary>answer</summary>
+<p><code>strncpy</code> does not null-terminate if the source is at least <code>n</code> bytes. The result might not be a C string. Use <code>snprintf(dst, sizeof dst, &quot;%s&quot;, src)</code> for safe bounded copy.</p>
+</details>
+<h3>Memory management</h3>
+<p><strong>D-9.</strong> Spot the leak:</p>
+<pre><code class="language-c">char *buf = malloc(1024);
+buf = realloc(buf, 4096);
+if (!buf) return -1;
+</code></pre>
+<details><summary>answer</summary>
+<p>If <code>realloc</code> returns NULL, the original <code>buf</code> still points to a live block but you've overwritten the variable -&gt; leak. Always: <code>tmp = realloc(buf, n); if (!tmp) { free(buf); return -1; } buf = tmp;</code>.</p>
+</details>
+<p><strong>D-10.</strong> Which of these is/are UB?</p>
+<pre><code class="language-c">char *p = malloc(8);
+free(p);
+free(p);             // (a)
+p[0] = 'x';          // (b)
+free(NULL);          // (c)
+char *q = NULL;
+*q = 'x';            // (d)
+</code></pre>
+<details><summary>answer</summary>
+<p><code>(a)</code>, <code>(b)</code>, <code>(d)</code> are UB. <code>(c)</code> is defined as a no-op.</p>
+</details>
+<h3>Bit twiddling</h3>
+<p><strong>D-11.</strong> Set bit 3 of <code>x</code>. Clear bit 5. Toggle bit 7. Test bit 0.</p>
+<details><summary>answer</summary>
+<pre><code class="language-c">x |=  (1u &lt;&lt; 3);          // set
+x &amp;= ~(1u &lt;&lt; 5);          // clear
+x ^=  (1u &lt;&lt; 7);          // toggle
+bool b = x &amp; (1u &lt;&lt; 0);   // test
+</code></pre>
+</details>
+<h3>Build &amp; safety</h3>
+<p><strong>D-12.</strong> What flags would catch the most C bugs at zero cost?</p>
+<details><summary>answer</summary>
+<p><code>-Wall -Wextra -Werror</code> for warnings-as-errors, plus <code>-fsanitize=address,undefined</code> for runtime. Optional: <code>-Wpedantic</code>, <code>-Wconversion</code>.</p>
+</details>
+<hr>
+<h2 id="glossary" data-toc="Glossary"><span class="num">29</span>Glossary</h2>
+<p>TL;DR: shorthand C developers throw around. Skim once.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>UB</strong></td>
+<td>Undefined Behavior. The standard imposes no requirement; the compiler may do anything.</td>
+</tr>
+<tr>
+<td><strong>IB</strong></td>
+<td>Implementation-defined Behavior. The standard lets each compiler choose, but it must document the choice (e.g. <code>int</code> width).</td>
+</tr>
+<tr>
+<td><strong>TU</strong></td>
+<td>Translation Unit. One <code>.c</code> file plus all its <code>#include</code>d content, after the preprocessor runs. The unit the compiler sees.</td>
+</tr>
+<tr>
+<td><strong>ODR</strong></td>
+<td>One Definition Rule. Each non-<code>static</code> function or global must have exactly one definition across all TUs of a program.</td>
+</tr>
+<tr>
+<td><strong>lvalue</strong></td>
+<td>Expression with an address you can take. <code>x</code>, <code>*p</code>, <code>arr[i]</code>. Can appear on the left of <code>=</code>.</td>
+</tr>
+<tr>
+<td><strong>rvalue</strong></td>
+<td>Expression without an address. <code>42</code>, <code>a + b</code>, function return. Right side of <code>=</code> only.</td>
+</tr>
+<tr>
+<td><strong>Linkage</strong></td>
+<td>Visibility across TUs. <code>static</code> = internal (this TU only). Default = external (visible to linker).</td>
+</tr>
+<tr>
+<td><strong>Storage duration</strong></td>
+<td>How long an object lives. Automatic (stack), Static (process lifetime), Allocated (heap, until <code>free</code>), Thread (C11 <code>_Thread_local</code>).</td>
+</tr>
+<tr>
+<td><strong>Sequence point</strong></td>
+<td>Boundary in evaluation order. Between full expressions, after <code>&amp;&amp;</code>/`</td>
+</tr>
+<tr>
+<td><strong>Strict aliasing</strong></td>
+<td>The rule that says you can't read a <code>T*</code> through a <code>U*</code> (with exceptions: <code>char*</code>, <code>unsigned char*</code>). Violations are UB.</td>
+</tr>
+<tr>
+<td><strong>VLA</strong></td>
+<td>Variable Length Array. <code>int a[n]</code> where <code>n</code> isn't a constant. Stack-allocated; can blow the stack. C99 mandatory, C11 optional.</td>
+</tr>
+<tr>
+<td><strong>POD</strong></td>
+<td>Plain Old Data. A struct with no constructors/destructors (a C-only concept by definition; comes up at C++/ABI boundaries).</td>
+</tr>
+<tr>
+<td><strong>ABI</strong></td>
+<td>Application Binary Interface. The contract between compiled binaries: calling convention, struct layout, name mangling.</td>
+</tr>
+<tr>
+<td><strong>TLS</strong></td>
+<td>Thread-Local Storage. Per-thread copies of a variable. C11: <code>_Thread_local</code>.</td>
+</tr>
+<tr>
+<td><strong>MMU</strong></td>
+<td>Memory Management Unit. CPU hardware that translates virtual addresses to physical. Why each process sees its own address space.</td>
+</tr>
+<tr>
+<td><strong>Cache line</strong></td>
+<td>Unit of memory the CPU loads from RAM. 64 bytes on x86/ARM. Writes invalidate sibling cores' copies.</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h2><span class="num">∑</span>Quick Reference</h2>
 <div class="summary-grid">
