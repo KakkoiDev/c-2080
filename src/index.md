@@ -63,6 +63,8 @@ copy these files, edit the SRCS line, you're shipping.
 
 ### Just `cc` (one file, dev workflow)
 
+`cc` is the historical Unix name for "the C compiler". On Linux it usually points to `gcc`; on macOS it points to `clang`. Using `cc` keeps your build commands portable across both. If you'd rather be explicit, swap `cc` for `gcc` or `clang` everywhere - same flags.
+
 For a single .c file you don't need any build system at all:
 
 ```bash

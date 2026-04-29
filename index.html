@@ -494,6 +494,7 @@
 <p>copy these files, edit the SRCS line, you're shipping.</p>
 </div>
 <h3>Just <code>cc</code> (one file, dev workflow)</h3>
+<p><code>cc</code> is the historical Unix name for &quot;the C compiler&quot;. On Linux it usually points to <code>gcc</code>; on macOS it points to <code>clang</code>. Using <code>cc</code> keeps your build commands portable across both. If you'd rather be explicit, swap <code>cc</code> for <code>gcc</code> or <code>clang</code> everywhere - same flags.</p>
 <p>For a single .c file you don't need any build system at all:</p>
 <pre><code class="language-bash">cc -std=c99 -Wall -Wextra -g -O0 \
    -fsanitize=address,undefined \
