@@ -24,8 +24,8 @@ const md = new MarkdownIt({
 
 md.use(mdAttrs);
 
-// Simple containers: rule, warn, tip, tldr
-for (const name of ["rule", "warn", "tip", "tldr"]) {
+// Simple containers: rule, warn, tip, tldr, diagram
+for (const name of ["rule", "warn", "tip", "tldr", "diagram"]) {
   md.use(mdContainer, name, {
     render(tokens, idx) {
       return tokens[idx].nesting === 1

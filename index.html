@@ -164,6 +164,25 @@
     font-size: 0.92em;
   }
 
+  .diagram { margin: 18px 0; }
+  .diagram pre {
+    background: rgba(79, 195, 161, 0.04);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent2);
+    padding: 18px 22px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: auto;
+    margin: 0;
+  }
+  .diagram pre code,
+  .diagram pre[class*="language-"],
+  .diagram pre[class*="language-"] code {
+    color: #d4cec4;
+    background: transparent;
+    font-variant-ligatures: none;
+  }
+
   .warn {
     border-left: 2px solid var(--accent3);
     padding: 12px 18px;
@@ -972,69 +991,78 @@ push_front(&amp;list, 42);
 <p>when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.</p>
 </div>
 <h3>Process memory layout</h3>
+<div class="diagram">
 <pre><code class="language-text">    high addresses
-    +------------------+
-    |  command line    |
-    |  environment     |
-    +------------------+
-    |  STACK           |  &lt;- grows DOWN
-    |  ----------      |
-    |  local vars      |
-    |  return addr     |
-    |  saved regs      |
-    |       v          |
-    |                  |
-    |       ^          |
-    |  HEAP            |  &lt;- grows UP (malloc)
-    +------------------+
-    |  .bss            |  uninitialised globals (zeroed)
-    |  .data           |  initialised globals
-    |  .rodata         |  string literals (read-only)
-    |  .text           |  the code
-    +------------------+
+    ┌──────────────────┐
+    │  command line    │
+    │  environment     │
+    ├──────────────────┤
+    │  STACK           │   ← grows DOWN
+    │  ──────────      │
+    │  local vars      │
+    │  return addr     │
+    │  saved regs      │
+    │       ↓          │
+    │                  │
+    │       ↑          │
+    │  HEAP            │   ← grows UP (malloc)
+    ├──────────────────┤
+    │  .bss            │   uninitialised globals (zeroed)
+    │  .data           │   initialised globals
+    │  .rodata         │   string literals (read-only)
+    │  .text           │   the code
+    └──────────────────┘
     low addresses
 </code></pre>
+</div>
 <h3>A pointer in pictures</h3>
+<div class="diagram">
 <pre><code class="language-text">int x = 42;
 int *p = &amp;x;
 
   STACK
-  +-----------+   address: 0x7ffd_a0
-  |    42     |   &lt;-- x
-  +-----------+
+  ┌───────────┐   address: 0x7ffd_a0
+  │    42     │   ← x
+  └───────────┘
 
-  +-----------+   address: 0x7ffd_a8
-  | 0x7ffd_a0 |   &lt;-- p (holds the address of x)
-  +-----------+
+  ┌───────────┐   address: 0x7ffd_a8
+  │ 0x7ffd_a0 │   ← p (holds the address of x)
+  └───────────┘
 
-  *p reads through the arrow: 0x7ffd_a8 -&gt; 0x7ffd_a0 -&gt; 42
+  *p reads through the arrow: 0x7ffd_a8 ──→ 0x7ffd_a0 ──→ 42
 </code></pre>
+</div>
 <h3>Pointer to pointer (argv)</h3>
+<div class="diagram">
 <pre><code class="language-text">char **argv;
 
-  +-------+      +---+---+---+---+---+
-  | argv  | ---&gt; | * | * | * |...| 0 |   &lt;- array of char*
-  +-------+      +---+---+---+---+---+
-                   |   |   |
-                   v   v   v
-                &quot;./a&quot; &quot;x&quot; &quot;yz&quot;           &lt;- the actual strings
+  ┌───────┐       ┌───┬───┬───┬─────┬───┐
+  │ argv  │  ──→  │ * │ * │ * │ ... │ 0 │   ← array of char*
+  └───────┘       └─┬─┴─┬─┴─┬─┴─────┴───┘
+                    │   │   │
+                    ↓   ↓   ↓
+                  &quot;./a&quot; &quot;x&quot; &quot;yz&quot;             ← the actual strings
 </code></pre>
+</div>
 <h3>A struct in memory</h3>
+<div class="diagram">
 <pre><code class="language-text">struct Point { int32_t x; int32_t y; };
 Point p = {3, 7};
 
-  +---+---+---+---+---+---+---+---+
-  | 03  00  00  00 | 07  00  00  00 |   little-endian, 8 bytes total
-  +---+---+---+---+---+---+---+---+
-   ^                ^
-   p.x  (offset 0)  p.y  (offset 4)
+  ┌────┬────┬────┬────┬────┬────┬────┬────┐
+  │ 03 │ 00 │ 00 │ 00 │ 07 │ 00 │ 00 │ 00 │   little-endian, 8 bytes total
+  └────┴────┴────┴────┴────┴────┴────┴────┘
+    ↑                  ↑
+    p.x  (offset 0)    p.y  (offset 4)
 </code></pre>
+</div>
 <h3>Array decay</h3>
+<div class="diagram">
 <pre><code class="language-text">int arr[4] = {10, 20, 30, 40};
 
 In its own scope:
-  arr     --&gt;  the whole array, sizeof(arr) == 16
-  &amp;arr    --&gt;  pointer to int[4]
+  arr     ──→  the whole array, sizeof(arr) == 16
+  &amp;arr    ──→  pointer to int[4]
 
 Passed to a function:
   void f(int a[]) { ... }
@@ -1042,25 +1070,28 @@ Passed to a function:
         arr decays to &amp;arr[0] - a plain int*
         sizeof(a) inside f == sizeof(int*) (8 on 64-bit), NOT 16
 </code></pre>
+</div>
 <div class="warn">
 <p>This decay is the most common source of <code>sizeof</code> bugs. Inside a function parameter, <code>int a[]</code> and <code>int *a</code> are the same type. The size of the original array is gone forever; pass the length explicitly.</p>
 </div>
 <h3>Stack frame layout</h3>
+<div class="diagram">
 <pre><code class="language-text">caller calls callee(x, y):
 
-  +---------------------+   &lt;- top of stack BEFORE call
-  | caller locals       |
-  +---------------------+
-  | y           (arg)   |     args (or in registers, x86_64 SysV)
-  | x           (arg)   |
-  | return addr         |     saved by `call`
-  | saved frame ptr     |
-  | callee locals       |     callee allocates
-  +---------------------+   &lt;- top during call
+  ┌─────────────────────┐   ← top of stack BEFORE call
+  │ caller locals       │
+  ├─────────────────────┤
+  │ y           (arg)   │     args (or in registers, x86_64 SysV)
+  │ x           (arg)   │
+  │ return addr         │     saved by `call`
+  │ saved frame ptr     │
+  │ callee locals       │     callee allocates
+  └─────────────────────┘   ← top during call
 
 On return: restore frame ptr, jump to return addr.
 Caller's stack is exactly as it was.
 </code></pre>
+</div>
 <h3>Practice</h3>
 <p>Compile a 5-line program with <code>int x = 42; int *p = &amp;x; uint8_t *heap = malloc(8);</code>. Run it under <code>gdb</code> and <code>p &amp;x</code>, <code>p p</code>, <code>p heap</code>. Sketch the three addresses on paper, label which is stack and which is heap based on the magnitude.</p>
 <hr>

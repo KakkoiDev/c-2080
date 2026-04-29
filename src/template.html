@@ -164,6 +164,25 @@
     font-size: 0.92em;
   }
 
+  .diagram { margin: 18px 0; }
+  .diagram pre {
+    background: rgba(79, 195, 161, 0.04);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent2);
+    padding: 18px 22px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: auto;
+    margin: 0;
+  }
+  .diagram pre code,
+  .diagram pre[class*="language-"],
+  .diagram pre[class*="language-"] code {
+    color: #d4cec4;
+    background: transparent;
+    font-variant-ligatures: none;
+  }
+
   .warn {
     border-left: 2px solid var(--accent3);
     padding: 12px 18px;

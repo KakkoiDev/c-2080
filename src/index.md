@@ -630,82 +630,91 @@ when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.
 
 ### Process memory layout
 
+::: diagram
 ```text
     high addresses
-    +------------------+
-    |  command line    |
-    |  environment     |
-    +------------------+
-    |  STACK           |  <- grows DOWN
-    |  ----------      |
-    |  local vars      |
-    |  return addr     |
-    |  saved regs      |
-    |       v          |
-    |                  |
-    |       ^          |
-    |  HEAP            |  <- grows UP (malloc)
-    +------------------+
-    |  .bss            |  uninitialised globals (zeroed)
-    |  .data           |  initialised globals
-    |  .rodata         |  string literals (read-only)
-    |  .text           |  the code
-    +------------------+
+    ┌──────────────────┐
+    │  command line    │
+    │  environment     │
+    ├──────────────────┤
+    │  STACK           │   ← grows DOWN
+    │  ──────────      │
+    │  local vars      │
+    │  return addr     │
+    │  saved regs      │
+    │       ↓          │
+    │                  │
+    │       ↑          │
+    │  HEAP            │   ← grows UP (malloc)
+    ├──────────────────┤
+    │  .bss            │   uninitialised globals (zeroed)
+    │  .data           │   initialised globals
+    │  .rodata         │   string literals (read-only)
+    │  .text           │   the code
+    └──────────────────┘
     low addresses
 ```
+:::
 
 ### A pointer in pictures
 
+::: diagram
 ```text
 int x = 42;
 int *p = &x;
 
   STACK
-  +-----------+   address: 0x7ffd_a0
-  |    42     |   <-- x
-  +-----------+
+  ┌───────────┐   address: 0x7ffd_a0
+  │    42     │   ← x
+  └───────────┘
 
-  +-----------+   address: 0x7ffd_a8
-  | 0x7ffd_a0 |   <-- p (holds the address of x)
-  +-----------+
+  ┌───────────┐   address: 0x7ffd_a8
+  │ 0x7ffd_a0 │   ← p (holds the address of x)
+  └───────────┘
 
-  *p reads through the arrow: 0x7ffd_a8 -> 0x7ffd_a0 -> 42
+  *p reads through the arrow: 0x7ffd_a8 ──→ 0x7ffd_a0 ──→ 42
 ```
+:::
 
 ### Pointer to pointer (argv)
 
+::: diagram
 ```text
 char **argv;
 
-  +-------+      +---+---+---+---+---+
-  | argv  | ---> | * | * | * |...| 0 |   <- array of char*
-  +-------+      +---+---+---+---+---+
-                   |   |   |
-                   v   v   v
-                "./a" "x" "yz"           <- the actual strings
+  ┌───────┐       ┌───┬───┬───┬─────┬───┐
+  │ argv  │  ──→  │ * │ * │ * │ ... │ 0 │   ← array of char*
+  └───────┘       └─┬─┴─┬─┴─┬─┴─────┴───┘
+                    │   │   │
+                    ↓   ↓   ↓
+                  "./a" "x" "yz"             ← the actual strings
 ```
+:::
 
 ### A struct in memory
 
+::: diagram
 ```text
 struct Point { int32_t x; int32_t y; };
 Point p = {3, 7};
 
-  +---+---+---+---+---+---+---+---+
-  | 03  00  00  00 | 07  00  00  00 |   little-endian, 8 bytes total
-  +---+---+---+---+---+---+---+---+
-   ^                ^
-   p.x  (offset 0)  p.y  (offset 4)
+  ┌────┬────┬────┬────┬────┬────┬────┬────┐
+  │ 03 │ 00 │ 00 │ 00 │ 07 │ 00 │ 00 │ 00 │   little-endian, 8 bytes total
+  └────┴────┴────┴────┴────┴────┴────┴────┘
+    ↑                  ↑
+    p.x  (offset 0)    p.y  (offset 4)
 ```
+:::
 
 ### Array decay
 
+::: diagram
 ```text
 int arr[4] = {10, 20, 30, 40};
 
 In its own scope:
-  arr     -->  the whole array, sizeof(arr) == 16
-  &arr    -->  pointer to int[4]
+  arr     ──→  the whole array, sizeof(arr) == 16
+  &arr    ──→  pointer to int[4]
 
 Passed to a function:
   void f(int a[]) { ... }
@@ -713,6 +722,7 @@ Passed to a function:
         arr decays to &arr[0] - a plain int*
         sizeof(a) inside f == sizeof(int*) (8 on 64-bit), NOT 16
 ```
+:::
 
 ::: warn
 This decay is the most common source of `sizeof` bugs. Inside a function parameter, `int a[]` and `int *a` are the same type. The size of the original array is gone forever; pass the length explicitly.
@@ -720,22 +730,24 @@ This decay is the most common source of `sizeof` bugs. Inside a function paramet
 
 ### Stack frame layout
 
+::: diagram
 ```text
 caller calls callee(x, y):
 
-  +---------------------+   <- top of stack BEFORE call
-  | caller locals       |
-  +---------------------+
-  | y           (arg)   |     args (or in registers, x86_64 SysV)
-  | x           (arg)   |
-  | return addr         |     saved by `call`
-  | saved frame ptr     |
-  | callee locals       |     callee allocates
-  +---------------------+   <- top during call
+  ┌─────────────────────┐   ← top of stack BEFORE call
+  │ caller locals       │
+  ├─────────────────────┤
+  │ y           (arg)   │     args (or in registers, x86_64 SysV)
+  │ x           (arg)   │
+  │ return addr         │     saved by `call`
+  │ saved frame ptr     │
+  │ callee locals       │     callee allocates
+  └─────────────────────┘   ← top during call
 
 On return: restore frame ptr, jump to return addr.
 Caller's stack is exactly as it was.
 ```
+:::
 
 ### Practice
 
