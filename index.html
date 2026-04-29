@@ -336,6 +336,10 @@
 <nav class="toc">
   <div class="toc-title">Contents</div>
     <a href="#roadmap">Study Roadmap</a>
+  <a href="#build-min">Build System Minimum</a>
+  <a href="#building">Building &amp; Safety</a>
+  <a href="#helix">Helix Setup</a>
+  <a href="#debugger">Debugger Tips</a>
   <a href="#types">Types &amp; Memory Model</a>
   <a href="#pointers">Pointers (demystified)</a>
   <a href="#diagrams">Visual Memory Models</a>
@@ -355,11 +359,11 @@
   <a href="#stdlib">Standard Library Kit</a>
   <a href="#mainargv">main / argv / signals</a>
   <a href="#concurrency">Concurrency Primer</a>
-  <a href="#build-min">Build System Minimum</a>
-  <a href="#building">Building &amp; Safety</a>
   <a href="#testing">Testing</a>
-  <a href="#debugger">Debugger Tips</a>
-  <a href="#helix">Helix Setup</a>
+  <a href="#traps">Rookie Traps</a>
+  <a href="#ub">Undefined Behavior</a>
+  <a href="#cpuperf">CPU Performance</a>
+  <a href="#patterns">Patterns (reference cards)</a>
   <a href="#unity">Pattern: Unity Build</a>
   <a href="#arena">Pattern: Arena Allocator</a>
   <a href="#dynarray">Pattern: Stretchy Buffer</a>
@@ -373,9 +377,6 @@
   <a href="#fuzz">Pattern: Fuzz Harness</a>
   <a href="#optjourney">Pattern: Optimization Journey</a>
   <a href="#barker">Pattern: Barker's Way</a>
-  <a href="#traps">Rookie Traps</a>
-  <a href="#ub">Undefined Behavior</a>
-  <a href="#cpuperf">CPU Performance</a>
   <a href="#drills">Drills</a>
   <a href="#glossary">Glossary</a>
 </nav>
@@ -453,7 +454,336 @@
 <p>Read fast, write slow. Spend more time at the keyboard than at the page. C is a muscle skill: typing <code>malloc</code>/<code>free</code>/<code>memcpy</code> until they're automatic is the actual point.</p>
 </div>
 <hr>
-<h2 id="types" data-toc="Types &amp; Memory Model"><span class="num">01</span>Types &amp; the Memory Model</h2>
+<h2 id="build-min" data-toc="Build System Minimum"><span class="num">01</span>Build System Minimum</h2>
+<p>TL;DR: copy these files, edit the SRCS line, you're shipping.</p>
+<h3>Just <code>cc</code> (one file, dev workflow)</h3>
+<p>For a single .c file you don't need any build system at all:</p>
+<pre><code class="language-bash">cc -std=c99 -Wall -Wextra -g -O0 \
+   -fsanitize=address,undefined \
+   main.c -o main
+./main
+</code></pre>
+<p>Wrap that in a <code>run.sh</code>. You can build a real project with this for a long time.</p>
+<h3>Minimum Makefile</h3>
+<pre><code class="language-makefile">CC      := cc
+CFLAGS  := -std=c99 -Wall -Wextra -Wpedantic -g
+LDFLAGS :=
+SRCS    := main.c parser.c table.c
+OBJS    := $(SRCS:.c=.o)
+BIN     := myprog
+
+.PHONY: all clean run dev
+
+all: $(BIN)
+
+$(BIN): $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c {{CONTENT}}lt; -o $@
+
+dev: CFLAGS  += -O0 -fsanitize=address,undefined
+dev: LDFLAGS += -fsanitize=address,undefined
+dev: $(BIN)
+
+clean:
+	rm -f $(OBJS) $(BIN)
+
+run: all
+	./$(BIN)
+</code></pre>
+<p><code>make</code> for release. <code>make dev</code> for sanitizers. <code>make clean</code> to reset.</p>
+<h3>Minimum CMakeLists.txt</h3>
+<pre><code class="language-cmake">cmake_minimum_required(VERSION 3.16)
+project(myprog C)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # enables clangd / Helix LSP
+
+add_compile_options(-Wall -Wextra -Wpedantic)
+
+add_executable(myprog
+    src/main.c
+    src/parser.c
+    src/table.c
+)
+
+option(DEV &quot;developer build&quot; OFF)
+if (DEV)
+    target_compile_options(myprog PRIVATE -O0 -g -fsanitize=address,undefined)
+    target_link_options   (myprog PRIVATE     -fsanitize=address,undefined)
+endif()
+</code></pre>
+<pre><code class="language-bash">cmake -B build -DDEV=ON
+cmake --build build
+./build/myprog
+</code></pre>
+<div class="tip">
+<p><code>compile_commands.json</code> is what every modern C tool reads (clangd, Helix, IDEs). CMake generates one with <code>-DCMAKE_EXPORT_COMPILE_COMMANDS=ON</code>; for Make, run <code>bear -- make</code>. Without it, your editor cannot find symbols.</p>
+</div>
+<h3>Practice</h3>
+<p>Drop the Makefile from this section into a 3-file project (<code>main.c</code>, <code>parser.c</code>, <code>table.c</code> - they can be empty stubs). Run <code>make</code>, <code>make dev</code>, <code>make clean</code> in sequence. Verify <code>make dev</code> produced a binary linked against ASan: <code>ldd ./myprog | grep asan</code> should show a libasan entry.</p>
+<hr>
+<h2 id="building"><span class="num">02</span>Building &amp; Safety</h2>
+<p>TL;DR: Pick C99. Turn on <code>-Wall -Wextra -Werror -fsanitize=address,undefined</code> for dev. Two build modes: dev (max safety, slow, readable) and release (fast, hardened with <code>-D_FORTIFY_SOURCE=2</code>).</p>
+<p>The C standard, the compiler, and the sanitizers form your safety net. This section is what every C project's build script should look like.</p>
+<h3>C99: the version to pick</h3>
+<p>C89 is widely supported but cumbersome. C99 fixes the main pain points and is supported by every modern compiler. C11/17/23 are fine, but C99 has the broadest reach and covers the 80%.</p>
+<ul class="tight">
+<li><strong>Designated initializers</strong> <code>.field = v</code> - the killer feature.</li>
+<li><strong>Mixed declarations and statements</strong>: declare where used, including <code>for (int i = 0; ...)</code>.</li>
+<li><strong>Fixed-width types</strong> via <code>&lt;stdint.h&gt;</code>: <code>int32_t</code>, <code>uint64_t</code>. Plain <code>int</code> is at least 16 bits per spec; <code>long</code> is 32-bit on Windows, 64-bit on Linux.</li>
+<li><strong><code>&lt;stdbool.h&gt;</code></strong>: <code>bool</code>, <code>true</code>, <code>false</code>.</li>
+<li><strong><code>//</code> line comments</strong>.</li>
+<li><strong>Compound literals</strong>: <code>foo((Vec2){1, 2})</code> - struct literals as arguments.</li>
+</ul>
+<div class="rule">
+<p>C89: variables must be declared at the top of a function, loop counters leak, struct init is positional (you can swap two same-typed fields by mistake). C99 fixes all of this.</p>
+</div>
+<h3>Always-on warning flags</h3>
+<pre><code class="language-c">-Wall -Wextra -Wshadow -Wconversion -Wformat=2 -Wnull-dereference
+</code></pre>
+<p>Add <code>-Werror</code> to make warnings stop the build. Switch it on from day one - it's much harder to clean up later. <code>-Wpedantic</code> is useful when you want maximum portability, but it flags widely-used compiler extensions (like <code>_Alignof</code> in C99 mode) - add it when you specifically need ISO conformance.</p>
+<h3>Sanitizers</h3>
+<pre><code class="language-bash"># AddressSanitizer (heap/stack overflow, use-after-free, double-free, leaks)
+-fsanitize=address -fno-omit-frame-pointer
+# env: ASAN_OPTIONS=detect_leaks=1
+
+# UndefinedBehaviorSanitizer (signed overflow, null deref, alignment, OOB shifts)
+-fsanitize=undefined
+
+# Combined
+-fsanitize=address,undefined
+</code></pre>
+<div class="tip">
+<p>Run with ASan basically all the time during local dev. Without it, a one-byte overrun into the slack space of a malloc block silently corrupts memory and surfaces as a &quot;visual glitch&quot; six minutes later. ASan catches the bug at the line where it happens.</p>
+</div>
+<h3>Release hardening</h3>
+<pre><code class="language-bash">-fstack-protector-strong       # canaries against stack smashes
+-D_FORTIFY_SOURCE=2            # bounds-checked libc (needs -O1+)
+</code></pre>
+<h3>Two build modes</h3>
+<pre><code class="language-bash"># dev: max safety, slow, readable crashes
+clang -std=c99 -g -O0 -Wall -Wextra -Wpedantic -Werror \
+      -fsanitize=address,undefined -fno-omit-frame-pointer \
+      main.c -o app
+
+# release: fast, hardened
+clang -std=c99 -O2 -DNDEBUG -Wall -Wextra \
+      -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
+      main.c -o app
+</code></pre>
+<h3>What is a segfault, really</h3>
+<p>The OS gives your process a virtual address space. <code>malloc</code> maps regions into it. A read or write outside any mapped region traps as <code>SIGSEGV</code>. <code>NULL</code> is <code>0</code>, which is unmapped, hence the classic null-deref segfault. ASan catches the bug <em>before</em> it ever becomes a segfault by instrumenting every load and store.</p>
+<div class="warn">
+<p>A segfault is a <em>lucky</em> outcome. The unlucky version is silent corruption: your bad write lands inside a different valid allocation and the program keeps running with garbage data until something visible breaks much later.</p>
+</div>
+<h3>Practice</h3>
+<p>Write a 10-line program that writes one byte past the end of a 4-byte stack array. Compile and run without sanitizers - probably no error. Recompile with <code>-fsanitize=address</code> and run - ASan prints the exact line and reports a stack-buffer-overflow.</p>
+<hr>
+<h2 id="helix" data-toc="Helix Setup"><span class="num">03</span>C in Helix Editor</h2>
+<p>TL;DR: Helix has built-in LSP and DAP. Install <code>clangd</code> plus <code>lldb-dap</code>, drop a <code>.clangd</code> and <code>compile_commands.json</code> in the repo, wire the debugger in <code>~/.config/helix/languages.toml</code>. <code>hx --health c</code> confirms the toolchain.</p>
+<p>Helix is a modal terminal editor with built-in LSP and DAP support. C works out of the box once you install <code>clangd</code>.</p>
+<h3>Install</h3>
+<pre><code class="language-bash"># macOS
+brew install llvm bear helix
+
+# Debian / Ubuntu
+sudo apt install clang clangd clang-format lldb bear gdb
+# helix from https://helix-editor.com/
+# lldb ships the DAP binary as lldb-dap-NN. Symlink it so Helix finds it:
+sudo ln -sf &quot;$(ls /usr/bin/lldb-dap-* | sort -V | tail -1)&quot; /usr/local/bin/lldb-dap
+
+# Arch
+sudo pacman -S clang lldb bear gdb helix
+
+# Verify
+hx --health c            # clangd should show &quot;Found&quot;
+</code></pre>
+<h3>Project file: <code>./.clangd</code></h3>
+<p>Save this in your repo root.</p>
+<pre><code class="language-yaml">CompileFlags:
+  Add: [-std=c99, -Wall, -Wextra, -Wpedantic]
+Diagnostics:
+  UnusedIncludes: Strict
+</code></pre>
+<h3>Project file: <code>./compile_commands.json</code></h3>
+<p>clangd reads this for accurate cross-file analysis. Generate it with one of:</p>
+<pre><code class="language-bash"># with a Makefile: bear records each clang invocation
+bear -- make
+
+# single-file project: write the file directly via heredoc
+cat &gt; compile_commands.json &lt;&lt;EOF
+[
+  {
+    &quot;directory&quot;: &quot;$(pwd)&quot;,
+    &quot;command&quot;: &quot;clang -std=c99 -Wall main.c&quot;,
+    &quot;file&quot;: &quot;main.c&quot;
+  }
+]
+EOF
+</code></pre>
+<h3>Project file: <code>./.clang-format</code></h3>
+<p>Save this in your repo root. <code>clang-format</code> picks it up automatically.</p>
+<pre><code class="language-yaml">BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+AlignConsecutiveDeclarations: true
+</code></pre>
+<h3>User config: <code>~/.config/helix/languages.toml</code></h3>
+<p>Add this single <code>[[language]]</code> entry. Wires up format-on-save and DAP debugging in one block. Create the file if it doesn't exist (<code>mkdir -p ~/.config/helix</code> first).</p>
+<pre><code class="language-toml">[[language]]
+name = &quot;c&quot;
+auto-format = true
+formatter = { command = &quot;clang-format&quot; }
+debugger = { name = &quot;lldb-dap&quot;, transport = &quot;stdio&quot;, command = &quot;lldb-dap&quot; }
+[[language.debugger.templates]]
+name = &quot;binary&quot;
+request = &quot;launch&quot;
+completion = [ { name = &quot;binary&quot;, completion = &quot;filename&quot; } ]
+args = { program = &quot;{0}&quot; }
+</code></pre>
+<p>In Helix: <code>:debug-start binary ./app</code>, then <code>Space + g</code> for the debug menu. Build with <code>-g -O0</code>.</p>
+<h3>Useful keybinds for C</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gd</code></td>
+<td>goto definition</td>
+</tr>
+<tr>
+<td><code>gr</code></td>
+<td>goto references</td>
+</tr>
+<tr>
+<td><code>Space r</code></td>
+<td>rename symbol</td>
+</tr>
+<tr>
+<td><code>Space a</code></td>
+<td>code actions</td>
+</tr>
+<tr>
+<td><code>Space d</code></td>
+<td>diagnostics list</td>
+</tr>
+<tr>
+<td><code>Space s</code></td>
+<td>symbol picker</td>
+</tr>
+<tr>
+<td><code>K</code></td>
+<td>hover (type info)</td>
+</tr>
+</tbody>
+</table>
+<p>Tree-sitter highlighting ships built-in. Run <code>hx --grammar fetch &amp;&amp; hx --grammar build</code> once if highlights look off.</p>
+<div class="tip">
+<p>clangd plus ASan plus a TUI debugger gives you most of what CLion provides, in 30 MB of tooling. No license, no IDE startup time.</p>
+</div>
+<hr>
+<h2 id="debugger"><span class="num">04</span>Debugger Tips</h2>
+<p>TL;DR: gdb and lldb cover 90% of C debugging with the same dozen commands: <code>b</code>, <code>r</code>, <code>n</code>, <code>s</code>, <code>c</code>, <code>bt</code>, <code>p</code>, <code>info locals</code>, <code>watch</code>, <code>q</code>. Build with <code>-g -O0</code> for clean info.</p>
+<p>You absolutely need a debugger to be productive in C. Print debugging will not scale. The good news: gdb and lldb are 90% the same and you only need a dozen commands.</p>
+<div class="rule">
+<p>Compile with <code>-g -O0</code> for clean debug info. Optimization mangles line numbers and elides locals - the debugger will refuse to show variables that the optimizer &quot;doesn't believe&quot; exist.</p>
+</div>
+<h3>gdb cheat sheet</h3>
+<pre><code class="language-bash">gdb ./app
+b main                       # breakpoint at function
+b file.c:42                  # breakpoint at line
+b parse_int if x &gt; 100         # conditional
+r arg1 arg2                  # run with args
+n / s                        # next / step in
+c                            # continue
+finish                       # step out of current frame
+bt / bt full                 # backtrace (with locals)
+p var / p *ptr / p/x val     # print value (decimal/hex)
+info locals                  # all locals in current frame
+watch ptr-&gt;field             # break when value changes
+rwatch / awatch              # break on read / read-or-write
+display var                  # show every step
+layout src                   # TUI source view (or: gdb -tui)
+set print pretty on            # readable struct dumps
+q                            # quit
+</code></pre>
+<h3>lldb equivalents</h3>
+<table>
+<thead>
+<tr>
+<th>gdb</th>
+<th>lldb</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>b main</code></td>
+<td><code>b main</code></td>
+</tr>
+<tr>
+<td><code>n</code> / <code>s</code></td>
+<td><code>n</code> / <code>s</code></td>
+</tr>
+<tr>
+<td><code>p var</code></td>
+<td><code>p var</code> or <code>fr v</code></td>
+</tr>
+<tr>
+<td><code>bt</code></td>
+<td><code>bt</code></td>
+</tr>
+<tr>
+<td><code>info locals</code></td>
+<td><code>fr v</code></td>
+</tr>
+<tr>
+<td><code>watch x</code></td>
+<td><code>w s v x</code></td>
+</tr>
+</tbody>
+</table>
+<h3>Core dumps (post-mortem)</h3>
+<pre><code class="language-bash">ulimit -c unlimited
+./app                    # crashes -&gt; ./core file
+gdb ./app core           # load post-mortem
+
+# on systemd-based Linux
+coredumpctl gdb          # picks up the latest crash
+</code></pre>
+<h3>Optional <code>~/.gdbinit</code></h3>
+<pre><code class="language-bash">set print pretty on
+set print array on
+set pagination off
+set history save on
+</code></pre>
+<h3>When ASan isn't available: valgrind</h3>
+<pre><code class="language-bash">valgrind --leak-check=full --show-leak-kinds=all ./app
+</code></pre>
+<p>Slower than ASan, but works without recompiling and sometimes finds different bugs.</p>
+<h3>Time-travel debugging: rr (Linux)</h3>
+<pre><code class="language-bash">rr record ./app
+rr replay                # reverse-step through any bug
+</code></pre>
+<h3>Standalone GUI debuggers</h3>
+<ul class="tight">
+<li><strong>RemedyBG</strong> (paid, Windows/Linux) - built for game-dev iteration speed.</li>
+<li><strong>RAD Debugger</strong> (free, in development) - from the Handmade community.</li>
+<li>Both wrap the same DWARF info gdb/lldb use, just with a faster UI.</li>
+</ul>
+<div class="warn">
+<p>Never debug optimized binaries unless forced to. <code>-O0 -g</code> first; switch to <code>-O2 -g</code> only if the bug only reproduces under optimization.</p>
+</div>
+<h3>Practice</h3>
+<p>Write a program that segfaults via NULL deref. Run under <code>gdb ./prog</code>. When it crashes: <code>bt</code> (see the call stack), <code>p ptr</code> (confirm NULL), <code>frame N</code> to the caller, <code>p</code> the variable that should have been set. Fix the bug and re-run.</p>
+<hr>
+<h2 id="types" data-toc="Types &amp; Memory Model"><span class="num">05</span>Types &amp; the Memory Model</h2>
 <p>TL;DR: C has no runtime. Every variable lives on the stack (auto-freed) or the heap (manual). Use <code>&lt;stdint.h&gt;</code> fixed-width types and never plain <code>int</code>/<code>long</code>.</p>
 <p>C has no runtime. Every variable is either on the <strong>stack</strong> (automatic, freed when function returns) or the <strong>heap</strong> (manual, lives until you free it). This is everything.</p>
 <h3>The types you'll actually use</h3>
@@ -495,7 +825,7 @@ bool     ok;  // true / false
 <h3>Practice</h3>
 <p>Write a program that allocates a 16-element <code>int32_t</code> array on the stack and a 1,000,000-element <code>int32_t</code> array on the heap. Fill both with their indices, sum each, and print the totals. Build with <code>-fsanitize=address</code> and confirm zero leaks at exit.</p>
 <hr>
-<h2 id="pointers"><span class="num">02</span>Pointers (demystified)</h2>
+<h2 id="pointers"><span class="num">06</span>Pointers (demystified)</h2>
 <p>TL;DR: A pointer is just an integer holding a memory address. <code>&amp;x</code> reads the address; <code>*p</code> reads (or writes) through it. Everything else is variations on that theme.</p>
 <p>A pointer is just an integer holding a memory address. That's the whole mystery.</p>
 <div class="tip">
@@ -589,7 +919,7 @@ push_front(&amp;list, 42);
 <h3>Practice</h3>
 <p>Implement <code>void swap(int32_t *a, int32_t *b)</code> and <code>void reverse(int32_t *xs, size_t n)</code> (two-pointer walk inward, no recursion, no extra array). Verify by reversing <code>{1,2,3,4,5}</code> to <code>{5,4,3,2,1}</code>.</p>
 <hr>
-<h2 id="diagrams" data-toc="Visual Memory Models"><span class="num">03</span>Visual Memory Models</h2>
+<h2 id="diagrams" data-toc="Visual Memory Models"><span class="num">07</span>Visual Memory Models</h2>
 <p>TL;DR: when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.</p>
 <h3>Process memory layout</h3>
 <pre><code class="language-text">    high addresses
@@ -684,7 +1014,7 @@ Caller's stack is exactly as it was.
 <h3>Practice</h3>
 <p>Compile a 5-line program with <code>int x = 42; int *p = &amp;x; uint8_t *heap = malloc(8);</code>. Run it under <code>gdb</code> and <code>p &amp;x</code>, <code>p p</code>, <code>p heap</code>. Sketch the three addresses on paper, label which is stack and which is heap based on the magnitude.</p>
 <hr>
-<h2 id="arrays"><span class="num">04</span>Arrays &amp; Decay</h2>
+<h2 id="arrays"><span class="num">08</span>Arrays &amp; Decay</h2>
 <p>TL;DR: Arrays know their size; pointers do not. The moment you pass an array to a function, it decays to a pointer and <code>sizeof</code> lies. Always pass length explicitly.</p>
 <p>An array is a contiguous run of elements. In C it is <em>not</em> a pointer, but it silently turns into one almost everywhere you use it. Knowing exactly when that happens is the difference between code that works and code that quietly reads garbage.</p>
 <h3>Declaration vs decay</h3>
@@ -792,7 +1122,7 @@ arr[-1] = 99;    // UB: before the array
 <h3>Practice</h3>
 <p>Write <code>bool all_positive(const int32_t *xs, size_t n)</code>. Call it twice from main: once with a stack array literal <code>{1, 2, 3}</code> and once with a heap-allocated array of zeros. Do not use <code>sizeof</code> inside the function.</p>
 <hr>
-<h2 id="strings"><span class="num">05</span>Strings</h2>
+<h2 id="strings"><span class="num">09</span>Strings</h2>
 <p>TL;DR: C strings are null-terminated <code>char</code> arrays. Never use <code>strcpy</code>/<code>strcat</code>/<code>==</code>. Use <code>snprintf</code> for building strings and <code>strcmp</code> for comparing them.</p>
 <p>C strings are null-terminated arrays of <code>char</code>. They are the biggest source of bugs in C. Know the rules.</p>
 <pre><code class="language-c">#include &lt;string.h&gt;
@@ -836,7 +1166,7 @@ printf(&quot;Hello, &quot; STR_FMT &quot;!\n&quot;, STR_ARG(name));
 <h3>Practice</h3>
 <p>Implement <code>bool starts_with(const char *s, const char *prefix)</code> from scratch (no <code>strncmp</code>). Test on these cases and assert: <code>(&quot;hello&quot;, &quot;he&quot;) -&gt; true</code>, <code>(&quot;hi&quot;, &quot;hello&quot;) -&gt; false</code>, <code>(&quot;&quot;, &quot;&quot;) -&gt; true</code>, <code>(&quot;abc&quot;, &quot;&quot;) -&gt; true</code>.</p>
 <hr>
-<h2 id="structs"><span class="num">06</span>Structs &amp; Composition</h2>
+<h2 id="structs"><span class="num">10</span>Structs &amp; Composition</h2>
 <p>TL;DR: C has no classes. Structs are your objects. Use designated initializers (<code>.field = v</code>); pass a <code>Self *self</code> as the first arg of &quot;method&quot; functions.</p>
 <p>C has no classes. Structs are your objects. Composition over inheritance.</p>
 <pre><code class="language-c">typedef struct {
@@ -876,7 +1206,7 @@ ball_draw(&amp;b);
 <h3>Practice</h3>
 <p>Define <code>Ball { Vec2 pos, vel; float radius; bool active; }</code> and <code>void ball_update(Ball *b, float dt)</code> that advances <code>pos</code> by <code>vel*dt</code>. Initialize a Ball with designated init, call update 10 times, print the final position.</p>
 <hr>
-<h2 id="enums"><span class="num">07</span>Enums &amp; Tagged Unions</h2>
+<h2 id="enums"><span class="num">11</span>Enums &amp; Tagged Unions</h2>
 <p>TL;DR: Enum gives names to integer constants. Union holds one of several payloads in the same memory. Together they encode &quot;this is exactly one of N variants&quot;.</p>
 <p>Enums give you typed names instead of magic numbers. Unions let one piece of memory hold one of several types. Combined, they encode <em>sum types</em>: &quot;this thing is exactly one of these variants&quot;. This is the C answer to Rust's <code>enum</code> and Haskell's algebraic data types.</p>
 <h3>Plain enums</h3>
@@ -1009,7 +1339,7 @@ memcpy(&amp;u, &amp;f, sizeof(u));   // well-defined, optimizes to a register mo
 <h3>Practice</h3>
 <p>Build a tagged-union <code>Event</code> with <code>KEY</code>, <code>MOUSE</code>, <code>QUIT</code> arms (key has <code>code, down</code>; mouse has <code>x, y</code>). Construct one of each in an array, write <code>void handle(const Event *e)</code> that switches on the tag and prints a one-line summary per event.</p>
 <hr>
-<h2 id="memory" data-toc="Memory Management"><span class="num">08</span>Memory Management</h2>
+<h2 id="memory" data-toc="Memory Management"><span class="num">12</span>Memory Management</h2>
 <p>TL;DR: malloc takes memory, free returns it. Lose the pointer and you've leaked. Free twice and you've corrupted the heap. Use arenas to make ownership obvious.</p>
 <h3>The four allocators</h3>
 <pre><code class="language-c">#include &lt;stdlib.h&gt;
@@ -1118,7 +1448,7 @@ ASAN_OPTIONS=detect_leaks=1 ./main
 <h3>Practice</h3>
 <p>Write a program that does <code>char *p = malloc(100);</code> and exits without <code>free</code>. Compile with <code>clang -fsanitize=address</code>. Run with <code>ASAN_OPTIONS=detect_leaks=1 ./prog</code> - confirm a 100-byte leak is reported. Add the <code>free</code>, re-run, confirm clean exit.</p>
 <hr>
-<h2 id="errors" data-toc="Error Handling"><span class="num">09</span>Error Handling Idioms</h2>
+<h2 id="errors" data-toc="Error Handling"><span class="num">13</span>Error Handling Idioms</h2>
 <p>TL;DR: C has no exceptions. Pick one error convention per project and hold the line. Cleanup goes through <code>goto</code>.</p>
 <h3>The three conventions</h3>
 <pre><code class="language-c">// 1. Return an int: 0 = ok, non-zero = error code
@@ -1188,7 +1518,7 @@ int process(Buf *b, size_t i) {
 <h3>Practice</h3>
 <p>Write <code>int copy_transform(const char *src_path, const char *dst_path)</code> that opens both files, reads <code>src</code> line-by-line, writes upper-cased lines to <code>dst</code>, and returns 0/non-zero. Use the <code>goto cleanup</code> pattern so both <code>FILE*</code> close on every path (early failure included).</p>
 <hr>
-<h2 id="functions"><span class="num">10</span>Functions &amp; Headers</h2>
+<h2 id="functions"><span class="num">14</span>Functions &amp; Headers</h2>
 <p>TL;DR: Headers declare; <code>.c</code> files define. <code>#pragma once</code> at the top. Only declarations, typedefs, and <code>static inline</code> helpers belong in headers.</p>
 <pre><code class="language-c">// mylib.h - declarations only
 #pragma once           // include guard (supported everywhere)
@@ -1231,7 +1561,7 @@ void mylib_destroy(MyLib *lib) {
 <h3>Practice</h3>
 <p>Split a 1-file program into <code>mylib.h</code> (declarations), <code>mylib.c</code> (definitions, plus a <code>static</code> helper), and <code>main.c</code>. Try calling the static helper from <code>main.c</code> and observe the linker error. Then call the public function and confirm it links.</p>
 <hr>
-<h2 id="funcptr"><span class="num">11</span>Function Pointers</h2>
+<h2 id="funcptr"><span class="num">15</span>Function Pointers</h2>
 <p>TL;DR: A function pointer holds the address of code, letting you pick which function to call at runtime. <code>typedef</code> non-trivial signatures. Always pass a trailing <code>void *user</code> for state.</p>
 <p>A function pointer holds the address of executable code. It lets you choose at runtime which function to call. That's the entire mechanism behind callbacks, plugin tables, dispatch in interpreters, and C's stand-in for virtual methods.</p>
 <h3>The syntax</h3>
@@ -1343,7 +1673,7 @@ static const EntityVTable kDefaultVT = {
 <h3>Practice</h3>
 <p>Write <code>bool foreach_int(const int32_t *xs, size_t n, bool (*fn)(int32_t v, void *user), void *user)</code> that calls <code>fn</code> for each element and stops early if <code>fn</code> returns true. Use it with a callback that finds the first negative number, returning the index via <code>user</code>.</p>
 <hr>
-<h2 id="linkage"><span class="num">12</span>Linkage &amp; Storage</h2>
+<h2 id="linkage"><span class="num">16</span>Linkage &amp; Storage</h2>
 <p>TL;DR: <code>static</code> at file scope = private to this TU. <code>static</code> inside a function = lifetime of the program but local name. <code>extern</code> = declare without defining. Mark every file-local helper <code>static</code>.</p>
 <p>&quot;Linkage&quot; is C's word for &quot;who can see this name&quot;. &quot;Storage&quot; is &quot;where does this object live and how long&quot;. Get these two right and most &quot;weird header bug&quot; disappears.</p>
 <h3>Translation units</h3>
@@ -1465,7 +1795,7 @@ Mark every file-local symbol in a <code>.c</code> file <code>static</code>.</p>
 <h3>Practice</h3>
 <p>Write <code>int32_t next_id(void)</code> using a function-local <code>static int32_t counter = 0;</code> that returns <code>++counter</code>. Call it from two different <code>.c</code> files (compile both, link). Confirm calls from either file share the same counter (1, 2, 3, ...).</p>
 <hr>
-<h2 id="preprocessor" data-toc="Preprocessor &amp; #define"><span class="num">13</span>The Preprocessor &amp; <code>#define</code></h2>
+<h2 id="preprocessor" data-toc="Preprocessor &amp; #define"><span class="num">17</span>The Preprocessor &amp; <code>#define</code></h2>
 <p>TL;DR: Textual phase before compilation. <code>#include</code> pastes, <code>#define</code> substitutes, <code>#ifdef</code> gates. No types, no scope, no surprises once you remember it's just text.</p>
 <p>The preprocessor is a textual phase that runs before the compiler. It does three things: pastes files (<code>#include</code>), substitutes text (<code>#define</code>), and conditionally keeps or drops code (<code>#ifdef</code>). That's it.</p>
 <pre><code class="language-bash">// See exactly what the preprocessor produced:
@@ -1530,7 +1860,7 @@ int32_t CAT(my_, var) = 7;       // declares my_var
 <h3>Practice</h3>
 <p>Write a <code>LOG_INFO(fmt, ...)</code> macro that prefixes <code>__FILE__:__LINE__</code> and a <code>SQUARE(x)</code> that does NOT double-evaluate its arg (use a <code>static inline</code> function). Run <code>clang -E your.c | tail -20</code> and confirm <code>LOG_INFO</code> expanded with the file:line prefix you expected.</p>
 <hr>
-<h2 id="variadic"><span class="num">14</span>Variadic Functions</h2>
+<h2 id="variadic"><span class="num">18</span>Variadic Functions</h2>
 <p>TL;DR: <code>...</code> takes a variable arg list, read with <code>va_list</code>. The function cannot tell how many were passed. Wrap <code>vprintf</code>/<code>vsnprintf</code>; pass a count or sentinel.</p>
 <p>A variadic function takes a variable number of arguments. <code>printf</code> is the famous one. You almost never write new variadic functions in modern C; what you do write are <em>wrappers</em> around <code>printf</code>/<code>vprintf</code> for logging, formatting, error reporting.</p>
 <h3>Calling variadic functions</h3>
@@ -1598,7 +1928,7 @@ int32_t sum_until_neg1(int32_t first, ...) {
 <h3>Practice</h3>
 <p>Write <code>int32_t sum_n(int n, ...)</code> that sums <code>n</code> <code>int32_t</code> args using <code>va_list</code>. Then write <code>int32_t sum_until(int32_t first, ...)</code> that stops at a <code>-1</code> sentinel. Print both totals and confirm they match for the same numbers.</p>
 <hr>
-<h2 id="fileio"><span class="num">15</span>File I/O</h2>
+<h2 id="fileio"><span class="num">19</span>File I/O</h2>
 <p>TL;DR: <code>fopen</code>/<code>fread</code>/<code>fwrite</code>/<code>fclose</code> is 80% of C file I/O. Use <code>&quot;rb&quot;</code>/<code>&quot;wb&quot;</code> for binary, especially on Windows. <code>mmap</code> only when you need zero-copy on big files.</p>
 <p>The <code>&lt;stdio.h&gt;</code> stream API is the 80% of file I/O. <code>fopen</code>, read or write, <code>fclose</code>. For very large files or zero-copy workflows, drop down to <code>mmap</code>.</p>
 <h3>Open, read, close</h3>
@@ -1709,7 +2039,7 @@ if (!f) {
 <h3>Practice</h3>
 <p>Write <code>uint8_t *slurp(const char *path, size_t *out_len)</code> that reads a whole file into a malloc'd buffer (caller frees). Use it to count lines in a 10 MB log file. Verify against <code>wc -l</code>.</p>
 <hr>
-<h2 id="bits"><span class="num">16</span>Bit Manipulation</h2>
+<h2 id="bits"><span class="num">20</span>Bit Manipulation</h2>
 <p>TL;DR: Five idioms cover the 80%: SET (<code>|=</code>), CLEAR (<code>&amp;= ~</code>), TOGGLE (<code>^=</code>), TEST (<code>&amp;</code>), ASSIGN. Always use unsigned types - signed shifts and overflow are UB.</p>
 <p>Bits are how computers really store everything. C exposes them directly. Bit manipulation is unavoidable for flag sets, packed formats, hardware registers, fast lookup tables, hash mixers, and protocol headers.</p>
 <h3>The operators</h3>
@@ -1827,7 +2157,7 @@ uint32_t read_be32(const uint8_t *p) {
 <h3>Practice</h3>
 <p>Write <code>set_bit</code>, <code>clear_bit</code>, <code>toggle_bit</code>, <code>test_bit</code> for <code>uint32_t</code>. Then write <code>pack_rgba(r,g,b,a) -&gt; uint32_t</code> and <code>unpack_rgba(u, *r,*g,*b,*a)</code>. Round-trip 5 random pixels and assert equality.</p>
 <hr>
-<h2 id="stdlib" data-toc="Standard Library Kit"><span class="num">17</span>Standard Library Survival Kit</h2>
+<h2 id="stdlib" data-toc="Standard Library Kit"><span class="num">21</span>Standard Library Survival Kit</h2>
 <p>TL;DR: Small but uneven. Five headers cover 90%: <code>stdint</code>, <code>stddef</code>, <code>stdbool</code>, <code>string</code>, <code>stdio</code>. Use <code>snprintf</code>/<code>fgets</code>/<code>strtol</code>; avoid <code>sprintf</code>/<code>gets</code>/<code>atoi</code>.</p>
 <p>The C standard library is small but uneven. Some functions are essential, some are obsolete, a few are actively dangerous. This is a per-header guide to what's worth using.</p>
 <h3><code>&lt;stdio.h&gt;</code> - I/O</h3>
@@ -1997,7 +2327,7 @@ double ms = (b.tv_sec - a.tv_sec) * 1e3
 <h3>Practice</h3>
 <p>Take a string <code>&quot;  -42abc&quot;</code>. Parse it with <code>strtol</code>, check <code>endptr</code> and <code>errno</code> to detect partial-parse and overflow. Print the parsed number, the remaining string, and an OK/error verdict.</p>
 <hr>
-<h2 id="mainargv"><span class="num">18</span>main / argv / signals</h2>
+<h2 id="mainargv"><span class="num">22</span>main / argv / signals</h2>
 <p>TL;DR: Two valid <code>main</code> signatures. <code>argv[argc]</code> is <code>NULL</code> (you can iterate without <code>argc</code>). Exit code 0 = success, 1-255 = failure. Signal handlers only set <code>volatile sig_atomic_t</code> flags.</p>
 <p>Every C program starts at <code>main</code>. The OS hands you arguments, an environment, and a way to send the program signals. This section is the survival kit for entry points.</p>
 <h3>The two valid signatures</h3>
@@ -2138,7 +2468,7 @@ int main(void) {
 <h3>Practice</h3>
 <p>Write a tiny <code>cat</code> that takes filenames in argv and prints each file's contents. Install a <code>SIGINT</code> handler that sets a <code>volatile sig_atomic_t stop = 1</code> flag; check it between files and break out cleanly with <code>&quot;got SIGINT, exiting\n&quot;</code>.</p>
 <hr>
-<h2 id="concurrency"><span class="num">19</span>Concurrency Primer</h2>
+<h2 id="concurrency"><span class="num">23</span>Concurrency Primer</h2>
 <p>TL;DR: Spawn threads with <code>pthread_create</code>, join with <code>pthread_join</code>. Protect shared state with a mutex, use atomics for flags and counters. Build with <code>-fsanitize=thread</code>.</p>
 <p>Threads let independent work run on independent cores. The C11 standard provides <code>&lt;threads.h&gt;</code>; in practice most code targets POSIX <code>pthread.h</code> on Linux/macOS and Win32 threads on Windows. The 80% you need is: spawn a thread, join it, protect shared state with a mutex, communicate small flags with atomics.</p>
 <h3>POSIX threads (the de-facto standard)</h3>
@@ -2227,137 +2557,9 @@ static _Thread_local char g_buf[256];   // or `thread_local` from &lt;threads.h&
 <h3>Practice</h3>
 <p>Spawn 4 threads each incrementing a shared <code>int64_t total</code> 250,000 times (target: 1,000,000). Run once unprotected under <code>-fsanitize=thread</code> (TSan reports a data race), then with a <code>pthread_mutex_t</code> (clean run, total == 1,000,000).</p>
 <hr>
-<h2 id="build-min" data-toc="Build System Minimum"><span class="num">20</span>Build System Minimum</h2>
-<p>TL;DR: copy these files, edit the SRCS line, you're shipping.</p>
-<h3>Just <code>cc</code> (one file, dev workflow)</h3>
-<p>For a single .c file you don't need any build system at all:</p>
-<pre><code class="language-bash">cc -std=c99 -Wall -Wextra -g -O0 \
-   -fsanitize=address,undefined \
-   main.c -o main
-./main
-</code></pre>
-<p>Wrap that in a <code>run.sh</code>. You can build a real project with this for a long time.</p>
-<h3>Minimum Makefile</h3>
-<pre><code class="language-makefile">CC      := cc
-CFLAGS  := -std=c99 -Wall -Wextra -Wpedantic -g
-LDFLAGS :=
-SRCS    := main.c parser.c table.c
-OBJS    := $(SRCS:.c=.o)
-BIN     := myprog
-
-.PHONY: all clean run dev
-
-all: $(BIN)
-
-$(BIN): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) -c {{CONTENT}}lt; -o $@
-
-dev: CFLAGS  += -O0 -fsanitize=address,undefined
-dev: LDFLAGS += -fsanitize=address,undefined
-dev: $(BIN)
-
-clean:
-	rm -f $(OBJS) $(BIN)
-
-run: all
-	./$(BIN)
-</code></pre>
-<p><code>make</code> for release. <code>make dev</code> for sanitizers. <code>make clean</code> to reset.</p>
-<h3>Minimum CMakeLists.txt</h3>
-<pre><code class="language-cmake">cmake_minimum_required(VERSION 3.16)
-project(myprog C)
-
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # enables clangd / Helix LSP
-
-add_compile_options(-Wall -Wextra -Wpedantic)
-
-add_executable(myprog
-    src/main.c
-    src/parser.c
-    src/table.c
-)
-
-option(DEV &quot;developer build&quot; OFF)
-if (DEV)
-    target_compile_options(myprog PRIVATE -O0 -g -fsanitize=address,undefined)
-    target_link_options   (myprog PRIVATE     -fsanitize=address,undefined)
-endif()
-</code></pre>
-<pre><code class="language-bash">cmake -B build -DDEV=ON
-cmake --build build
-./build/myprog
-</code></pre>
-<div class="tip">
-<p><code>compile_commands.json</code> is what every modern C tool reads (clangd, Helix, IDEs). CMake generates one with <code>-DCMAKE_EXPORT_COMPILE_COMMANDS=ON</code>; for Make, run <code>bear -- make</code>. Without it, your editor cannot find symbols.</p>
-</div>
-<h3>Practice</h3>
-<p>Drop the Makefile from this section into a 3-file project (<code>main.c</code>, <code>parser.c</code>, <code>table.c</code> - they can be empty stubs). Run <code>make</code>, <code>make dev</code>, <code>make clean</code> in sequence. Verify <code>make dev</code> produced a binary linked against ASan: <code>ldd ./myprog | grep asan</code> should show a libasan entry.</p>
-<hr>
-<h2 id="building"><span class="num">21</span>Building &amp; Safety</h2>
-<p>TL;DR: Pick C99. Turn on <code>-Wall -Wextra -Werror -fsanitize=address,undefined</code> for dev. Two build modes: dev (max safety, slow, readable) and release (fast, hardened with <code>-D_FORTIFY_SOURCE=2</code>).</p>
-<p>The C standard, the compiler, and the sanitizers form your safety net. This section is what every C project's build script should look like.</p>
-<h3>C99: the version to pick</h3>
-<p>C89 is widely supported but cumbersome. C99 fixes the main pain points and is supported by every modern compiler. C11/17/23 are fine, but C99 has the broadest reach and covers the 80%.</p>
-<ul class="tight">
-<li><strong>Designated initializers</strong> <code>.field = v</code> - the killer feature.</li>
-<li><strong>Mixed declarations and statements</strong>: declare where used, including <code>for (int i = 0; ...)</code>.</li>
-<li><strong>Fixed-width types</strong> via <code>&lt;stdint.h&gt;</code>: <code>int32_t</code>, <code>uint64_t</code>. Plain <code>int</code> is at least 16 bits per spec; <code>long</code> is 32-bit on Windows, 64-bit on Linux.</li>
-<li><strong><code>&lt;stdbool.h&gt;</code></strong>: <code>bool</code>, <code>true</code>, <code>false</code>.</li>
-<li><strong><code>//</code> line comments</strong>.</li>
-<li><strong>Compound literals</strong>: <code>foo((Vec2){1, 2})</code> - struct literals as arguments.</li>
-</ul>
-<div class="rule">
-<p>C89: variables must be declared at the top of a function, loop counters leak, struct init is positional (you can swap two same-typed fields by mistake). C99 fixes all of this.</p>
-</div>
-<h3>Always-on warning flags</h3>
-<pre><code class="language-c">-Wall -Wextra -Wshadow -Wconversion -Wformat=2 -Wnull-dereference
-</code></pre>
-<p>Add <code>-Werror</code> to make warnings stop the build. Switch it on from day one - it's much harder to clean up later. <code>-Wpedantic</code> is useful when you want maximum portability, but it flags widely-used compiler extensions (like <code>_Alignof</code> in C99 mode) - add it when you specifically need ISO conformance.</p>
-<h3>Sanitizers</h3>
-<pre><code class="language-bash"># AddressSanitizer (heap/stack overflow, use-after-free, double-free, leaks)
--fsanitize=address -fno-omit-frame-pointer
-# env: ASAN_OPTIONS=detect_leaks=1
-
-# UndefinedBehaviorSanitizer (signed overflow, null deref, alignment, OOB shifts)
--fsanitize=undefined
-
-# Combined
--fsanitize=address,undefined
-</code></pre>
-<div class="tip">
-<p>Run with ASan basically all the time during local dev. Without it, a one-byte overrun into the slack space of a malloc block silently corrupts memory and surfaces as a &quot;visual glitch&quot; six minutes later. ASan catches the bug at the line where it happens.</p>
-</div>
-<h3>Release hardening</h3>
-<pre><code class="language-bash">-fstack-protector-strong       # canaries against stack smashes
--D_FORTIFY_SOURCE=2            # bounds-checked libc (needs -O1+)
-</code></pre>
-<h3>Two build modes</h3>
-<pre><code class="language-bash"># dev: max safety, slow, readable crashes
-clang -std=c99 -g -O0 -Wall -Wextra -Wpedantic -Werror \
-      -fsanitize=address,undefined -fno-omit-frame-pointer \
-      main.c -o app
-
-# release: fast, hardened
-clang -std=c99 -O2 -DNDEBUG -Wall -Wextra \
-      -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
-      main.c -o app
-</code></pre>
-<h3>What is a segfault, really</h3>
-<p>The OS gives your process a virtual address space. <code>malloc</code> maps regions into it. A read or write outside any mapped region traps as <code>SIGSEGV</code>. <code>NULL</code> is <code>0</code>, which is unmapped, hence the classic null-deref segfault. ASan catches the bug <em>before</em> it ever becomes a segfault by instrumenting every load and store.</p>
-<div class="warn">
-<p>A segfault is a <em>lucky</em> outcome. The unlucky version is silent corruption: your bad write lands inside a different valid allocation and the program keeps running with garbage data until something visible breaks much later.</p>
-</div>
-<h3>Practice</h3>
-<p>Write a 10-line program that writes one byte past the end of a 4-byte stack array. Compile and run without sanitizers - probably no error. Recompile with <code>-fsanitize=address</code> and run - ASan prints the exact line and reports a stack-buffer-overflow.</p>
-<hr>
-<h2 id="testing"><span class="num">22</span>Testing</h2>
+<h2 id="testing"><span class="num">24</span>Testing</h2>
 <p>TL;DR: A C test binary returns 0 on pass, non-zero on fail. <code>assert.h</code> plus sanitizers covers 80%. Add a 40-line test helper (<code>EXPECT_EQ</code>/<code>RUN</code>/<code>REPORT</code>) before reaching for any framework.</p>
-<p>C has no built-in test framework. The good news is you don't need one for the 80%: a single <code>tests.c</code> file plus <code>assert.h</code> plus the sanitizers from §21 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.</p>
+<p>C has no built-in test framework. The good news is you don't need one for the 80%: a single <code>tests.c</code> file plus <code>assert.h</code> plus the sanitizers from §02 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.</p>
 <h3>The minimum viable test</h3>
 <pre><code class="language-c">// tests.c
 #include &lt;assert.h&gt;
@@ -2545,207 +2747,321 @@ add_test(NAME unit COMMAND tests)
 <h3>Practice</h3>
 <p>Add <code>tests.c</code> to your project asserting 5 invariants of one existing function. Build under <code>-fsanitize=address,undefined -Wall -Werror</code>. Run, see all-pass. Then break one assertion on purpose, confirm the binary exits non-zero and the failing line is printed.</p>
 <hr>
-<h2 id="debugger"><span class="num">23</span>Debugger Tips</h2>
-<p>TL;DR: gdb and lldb cover 90% of C debugging with the same dozen commands: <code>b</code>, <code>r</code>, <code>n</code>, <code>s</code>, <code>c</code>, <code>bt</code>, <code>p</code>, <code>info locals</code>, <code>watch</code>, <code>q</code>. Build with <code>-g -O0</code> for clean info.</p>
-<p>You absolutely need a debugger to be productive in C. Print debugging will not scale. The good news: gdb and lldb are 90% the same and you only need a dozen commands.</p>
-<div class="rule">
-<p>Compile with <code>-g -O0</code> for clean debug info. Optimization mangles line numbers and elides locals - the debugger will refuse to show variables that the optimizer &quot;doesn't believe&quot; exist.</p>
-</div>
-<h3>gdb cheat sheet</h3>
-<pre><code class="language-bash">gdb ./app
-b main                       # breakpoint at function
-b file.c:42                  # breakpoint at line
-b parse_int if x &gt; 100         # conditional
-r arg1 arg2                  # run with args
-n / s                        # next / step in
-c                            # continue
-finish                       # step out of current frame
-bt / bt full                 # backtrace (with locals)
-p var / p *ptr / p/x val     # print value (decimal/hex)
-info locals                  # all locals in current frame
-watch ptr-&gt;field             # break when value changes
-rwatch / awatch              # break on read / read-or-write
-display var                  # show every step
-layout src                   # TUI source view (or: gdb -tui)
-set print pretty on            # readable struct dumps
-q                            # quit
+<h2 id="traps" data-toc="Rookie Traps"><span class="num">25</span>Common Rookie Traps</h2>
+<p>TL;DR: 90% of &quot;weird C bugs&quot; are on this list. If your code misbehaves, scan here first.</p>
+<h3>sizeof on a decayed array</h3>
+<pre><code class="language-c">void bad(int arr[]) {
+    size_t n = sizeof(arr) / sizeof(arr[0]);  // WRONG: sizeof(int*)/sizeof(int)
+}
+void good(int *arr, size_t n) { /* take length */ }
 </code></pre>
-<h3>lldb equivalents</h3>
-<table>
-<thead>
-<tr>
-<th>gdb</th>
-<th>lldb</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>b main</code></td>
-<td><code>b main</code></td>
-</tr>
-<tr>
-<td><code>n</code> / <code>s</code></td>
-<td><code>n</code> / <code>s</code></td>
-</tr>
-<tr>
-<td><code>p var</code></td>
-<td><code>p var</code> or <code>fr v</code></td>
-</tr>
-<tr>
-<td><code>bt</code></td>
-<td><code>bt</code></td>
-</tr>
-<tr>
-<td><code>info locals</code></td>
-<td><code>fr v</code></td>
-</tr>
-<tr>
-<td><code>watch x</code></td>
-<td><code>w s v x</code></td>
-</tr>
-</tbody>
-</table>
-<h3>Core dumps (post-mortem)</h3>
-<pre><code class="language-bash">ulimit -c unlimited
-./app                    # crashes -&gt; ./core file
-gdb ./app core           # load post-mortem
+<h3>String literals are read-only</h3>
+<pre><code class="language-c">char *s = &quot;hello&quot;;
+s[0] = 'H';            // SEGFAULT: writes to .rodata
 
-# on systemd-based Linux
-coredumpctl gdb          # picks up the latest crash
+char a[] = &quot;hello&quot;;    // OK: a is a char[6] on the stack, mutable
+a[0] = 'H';
 </code></pre>
-<h3>Optional <code>~/.gdbinit</code></h3>
-<pre><code class="language-bash">set print pretty on
-set print array on
-set pagination off
-set history save on
+<h3>Comparing strings with ==</h3>
+<pre><code class="language-c">if (s == &quot;hello&quot;)              // compares pointers, NOT contents
+if (strcmp(s, &quot;hello&quot;) == 0)   // correct
 </code></pre>
-<h3>When ASan isn't available: valgrind</h3>
-<pre><code class="language-bash">valgrind --leak-check=full --show-leak-kinds=all ./app
+<h3>gets and scanf(&quot;%s&quot;, ...)</h3>
+<pre><code class="language-c">char buf[16];
+gets(buf);                      // GONE FROM C11. Don't even mention it.
+scanf(&quot;%s&quot;, buf);               // unbounded - same problem
+fgets(buf, sizeof buf, stdin);  // bounded - correct
 </code></pre>
-<p>Slower than ASan, but works without recompiling and sometimes finds different bugs.</p>
-<h3>Time-travel debugging: rr (Linux)</h3>
-<pre><code class="language-bash">rr record ./app
-rr replay                # reverse-step through any bug
+<h3>Off-by-one on the null terminator</h3>
+<pre><code class="language-c">char buf[5];
+strcpy(buf, &quot;hello&quot;);   // 6 bytes (5 + '\0') into 5 - corrupts the stack
 </code></pre>
-<h3>Standalone GUI debuggers</h3>
-<ul class="tight">
-<li><strong>RemedyBG</strong> (paid, Windows/Linux) - built for game-dev iteration speed.</li>
-<li><strong>RAD Debugger</strong> (free, in development) - from the Handmade community.</li>
-<li>Both wrap the same DWARF info gdb/lldb use, just with a faster UI.</li>
-</ul>
+<h3>Integer overflow in size math</h3>
+<pre><code class="language-c">size_t n = user_input;
+char *p = malloc(n * 32);   // wraps to small if n is huge - tiny alloc, huge memcpy
+</code></pre>
+<h3>Signed/unsigned compare</h3>
+<pre><code class="language-c">size_t len = ...;
+for (int i = 0; i &lt; len; i++) { ... }       // i signed, len unsigned - warning
+for (size_t i = 0; i &lt; len; i++) { ... }    // correct
+</code></pre>
+<h3>Returning a pointer to a local</h3>
+<pre><code class="language-c">char *make_msg(int x) {
+    char buf[64];
+    snprintf(buf, sizeof buf, &quot;%d&quot;, x);
+    return buf;        // UB: buf dies when function returns
+}
+</code></pre>
+<h3>Using == with floats</h3>
+<pre><code class="language-c">if (a == b) { ... }                    // brittle
+if (fabs(a - b) &lt; 1e-9) { ... }        // tolerance-based
+</code></pre>
+<h3>Forgetting <code>void</code> in zero-arg declarations</h3>
+<pre><code class="language-c">int f();         // historic: &quot;any args, unchecked&quot;
+int f(void);     // explicit: &quot;no args&quot; - prefer this
+</code></pre>
+<h3>Macro arg evaluated twice</h3>
+<pre><code class="language-c">#define MAX(a, b) ((a) &gt; (b) ? (a) : (b))
+int x = MAX(i++, j);    // i++ evaluated twice when i &gt; j - bug
+</code></pre>
+<p>Use a <code>static inline</code> function instead.</p>
+<h3>Free + reuse</h3>
+<pre><code class="language-c">free(p);
+p-&gt;next = NULL;        // use after free - UB
+free(p);               // double free - UB
+</code></pre>
+<p>Always: <code>free(p); p = NULL;</code>.</p>
+<h3>Unchecked malloc</h3>
+<pre><code class="language-c">char *buf = malloc(n);
+buf[0] = 'x';      // segfault if n was huge or system was OOM
+</code></pre>
+<h3>printf format mismatch</h3>
+<pre><code class="language-c">size_t n = 5;
+printf(&quot;%d\n&quot;, n);     // %d expects int; size_t is usually larger - UB
+printf(&quot;%zu\n&quot;, n);    // correct
+</code></pre>
+<h3>Returning -1 from an unsigned</h3>
+<pre><code class="language-c">size_t find(const char *s, char c) {
+    for (size_t i = 0; s[i]; i++) if (s[i] == c) return i;
+    return -1;     // becomes SIZE_MAX - caller's `&lt; n` check accidentally passes
+}
+</code></pre>
+<p>Use a sentinel (<code>SIZE_MAX</code>) explicitly, or return <code>(bool found, size_t out)</code> as a struct.</p>
+<h3>Practice</h3>
+<p>Open any 1000+ line C file from an open-source project (e.g., SQLite <code>shell.c</code>, Redis <code>networking.c</code>). Scan for at least 3 of the 15 patterns above (sizeof on a parameter, signed/unsigned compare, unchecked malloc, format mismatch, returning -1 from unsigned). Note file:line for each find.</p>
+<hr>
+<h2 id="ub" data-toc="Undefined Behavior"><span class="num">26</span>Undefined Behavior Catalog</h2>
+<p>TL;DR: UB = the standard imposes no requirement; the compiler may delete your code. Sanitizers catch most runtime UB; warnings catch most compile-time UB. Use unsigned for wrap, <code>memcpy</code> for type pun, initialize all variables.</p>
+<p>Undefined behaviour (UB) is the C standard's term for &quot;anything can happen, including looking like it works&quot;. The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the &quot;but it worked on my machine&quot; class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.</p>
+<h3>Signed integer overflow</h3>
+<pre><code class="language-c">int32_t a = INT32_MAX;
+int32_t b = a + 1;          // UB: signed overflow
+
+// Compiler may assume a + 1 &gt; a always - which deletes overflow checks like:
+if (a + 1 &lt; a) { /* overflowed */ }    // dead code at -O2
+</code></pre>
+<div class="rule">
+<p>Use <strong>unsigned</strong> integer types when you want defined wrap-around. Unsigned overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The compiler exploits this difference for optimizations.</p>
+</div>
+<h3>Strict aliasing</h3>
+<pre><code class="language-c">float     f = 3.14f;
+uint32_t *p = (uint32_t*)&amp;f;     // UB: pointer to one type, accessed as another
+uint32_t  bits = *p;             // undefined
+
+// Defined alternative:
+uint32_t bits;
+memcpy(&amp;bits, &amp;f, sizeof(bits));    // optimizes to a register move
+</code></pre>
+<p>Two pointers of unrelated types may not legally read or write the same object. The compiler relies on this to keep things in registers across function calls. <code>memcpy</code> is the escape hatch and it generates the same machine code at any optimization level.</p>
 <div class="warn">
-<p>Never debug optimized binaries unless forced to. <code>-O0 -g</code> first; switch to <code>-O2 -g</code> only if the bug only reproduces under optimization.</p>
+<p>The exception: <code>char*</code>, <code>signed char*</code>, <code>unsigned char*</code> may alias anything. That is why <code>memcpy</code> is implemented in terms of <code>unsigned char*</code> and is safe.</p>
+</div>
+<h3>NULL dereference</h3>
+<pre><code class="language-c">int32_t *p = NULL;
+int32_t  v = *p;                // UB - usually segfault on modern OSes
+
+// More subtle: dereference happens BEFORE the if-check
+int32_t v2 = p-&gt;x;
+if (p) { /* useless check - the deref already happened */ }
+// At -O2, gcc may delete the if-check entirely. Yes really.
+</code></pre>
+<div class="rule">
+<p>Once the compiler proves a pointer is dereferenced, it assumes the pointer is non-NULL afterwards and may eliminate later NULL checks as dead code. Always check <em>before</em> the deref.</p>
+</div>
+<h3>Out-of-bounds access</h3>
+<pre><code class="language-c">int32_t arr[4];
+arr[4] = 99;          // UB: one past the end
+arr[-1] = 99;         // UB: before the start
+
+// Even taking the address is UB beyond one past the end:
+int32_t *p = &amp;arr[5];   // UB: arr+4 is OK, arr+5 is not
+</code></pre>
+<h3>Use after free / use after scope</h3>
+<pre><code class="language-c">int32_t *leak(void) {
+    int32_t local = 42;
+    return &amp;local;            // UB: returning address of automatic var
+}
+
+void *p = malloc(100);
+free(p);
+memcpy(p, src, 10);          // UB: p is no longer a valid pointer
+</code></pre>
+<div class="tip">
+<p>Set freed pointers to <code>NULL</code> as a habit. The next use becomes a clean NULL deref (segfault) instead of silent reuse of recycled memory.</p>
+</div>
+<h3>Shifting too far / by negative</h3>
+<pre><code class="language-c">uint32_t x = 1;
+uint32_t y = x &lt;&lt; 32;       // UB: shift by &gt;= width of type
+uint32_t z = x &lt;&lt; -1;       // UB: negative shift
+</code></pre>
+<p>Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer &quot;0&quot; feels right. ARM hardware actually does that; x86 silently masks the shift count. The C standard says: undefined.</p>
+<h3>Reading uninitialized memory</h3>
+<pre><code class="language-c">int32_t x;            // indeterminate value
+if (x) { /* UB: reading x before any write */ }
+
+// Designated init or memset to zero:
+int32_t y = 0;
+struct Big b = {0};   // zeroes everything, including padding
+</code></pre>
+<h3>Sequencing and side effects</h3>
+<pre><code class="language-c">int32_t i = 0;
+int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined
+
+int32_t j = 0;
+printf(&quot;%d %d\n&quot;, j++, j);          // UB: j read and j++ unsequenced
+
+int32_t k = 0;
+k = k++ + 1;                          // UB: two writes, no sequencing
+</code></pre>
+<div class="rule">
+<p>If the same scalar is read and written, or written twice, in the same expression with no sequence point between them, it is UB. Split into separate statements.</p>
+</div>
+<h3>Misaligned access</h3>
+<pre><code class="language-c">uint8_t buf[16] = {0};
+uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned
+uint32_t v = *p;                       // UB on architectures requiring alignment
+
+// Use memcpy from any byte offset
+uint32_t v2;
+memcpy(&amp;v2, buf + 1, sizeof(v2));      // always defined
+</code></pre>
+<p>x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS, RISC-V and others may trap. Even on x86, vector instructions require alignment. <code>memcpy</code> handles arbitrary alignment portably.</p>
+<h3>Undefined and implementation-defined are different</h3>
+<ul class="tight">
+<li><strong>Implementation-defined</strong>: behaviour is consistent on a platform but varies across platforms (e.g., right-shift of negative integers). Document and isolate it.</li>
+<li><strong>Unspecified</strong>: behaviour comes from a fixed set, but the spec doesn't pick (e.g., evaluation order of function arguments). Don't depend on it.</li>
+<li><strong>Undefined</strong>: anything is allowed, including time travel. Avoid at all costs.</li>
+</ul>
+<h3>Defenses, in order</h3>
+<ol class="steps">
+<li><strong>Run with sanitizers in dev.</strong> <code>-fsanitize=address,undefined</code> catches the bulk: OOB, UAF, alignment, signed overflow, shifts, NULL deref.</li>
+<li><strong>Enable warnings.</strong> <code>-Wall -Wextra -Wpedantic -Werror</code>, plus <code>-Wstrict-aliasing</code>, <code>-Wnull-dereference</code>, <code>-Wshift-overflow</code>.</li>
+<li><strong>Prefer unsigned for arithmetic that may wrap.</strong> Use <code>memcpy</code> for type punning. Initialize all variables. Always check pointers before deref.</li>
+<li><strong>Build production with <code>-D_FORTIFY_SOURCE=2</code></strong> for runtime libc bounds checks on the most common functions.</li>
+</ol>
+<div class="warn">
+<p>Cross-link: most testing frameworks run their suites under sanitizers - see the <a href="#testing">Testing</a> section. Sanitizers turn UB from &quot;silently miscompiled&quot; into &quot;crashes at the bad line&quot;, which is exactly what tests want.</p>
 </div>
 <h3>Practice</h3>
-<p>Write a program that segfaults via NULL deref. Run under <code>gdb ./prog</code>. When it crashes: <code>bt</code> (see the call stack), <code>p ptr</code> (confirm NULL), <code>frame N</code> to the caller, <code>p</code> the variable that should have been set. Fix the bug and re-run.</p>
+<p>Write a program with three deliberate UBs: signed overflow (<code>INT32_MAX + 1</code>), shift overflow (<code>1u &lt;&lt; 32</code>), and reading uninitialized memory. Compile with <code>-fsanitize=undefined</code>. Confirm UBSan reports each one with the exact line. Then fix all three.</p>
 <hr>
-<h2 id="helix" data-toc="Helix Setup"><span class="num">24</span>C in Helix Editor</h2>
-<p>TL;DR: Helix has built-in LSP and DAP. Install <code>clangd</code> plus <code>lldb-dap</code>, drop a <code>.clangd</code> and <code>compile_commands.json</code> in the repo, wire the debugger in <code>~/.config/helix/languages.toml</code>. <code>hx --health c</code> confirms the toolchain.</p>
-<p>Helix is a modal terminal editor with built-in LSP and DAP support. C works out of the box once you install <code>clangd</code>.</p>
-<h3>Install</h3>
-<pre><code class="language-bash"># macOS
-brew install llvm bear helix
-
-# Debian / Ubuntu
-sudo apt install clang clangd clang-format lldb bear gdb
-# helix from https://helix-editor.com/
-# lldb ships the DAP binary as lldb-dap-NN. Symlink it so Helix finds it:
-sudo ln -sf &quot;$(ls /usr/bin/lldb-dap-* | sort -V | tail -1)&quot; /usr/local/bin/lldb-dap
-
-# Arch
-sudo pacman -S clang lldb bear gdb helix
-
-# Verify
-hx --health c            # clangd should show &quot;Found&quot;
-</code></pre>
-<h3>Project file: <code>./.clangd</code></h3>
-<p>Save this in your repo root.</p>
-<pre><code class="language-yaml">CompileFlags:
-  Add: [-std=c99, -Wall, -Wextra, -Wpedantic]
-Diagnostics:
-  UnusedIncludes: Strict
-</code></pre>
-<h3>Project file: <code>./compile_commands.json</code></h3>
-<p>clangd reads this for accurate cross-file analysis. Generate it with one of:</p>
-<pre><code class="language-bash"># with a Makefile: bear records each clang invocation
-bear -- make
-
-# single-file project: write the file directly via heredoc
-cat &gt; compile_commands.json &lt;&lt;EOF
-[
-  {
-    &quot;directory&quot;: &quot;$(pwd)&quot;,
-    &quot;command&quot;: &quot;clang -std=c99 -Wall main.c&quot;,
-    &quot;file&quot;: &quot;main.c&quot;
-  }
-]
-EOF
-</code></pre>
-<h3>Project file: <code>./.clang-format</code></h3>
-<p>Save this in your repo root. <code>clang-format</code> picks it up automatically.</p>
-<pre><code class="language-yaml">BasedOnStyle: LLVM
-IndentWidth: 4
-ColumnLimit: 100
-AlignConsecutiveDeclarations: true
-</code></pre>
-<h3>User config: <code>~/.config/helix/languages.toml</code></h3>
-<p>Add this single <code>[[language]]</code> entry. Wires up format-on-save and DAP debugging in one block. Create the file if it doesn't exist (<code>mkdir -p ~/.config/helix</code> first).</p>
-<pre><code class="language-toml">[[language]]
-name = &quot;c&quot;
-auto-format = true
-formatter = { command = &quot;clang-format&quot; }
-debugger = { name = &quot;lldb-dap&quot;, transport = &quot;stdio&quot;, command = &quot;lldb-dap&quot; }
-[[language.debugger.templates]]
-name = &quot;binary&quot;
-request = &quot;launch&quot;
-completion = [ { name = &quot;binary&quot;, completion = &quot;filename&quot; } ]
-args = { program = &quot;{0}&quot; }
-</code></pre>
-<p>In Helix: <code>:debug-start binary ./app</code>, then <code>Space + g</code> for the debug menu. Build with <code>-g -O0</code>.</p>
-<h3>Useful keybinds for C</h3>
+<h2 id="cpuperf" data-toc="CPU Performance"><span class="num">27</span>CPU Performance Foundations</h2>
+<p>TL;DR: Cache line is 64 B. L1 ~3 cy, L2 ~20, L3 ~100, DRAM ~200-300. Pack data tight, do work in bulk, pre-compute, use multiple cores. The cache, not big-O, is your real bottleneck.</p>
+<p>A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.</p>
+<h3>The kitchen analogy</h3>
+<p>Borrowed from Nic Barker's CPU performance talk. The mental model holds remarkably well.</p>
 <table>
 <thead>
 <tr>
-<th>Key</th>
-<th>Action</th>
+<th>Kitchen</th>
+<th>Computer</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>gd</code></td>
-<td>goto definition</td>
+<td>Chef</td>
+<td>CPU core</td>
 </tr>
 <tr>
-<td><code>gr</code></td>
-<td>goto references</td>
+<td>Knives, pans, boards</td>
+<td>Instructions</td>
 </tr>
 <tr>
-<td><code>Space r</code></td>
-<td>rename symbol</td>
+<td>Ingredients</td>
+<td>Data</td>
 </tr>
 <tr>
-<td><code>Space a</code></td>
-<td>code actions</td>
+<td>Chopping board (only place work happens)</td>
+<td>Registers</td>
 </tr>
 <tr>
-<td><code>Space d</code></td>
-<td>diagnostics list</td>
+<td>Box on the bench</td>
+<td>L1 cache</td>
 </tr>
 <tr>
-<td><code>Space s</code></td>
-<td>symbol picker</td>
+<td>Shelves</td>
+<td>L2 cache</td>
 </tr>
 <tr>
-<td><code>K</code></td>
-<td>hover (type info)</td>
+<td>Storage room</td>
+<td>L3 cache</td>
+</tr>
+<tr>
+<td>Supermarket run</td>
+<td>Main memory (DRAM)</td>
+</tr>
+<tr>
+<td>Farm delivery</td>
+<td>Disk / SSD</td>
 </tr>
 </tbody>
 </table>
-<p>Tree-sitter highlighting ships built-in. Run <code>hx --grammar fetch &amp;&amp; hx --grammar build</code> once if highlights look off.</p>
-<div class="tip">
-<p>clangd plus ASan plus a TUI debugger gives you most of what CLion provides, in 30 MB of tooling. No license, no IDE startup time.</p>
+<h3>Cache hierarchy: the headline numbers</h3>
+<table>
+<thead>
+<tr>
+<th>Storage</th>
+<th>Size</th>
+<th>Latency (cycles)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Register</td>
+<td>8 B</td>
+<td>0</td>
+</tr>
+<tr>
+<td>L1</td>
+<td>~64 KB</td>
+<td>~3</td>
+</tr>
+<tr>
+<td>L2</td>
+<td>~2 MB</td>
+<td>~20</td>
+</tr>
+<tr>
+<td>L3</td>
+<td>~32 MB</td>
+<td>~100</td>
+</tr>
+<tr>
+<td>DRAM</td>
+<td>GB</td>
+<td>200-300</td>
+</tr>
+<tr>
+<td>SSD (random read)</td>
+<td>TB</td>
+<td>~300,000</td>
+</tr>
+</tbody>
+</table>
+<div class="rule">
+<p>Cache line = <strong>64 bytes</strong>. Every memory fetch brings 64 bytes whether you wanted them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per call. A single cache miss costs 200-300. One miss is 7-10x more expensive than the most famous optimization in game-dev history.</p>
 </div>
+<p>Each core has its own L1 and L2. Single-core code throws away the rest. With 8 cores you have 8x the L1 you'd think.</p>
+<h3>The four rules of thumb</h3>
+<ol class="steps">
+<li><strong>Pack data tight.</strong> Smallest types that fit. Group fields by locality of use. Don't waste the cache line.</li>
+<li><strong>Do work in bulk.</strong> Functions take <em>arrays</em> of things, not one thing at a time. Amortize setup cost.</li>
+<li><strong>Pre-compute at startup, not at runtime.</strong> Why do you think it's called <em>baking</em>? Lighting, lookup tables, parsed configs, sorted indices. Anything stable before the frame loop should be ready at frame zero.</li>
+<li><strong>Use multiple cores.</strong> Independent streams of work, cheap join at the end. Avoid synchronization in the inner loops.</li>
+</ol>
+<h3>The silent killer</h3>
+<p>When you access <code>enemy.hp</code>, the cache line you paid 200+ cycles for also contains the <em>next 60 bytes after <code>hp</code></em>. Was that next 60 bytes useful? If yes, the next access is free. If no, you wasted the trip. This is invisible in source. Big-O notation does not capture it.</p>
+<div class="tip">
+<p>When in doubt, lay out struct fields from largest to smallest. Compilers pack in declaration order; mis-ordering wastes bytes via alignment padding. Order matters.</p>
+</div>
+<div class="warn">
+<p>An O(n) walk over a packed array beats an O(log n) traversal of a pointer-chained tree at most realistic sizes. The tree's pointers each cost a cache miss; the array streams in 64-byte gulps.</p>
+</div>
+<h3>Practice</h3>
+<p>Build two versions of &quot;sum field <code>x</code> from N=1,000,000 entities&quot;. Version A: array of structs (<code>{float x, y, z; int32_t id;}</code>, 16 B each). Version B: struct of arrays (separate <code>float xs[N]</code>). Time each with <code>clock_gettime(CLOCK_MONOTONIC, ...)</code>. Note the ratio - SoA should win by 2-4x.</p>
 <hr>
+<h2 id="patterns" data-toc="Patterns (reference cards)"><span class="num">★</span>Patterns</h2>
+<p>Reference cards, not lessons. Each pattern is a self-contained recipe for a recurring situation. Skim once for vocabulary; come back when you hit the situation.</p>
 <div id="unity" class="pattern-card">
 <div class="pattern-card-header"><span class="tag">Pattern</span><h3>Unity Build (single translation unit)</h3></div>
 <div class="pattern-card-body">
@@ -3544,319 +3860,6 @@ int main(void) {
 </div></div>
 <h3>Practice</h3>
 <p>Open this repo in Helix. Run <code>hx --health c</code> and confirm clangd is found. In any <code>.c</code> file: hover with <code>K</code> (hover info), <code>gd</code> on a function name (jump to definition), <code>gr</code> (find references). Set a breakpoint and start a debug session with <code>:debug-start binary ./your-binary</code>.</p>
-<hr>
-<h2 id="traps" data-toc="Rookie Traps"><span class="num">25</span>Common Rookie Traps</h2>
-<p>TL;DR: 90% of &quot;weird C bugs&quot; are on this list. If your code misbehaves, scan here first.</p>
-<h3>sizeof on a decayed array</h3>
-<pre><code class="language-c">void bad(int arr[]) {
-    size_t n = sizeof(arr) / sizeof(arr[0]);  // WRONG: sizeof(int*)/sizeof(int)
-}
-void good(int *arr, size_t n) { /* take length */ }
-</code></pre>
-<h3>String literals are read-only</h3>
-<pre><code class="language-c">char *s = &quot;hello&quot;;
-s[0] = 'H';            // SEGFAULT: writes to .rodata
-
-char a[] = &quot;hello&quot;;    // OK: a is a char[6] on the stack, mutable
-a[0] = 'H';
-</code></pre>
-<h3>Comparing strings with ==</h3>
-<pre><code class="language-c">if (s == &quot;hello&quot;)              // compares pointers, NOT contents
-if (strcmp(s, &quot;hello&quot;) == 0)   // correct
-</code></pre>
-<h3>gets and scanf(&quot;%s&quot;, ...)</h3>
-<pre><code class="language-c">char buf[16];
-gets(buf);                      // GONE FROM C11. Don't even mention it.
-scanf(&quot;%s&quot;, buf);               // unbounded - same problem
-fgets(buf, sizeof buf, stdin);  // bounded - correct
-</code></pre>
-<h3>Off-by-one on the null terminator</h3>
-<pre><code class="language-c">char buf[5];
-strcpy(buf, &quot;hello&quot;);   // 6 bytes (5 + '\0') into 5 - corrupts the stack
-</code></pre>
-<h3>Integer overflow in size math</h3>
-<pre><code class="language-c">size_t n = user_input;
-char *p = malloc(n * 32);   // wraps to small if n is huge - tiny alloc, huge memcpy
-</code></pre>
-<h3>Signed/unsigned compare</h3>
-<pre><code class="language-c">size_t len = ...;
-for (int i = 0; i &lt; len; i++) { ... }       // i signed, len unsigned - warning
-for (size_t i = 0; i &lt; len; i++) { ... }    // correct
-</code></pre>
-<h3>Returning a pointer to a local</h3>
-<pre><code class="language-c">char *make_msg(int x) {
-    char buf[64];
-    snprintf(buf, sizeof buf, &quot;%d&quot;, x);
-    return buf;        // UB: buf dies when function returns
-}
-</code></pre>
-<h3>Using == with floats</h3>
-<pre><code class="language-c">if (a == b) { ... }                    // brittle
-if (fabs(a - b) &lt; 1e-9) { ... }        // tolerance-based
-</code></pre>
-<h3>Forgetting <code>void</code> in zero-arg declarations</h3>
-<pre><code class="language-c">int f();         // historic: &quot;any args, unchecked&quot;
-int f(void);     // explicit: &quot;no args&quot; - prefer this
-</code></pre>
-<h3>Macro arg evaluated twice</h3>
-<pre><code class="language-c">#define MAX(a, b) ((a) &gt; (b) ? (a) : (b))
-int x = MAX(i++, j);    // i++ evaluated twice when i &gt; j - bug
-</code></pre>
-<p>Use a <code>static inline</code> function instead.</p>
-<h3>Free + reuse</h3>
-<pre><code class="language-c">free(p);
-p-&gt;next = NULL;        // use after free - UB
-free(p);               // double free - UB
-</code></pre>
-<p>Always: <code>free(p); p = NULL;</code>.</p>
-<h3>Unchecked malloc</h3>
-<pre><code class="language-c">char *buf = malloc(n);
-buf[0] = 'x';      // segfault if n was huge or system was OOM
-</code></pre>
-<h3>printf format mismatch</h3>
-<pre><code class="language-c">size_t n = 5;
-printf(&quot;%d\n&quot;, n);     // %d expects int; size_t is usually larger - UB
-printf(&quot;%zu\n&quot;, n);    // correct
-</code></pre>
-<h3>Returning -1 from an unsigned</h3>
-<pre><code class="language-c">size_t find(const char *s, char c) {
-    for (size_t i = 0; s[i]; i++) if (s[i] == c) return i;
-    return -1;     // becomes SIZE_MAX - caller's `&lt; n` check accidentally passes
-}
-</code></pre>
-<p>Use a sentinel (<code>SIZE_MAX</code>) explicitly, or return <code>(bool found, size_t out)</code> as a struct.</p>
-<h3>Practice</h3>
-<p>Open any 1000+ line C file from an open-source project (e.g., SQLite <code>shell.c</code>, Redis <code>networking.c</code>). Scan for at least 3 of the 15 patterns above (sizeof on a parameter, signed/unsigned compare, unchecked malloc, format mismatch, returning -1 from unsigned). Note file:line for each find.</p>
-<hr>
-<h2 id="ub" data-toc="Undefined Behavior"><span class="num">26</span>Undefined Behavior Catalog</h2>
-<p>TL;DR: UB = the standard imposes no requirement; the compiler may delete your code. Sanitizers catch most runtime UB; warnings catch most compile-time UB. Use unsigned for wrap, <code>memcpy</code> for type pun, initialize all variables.</p>
-<p>Undefined behaviour (UB) is the C standard's term for &quot;anything can happen, including looking like it works&quot;. The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the &quot;but it worked on my machine&quot; class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.</p>
-<h3>Signed integer overflow</h3>
-<pre><code class="language-c">int32_t a = INT32_MAX;
-int32_t b = a + 1;          // UB: signed overflow
-
-// Compiler may assume a + 1 &gt; a always - which deletes overflow checks like:
-if (a + 1 &lt; a) { /* overflowed */ }    // dead code at -O2
-</code></pre>
-<div class="rule">
-<p>Use <strong>unsigned</strong> integer types when you want defined wrap-around. Unsigned overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The compiler exploits this difference for optimizations.</p>
-</div>
-<h3>Strict aliasing</h3>
-<pre><code class="language-c">float     f = 3.14f;
-uint32_t *p = (uint32_t*)&amp;f;     // UB: pointer to one type, accessed as another
-uint32_t  bits = *p;             // undefined
-
-// Defined alternative:
-uint32_t bits;
-memcpy(&amp;bits, &amp;f, sizeof(bits));    // optimizes to a register move
-</code></pre>
-<p>Two pointers of unrelated types may not legally read or write the same object. The compiler relies on this to keep things in registers across function calls. <code>memcpy</code> is the escape hatch and it generates the same machine code at any optimization level.</p>
-<div class="warn">
-<p>The exception: <code>char*</code>, <code>signed char*</code>, <code>unsigned char*</code> may alias anything. That is why <code>memcpy</code> is implemented in terms of <code>unsigned char*</code> and is safe.</p>
-</div>
-<h3>NULL dereference</h3>
-<pre><code class="language-c">int32_t *p = NULL;
-int32_t  v = *p;                // UB - usually segfault on modern OSes
-
-// More subtle: dereference happens BEFORE the if-check
-int32_t v2 = p-&gt;x;
-if (p) { /* useless check - the deref already happened */ }
-// At -O2, gcc may delete the if-check entirely. Yes really.
-</code></pre>
-<div class="rule">
-<p>Once the compiler proves a pointer is dereferenced, it assumes the pointer is non-NULL afterwards and may eliminate later NULL checks as dead code. Always check <em>before</em> the deref.</p>
-</div>
-<h3>Out-of-bounds access</h3>
-<pre><code class="language-c">int32_t arr[4];
-arr[4] = 99;          // UB: one past the end
-arr[-1] = 99;         // UB: before the start
-
-// Even taking the address is UB beyond one past the end:
-int32_t *p = &amp;arr[5];   // UB: arr+4 is OK, arr+5 is not
-</code></pre>
-<h3>Use after free / use after scope</h3>
-<pre><code class="language-c">int32_t *leak(void) {
-    int32_t local = 42;
-    return &amp;local;            // UB: returning address of automatic var
-}
-
-void *p = malloc(100);
-free(p);
-memcpy(p, src, 10);          // UB: p is no longer a valid pointer
-</code></pre>
-<div class="tip">
-<p>Set freed pointers to <code>NULL</code> as a habit. The next use becomes a clean NULL deref (segfault) instead of silent reuse of recycled memory.</p>
-</div>
-<h3>Shifting too far / by negative</h3>
-<pre><code class="language-c">uint32_t x = 1;
-uint32_t y = x &lt;&lt; 32;       // UB: shift by &gt;= width of type
-uint32_t z = x &lt;&lt; -1;       // UB: negative shift
-</code></pre>
-<p>Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer &quot;0&quot; feels right. ARM hardware actually does that; x86 silently masks the shift count. The C standard says: undefined.</p>
-<h3>Reading uninitialized memory</h3>
-<pre><code class="language-c">int32_t x;            // indeterminate value
-if (x) { /* UB: reading x before any write */ }
-
-// Designated init or memset to zero:
-int32_t y = 0;
-struct Big b = {0};   // zeroes everything, including padding
-</code></pre>
-<h3>Sequencing and side effects</h3>
-<pre><code class="language-c">int32_t i = 0;
-int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined
-
-int32_t j = 0;
-printf(&quot;%d %d\n&quot;, j++, j);          // UB: j read and j++ unsequenced
-
-int32_t k = 0;
-k = k++ + 1;                          // UB: two writes, no sequencing
-</code></pre>
-<div class="rule">
-<p>If the same scalar is read and written, or written twice, in the same expression with no sequence point between them, it is UB. Split into separate statements.</p>
-</div>
-<h3>Misaligned access</h3>
-<pre><code class="language-c">uint8_t buf[16] = {0};
-uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned
-uint32_t v = *p;                       // UB on architectures requiring alignment
-
-// Use memcpy from any byte offset
-uint32_t v2;
-memcpy(&amp;v2, buf + 1, sizeof(v2));      // always defined
-</code></pre>
-<p>x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS, RISC-V and others may trap. Even on x86, vector instructions require alignment. <code>memcpy</code> handles arbitrary alignment portably.</p>
-<h3>Undefined and implementation-defined are different</h3>
-<ul class="tight">
-<li><strong>Implementation-defined</strong>: behaviour is consistent on a platform but varies across platforms (e.g., right-shift of negative integers). Document and isolate it.</li>
-<li><strong>Unspecified</strong>: behaviour comes from a fixed set, but the spec doesn't pick (e.g., evaluation order of function arguments). Don't depend on it.</li>
-<li><strong>Undefined</strong>: anything is allowed, including time travel. Avoid at all costs.</li>
-</ul>
-<h3>Defenses, in order</h3>
-<ol class="steps">
-<li><strong>Run with sanitizers in dev.</strong> <code>-fsanitize=address,undefined</code> catches the bulk: OOB, UAF, alignment, signed overflow, shifts, NULL deref.</li>
-<li><strong>Enable warnings.</strong> <code>-Wall -Wextra -Wpedantic -Werror</code>, plus <code>-Wstrict-aliasing</code>, <code>-Wnull-dereference</code>, <code>-Wshift-overflow</code>.</li>
-<li><strong>Prefer unsigned for arithmetic that may wrap.</strong> Use <code>memcpy</code> for type punning. Initialize all variables. Always check pointers before deref.</li>
-<li><strong>Build production with <code>-D_FORTIFY_SOURCE=2</code></strong> for runtime libc bounds checks on the most common functions.</li>
-</ol>
-<div class="warn">
-<p>Cross-link: most testing frameworks run their suites under sanitizers - see the <a href="#testing">Testing</a> section. Sanitizers turn UB from &quot;silently miscompiled&quot; into &quot;crashes at the bad line&quot;, which is exactly what tests want.</p>
-</div>
-<h3>Practice</h3>
-<p>Write a program with three deliberate UBs: signed overflow (<code>INT32_MAX + 1</code>), shift overflow (<code>1u &lt;&lt; 32</code>), and reading uninitialized memory. Compile with <code>-fsanitize=undefined</code>. Confirm UBSan reports each one with the exact line. Then fix all three.</p>
-<hr>
-<h2 id="cpuperf" data-toc="CPU Performance"><span class="num">27</span>CPU Performance Foundations</h2>
-<p>TL;DR: Cache line is 64 B. L1 ~3 cy, L2 ~20, L3 ~100, DRAM ~200-300. Pack data tight, do work in bulk, pre-compute, use multiple cores. The cache, not big-O, is your real bottleneck.</p>
-<p>A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.</p>
-<h3>The kitchen analogy</h3>
-<p>Borrowed from Nic Barker's CPU performance talk. The mental model holds remarkably well.</p>
-<table>
-<thead>
-<tr>
-<th>Kitchen</th>
-<th>Computer</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Chef</td>
-<td>CPU core</td>
-</tr>
-<tr>
-<td>Knives, pans, boards</td>
-<td>Instructions</td>
-</tr>
-<tr>
-<td>Ingredients</td>
-<td>Data</td>
-</tr>
-<tr>
-<td>Chopping board (only place work happens)</td>
-<td>Registers</td>
-</tr>
-<tr>
-<td>Box on the bench</td>
-<td>L1 cache</td>
-</tr>
-<tr>
-<td>Shelves</td>
-<td>L2 cache</td>
-</tr>
-<tr>
-<td>Storage room</td>
-<td>L3 cache</td>
-</tr>
-<tr>
-<td>Supermarket run</td>
-<td>Main memory (DRAM)</td>
-</tr>
-<tr>
-<td>Farm delivery</td>
-<td>Disk / SSD</td>
-</tr>
-</tbody>
-</table>
-<h3>Cache hierarchy: the headline numbers</h3>
-<table>
-<thead>
-<tr>
-<th>Storage</th>
-<th>Size</th>
-<th>Latency (cycles)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Register</td>
-<td>8 B</td>
-<td>0</td>
-</tr>
-<tr>
-<td>L1</td>
-<td>~64 KB</td>
-<td>~3</td>
-</tr>
-<tr>
-<td>L2</td>
-<td>~2 MB</td>
-<td>~20</td>
-</tr>
-<tr>
-<td>L3</td>
-<td>~32 MB</td>
-<td>~100</td>
-</tr>
-<tr>
-<td>DRAM</td>
-<td>GB</td>
-<td>200-300</td>
-</tr>
-<tr>
-<td>SSD (random read)</td>
-<td>TB</td>
-<td>~300,000</td>
-</tr>
-</tbody>
-</table>
-<div class="rule">
-<p>Cache line = <strong>64 bytes</strong>. Every memory fetch brings 64 bytes whether you wanted them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per call. A single cache miss costs 200-300. One miss is 7-10x more expensive than the most famous optimization in game-dev history.</p>
-</div>
-<p>Each core has its own L1 and L2. Single-core code throws away the rest. With 8 cores you have 8x the L1 you'd think.</p>
-<h3>The four rules of thumb</h3>
-<ol class="steps">
-<li><strong>Pack data tight.</strong> Smallest types that fit. Group fields by locality of use. Don't waste the cache line.</li>
-<li><strong>Do work in bulk.</strong> Functions take <em>arrays</em> of things, not one thing at a time. Amortize setup cost.</li>
-<li><strong>Pre-compute at startup, not at runtime.</strong> Why do you think it's called <em>baking</em>? Lighting, lookup tables, parsed configs, sorted indices. Anything stable before the frame loop should be ready at frame zero.</li>
-<li><strong>Use multiple cores.</strong> Independent streams of work, cheap join at the end. Avoid synchronization in the inner loops.</li>
-</ol>
-<h3>The silent killer</h3>
-<p>When you access <code>enemy.hp</code>, the cache line you paid 200+ cycles for also contains the <em>next 60 bytes after <code>hp</code></em>. Was that next 60 bytes useful? If yes, the next access is free. If no, you wasted the trip. This is invisible in source. Big-O notation does not capture it.</p>
-<div class="tip">
-<p>When in doubt, lay out struct fields from largest to smallest. Compilers pack in declaration order; mis-ordering wastes bytes via alignment padding. Order matters.</p>
-</div>
-<div class="warn">
-<p>An O(n) walk over a packed array beats an O(log n) traversal of a pointer-chained tree at most realistic sizes. The tree's pointers each cost a cache miss; the array streams in 64-byte gulps.</p>
-</div>
-<h3>Practice</h3>
-<p>Build two versions of &quot;sum field <code>x</code> from N=1,000,000 entities&quot;. Version A: array of structs (<code>{float x, y, z; int32_t id;}</code>, 16 B each). Version B: struct of arrays (separate <code>float xs[N]</code>). Time each with <code>clock_gettime(CLOCK_MONOTONIC, ...)</code>. Note the ratio - SoA should win by 2-4x.</p>
 <hr>
 <h2 id="drills" data-toc="Drills"><span class="num">28</span>Drills</h2>
 <p>TL;DR: reading alone gets you nowhere. Each drill has a hidden answer; try first, then expand.</p>
