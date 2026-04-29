@@ -1,6 +1,8 @@
 ## 00 Study Roadmap {#roadmap data-toc="Study Roadmap"}
 
-TL;DR: don't read this guide front-to-back. Pick a path below, write code as you go, and treat the rest as reference.
+::: tldr
+don't read this guide front-to-back. Pick a path below, write code as you go, and treat the rest as reference.
+:::
 
 ### Time-boxed paths
 
@@ -55,7 +57,9 @@ Read fast, write slow. Spend more time at the keyboard than at the page. C is a 
 
 ## 01 Build System Minimum {#build-min data-toc="Build System Minimum"}
 
-TL;DR: copy these files, edit the SRCS line, you're shipping.
+::: tldr
+copy these files, edit the SRCS line, you're shipping.
+:::
 
 ### Just `cc` (one file, dev workflow)
 
@@ -146,7 +150,9 @@ Drop the Makefile from this section into a 3-file project (`main.c`, `parser.c`,
 
 ## 02 Building & Safety {#building}
 
-TL;DR: Pick C99. Turn on `-Wall -Wextra -Werror -fsanitize=address,undefined` for dev. Two build modes: dev (max safety, slow, readable) and release (fast, hardened with `-D_FORTIFY_SOURCE=2`).
+::: tldr
+Pick C99. Turn on `-Wall -Wextra -Werror -fsanitize=address,undefined` for dev. Two build modes: dev (max safety, slow, readable) and release (fast, hardened with `-D_FORTIFY_SOURCE=2`).
+:::
 
 The C standard, the compiler, and the sanitizers form your safety net. This section is what every C project's build script should look like.
 
@@ -228,7 +234,9 @@ Write a 10-line program that writes one byte past the end of a 4-byte stack arra
 
 ## 03 C in Helix Editor {#helix data-toc="Helix Setup"}
 
-TL;DR: Helix has built-in LSP and DAP. Install `clangd` plus `lldb-dap`, drop a `.clangd` and `compile_commands.json` in the repo, wire the debugger in `~/.config/helix/languages.toml`. `hx --health c` confirms the toolchain.
+::: tldr
+Helix has built-in LSP and DAP. Install `clangd` plus `lldb-dap`, drop a `.clangd` and `compile_commands.json` in the repo, wire the debugger in `~/.config/helix/languages.toml`. `hx --health c` confirms the toolchain.
+:::
 
 Helix is a modal terminal editor with built-in LSP and DAP support. C works out of the box once you install `clangd`.
 
@@ -334,7 +342,9 @@ clangd plus ASan plus a TUI debugger gives you most of what CLion provides, in 3
 
 ## 04 Debugger Tips {#debugger}
 
-TL;DR: gdb and lldb cover 90% of C debugging with the same dozen commands: `b`, `r`, `n`, `s`, `c`, `bt`, `p`, `info locals`, `watch`, `q`. Build with `-g -O0` for clean info.
+::: tldr
+gdb and lldb cover 90% of C debugging with the same dozen commands: `b`, `r`, `n`, `s`, `c`, `bt`, `p`, `info locals`, `watch`, `q`. Build with `-g -O0` for clean info.
+:::
 
 You absolutely need a debugger to be productive in C. Print debugging will not scale. The good news: gdb and lldb are 90% the same and you only need a dozen commands.
 
@@ -428,7 +438,9 @@ Write a program that segfaults via NULL deref. Run under `gdb ./prog`. When it c
 
 ## 05 Types & the Memory Model {#types data-toc="Types & Memory Model"}
 
-TL;DR: C has no runtime. Every variable lives on the stack (auto-freed) or the heap (manual). Use `<stdint.h>` fixed-width types and never plain `int`/`long`.
+::: tldr
+C has no runtime. Every variable lives on the stack (auto-freed) or the heap (manual). Use `<stdint.h>` fixed-width types and never plain `int`/`long`.
+:::
 
 C has no runtime. Every variable is either on the **stack** (automatic, freed when function returns) or the **heap** (manual, lives until you free it). This is everything.
 
@@ -484,7 +496,9 @@ Write a program that allocates a 16-element `int32_t` array on the stack and a 1
 
 ## 06 Pointers (demystified) {#pointers}
 
-TL;DR: A pointer is just an integer holding a memory address. `&x` reads the address; `*p` reads (or writes) through it. Everything else is variations on that theme.
+::: tldr
+A pointer is just an integer holding a memory address. `&x` reads the address; `*p` reads (or writes) through it. Everything else is variations on that theme.
+:::
 
 A pointer is just an integer holding a memory address. That's the whole mystery.
 
@@ -608,7 +622,9 @@ Implement `void swap(int32_t *a, int32_t *b)` and `void reverse(int32_t *xs, siz
 
 ## 07 Visual Memory Models {#diagrams data-toc="Visual Memory Models"}
 
-TL;DR: when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.
+::: tldr
+when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.
+:::
 
 ### Process memory layout
 
@@ -727,7 +743,9 @@ Compile a 5-line program with `int x = 42; int *p = &x; uint8_t *heap = malloc(8
 
 ## 08 Arrays & Decay {#arrays}
 
-TL;DR: Arrays know their size; pointers do not. The moment you pass an array to a function, it decays to a pointer and `sizeof` lies. Always pass length explicitly.
+::: tldr
+Arrays know their size; pointers do not. The moment you pass an array to a function, it decays to a pointer and `sizeof` lies. Always pass length explicitly.
+:::
 
 An array is a contiguous run of elements. In C it is *not* a pointer, but it silently turns into one almost everywhere you use it. Knowing exactly when that happens is the difference between code that works and code that quietly reads garbage.
 
@@ -872,7 +890,9 @@ Write `bool all_positive(const int32_t *xs, size_t n)`. Call it twice from main:
 
 ## 09 Strings {#strings}
 
-TL;DR: C strings are null-terminated `char` arrays. Never use `strcpy`/`strcat`/`==`. Use `snprintf` for building strings and `strcmp` for comparing them.
+::: tldr
+C strings are null-terminated `char` arrays. Never use `strcpy`/`strcat`/`==`. Use `snprintf` for building strings and `strcmp` for comparing them.
+:::
 
 C strings are null-terminated arrays of `char`. They are the biggest source of bugs in C. Know the rules.
 
@@ -928,7 +948,9 @@ Implement `bool starts_with(const char *s, const char *prefix)` from scratch (no
 
 ## 10 Structs & Composition {#structs}
 
-TL;DR: C has no classes. Structs are your objects. Use designated initializers (`.field = v`); pass a `Self *self` as the first arg of "method" functions.
+::: tldr
+C has no classes. Structs are your objects. Use designated initializers (`.field = v`); pass a `Self *self` as the first arg of "method" functions.
+:::
 
 C has no classes. Structs are your objects. Composition over inheritance.
 
@@ -979,7 +1001,9 @@ Define `Ball { Vec2 pos, vel; float radius; bool active; }` and `void ball_updat
 
 ## 11 Enums & Tagged Unions {#enums}
 
-TL;DR: Enum gives names to integer constants. Union holds one of several payloads in the same memory. Together they encode "this is exactly one of N variants".
+::: tldr
+Enum gives names to integer constants. Union holds one of several payloads in the same memory. Together they encode "this is exactly one of N variants".
+:::
 
 Enums give you typed names instead of magic numbers. Unions let one piece of memory hold one of several types. Combined, they encode *sum types*: "this thing is exactly one of these variants". This is the C answer to Rust's `enum` and Haskell's algebraic data types.
 
@@ -1146,7 +1170,9 @@ Build a tagged-union `Event` with `KEY`, `MOUSE`, `QUIT` arms (key has `code, do
 
 ## 12 Memory Management {#memory data-toc="Memory Management"}
 
-TL;DR: malloc takes memory, free returns it. Lose the pointer and you've leaked. Free twice and you've corrupted the heap. Use arenas to make ownership obvious.
+::: tldr
+malloc takes memory, free returns it. Lose the pointer and you've leaked. Free twice and you've corrupted the heap. Use arenas to make ownership obvious.
+:::
 
 ### The four allocators
 
@@ -1261,7 +1287,9 @@ Write a program that does `char *p = malloc(100);` and exits without `free`. Com
 
 ## 13 Error Handling Idioms {#errors data-toc="Error Handling"}
 
-TL;DR: C has no exceptions. Pick one error convention per project and hold the line. Cleanup goes through `goto`.
+::: tldr
+C has no exceptions. Pick one error convention per project and hold the line. Cleanup goes through `goto`.
+:::
 
 ### The three conventions
 
@@ -1355,7 +1383,9 @@ Write `int copy_transform(const char *src_path, const char *dst_path)` that open
 
 ## 14 Functions & Headers {#functions}
 
-TL;DR: Headers declare; `.c` files define. `#pragma once` at the top. Only declarations, typedefs, and `static inline` helpers belong in headers.
+::: tldr
+Headers declare; `.c` files define. `#pragma once` at the top. Only declarations, typedefs, and `static inline` helpers belong in headers.
+:::
 
 ```c
 // mylib.h - declarations only
@@ -1408,7 +1438,9 @@ Split a 1-file program into `mylib.h` (declarations), `mylib.c` (definitions, pl
 
 ## 15 Function Pointers {#funcptr}
 
-TL;DR: A function pointer holds the address of code, letting you pick which function to call at runtime. `typedef` non-trivial signatures. Always pass a trailing `void *user` for state.
+::: tldr
+A function pointer holds the address of code, letting you pick which function to call at runtime. `typedef` non-trivial signatures. Always pass a trailing `void *user` for state.
+:::
 
 A function pointer holds the address of executable code. It lets you choose at runtime which function to call. That's the entire mechanism behind callbacks, plugin tables, dispatch in interpreters, and C's stand-in for virtual methods.
 
@@ -1549,7 +1581,9 @@ Write `bool foreach_int(const int32_t *xs, size_t n, bool (*fn)(int32_t v, void 
 
 ## 16 Linkage & Storage {#linkage}
 
-TL;DR: `static` at file scope = private to this TU. `static` inside a function = lifetime of the program but local name. `extern` = declare without defining. Mark every file-local helper `static`.
+::: tldr
+`static` at file scope = private to this TU. `static` inside a function = lifetime of the program but local name. `extern` = declare without defining. Mark every file-local helper `static`.
+:::
 
 "Linkage" is C's word for "who can see this name". "Storage" is "where does this object live and how long". Get these two right and most "weird header bug" disappears.
 
@@ -1649,7 +1683,9 @@ Write `int32_t next_id(void)` using a function-local `static int32_t counter = 0
 
 ## 17 The Preprocessor & `#define` {#preprocessor data-toc="Preprocessor & #define"}
 
-TL;DR: Textual phase before compilation. `#include` pastes, `#define` substitutes, `#ifdef` gates. No types, no scope, no surprises once you remember it's just text.
+::: tldr
+Textual phase before compilation. `#include` pastes, `#define` substitutes, `#ifdef` gates. No types, no scope, no surprises once you remember it's just text.
+:::
 
 The preprocessor is a textual phase that runs before the compiler. It does three things: pastes files (`#include`), substitutes text (`#define`), and conditionally keeps or drops code (`#ifdef`). That's it.
 
@@ -1742,7 +1778,9 @@ Write a `LOG_INFO(fmt, ...)` macro that prefixes `__FILE__:__LINE__` and a `SQUA
 
 ## 18 Variadic Functions {#variadic}
 
-TL;DR: `...` takes a variable arg list, read with `va_list`. The function cannot tell how many were passed. Wrap `vprintf`/`vsnprintf`; pass a count or sentinel.
+::: tldr
+`...` takes a variable arg list, read with `va_list`. The function cannot tell how many were passed. Wrap `vprintf`/`vsnprintf`; pass a count or sentinel.
+:::
 
 A variadic function takes a variable number of arguments. `printf` is the famous one. You almost never write new variadic functions in modern C; what you do write are *wrappers* around `printf`/`vprintf` for logging, formatting, error reporting.
 
@@ -1833,7 +1871,9 @@ Write `int32_t sum_n(int n, ...)` that sums `n` `int32_t` args using `va_list`. 
 
 ## 19 File I/O {#fileio}
 
-TL;DR: `fopen`/`fread`/`fwrite`/`fclose` is 80% of C file I/O. Use `"rb"`/`"wb"` for binary, especially on Windows. `mmap` only when you need zero-copy on big files.
+::: tldr
+`fopen`/`fread`/`fwrite`/`fclose` is 80% of C file I/O. Use `"rb"`/`"wb"` for binary, especially on Windows. `mmap` only when you need zero-copy on big files.
+:::
 
 The `<stdio.h>` stream API is the 80% of file I/O. `fopen`, read or write, `fclose`. For very large files or zero-copy workflows, drop down to `mmap`.
 
@@ -1973,7 +2013,9 @@ Write `uint8_t *slurp(const char *path, size_t *out_len)` that reads a whole fil
 
 ## 20 Bit Manipulation {#bits}
 
-TL;DR: Five idioms cover the 80%: SET (`|=`), CLEAR (`&= ~`), TOGGLE (`^=`), TEST (`&`), ASSIGN. Always use unsigned types - signed shifts and overflow are UB.
+::: tldr
+Five idioms cover the 80%: SET (`|=`), CLEAR (`&= ~`), TOGGLE (`^=`), TEST (`&`), ASSIGN. Always use unsigned types - signed shifts and overflow are UB.
+:::
 
 Bits are how computers really store everything. C exposes them directly. Bit manipulation is unavoidable for flag sets, packed formats, hardware registers, fast lookup tables, hash mixers, and protocol headers.
 
@@ -2086,7 +2128,9 @@ Write `set_bit`, `clear_bit`, `toggle_bit`, `test_bit` for `uint32_t`. Then writ
 
 ## 21 Standard Library Survival Kit {#stdlib data-toc="Standard Library Kit"}
 
-TL;DR: Small but uneven. Five headers cover 90%: `stdint`, `stddef`, `stdbool`, `string`, `stdio`. Use `snprintf`/`fgets`/`strtol`; avoid `sprintf`/`gets`/`atoi`.
+::: tldr
+Small but uneven. Five headers cover 90%: `stdint`, `stddef`, `stdbool`, `string`, `stdio`. Use `snprintf`/`fgets`/`strtol`; avoid `sprintf`/`gets`/`atoi`.
+:::
 
 The C standard library is small but uneven. Some functions are essential, some are obsolete, a few are actively dangerous. This is a per-header guide to what's worth using.
 
@@ -2185,7 +2229,9 @@ Take a string `"  -42abc"`. Parse it with `strtol`, check `endptr` and `errno` t
 
 ## 22 main / argv / signals {#mainargv}
 
-TL;DR: Two valid `main` signatures. `argv[argc]` is `NULL` (you can iterate without `argc`). Exit code 0 = success, 1-255 = failure. Signal handlers only set `volatile sig_atomic_t` flags.
+::: tldr
+Two valid `main` signatures. `argv[argc]` is `NULL` (you can iterate without `argc`). Exit code 0 = success, 1-255 = failure. Signal handlers only set `volatile sig_atomic_t` flags.
+:::
 
 Every C program starts at `main`. The OS hands you arguments, an environment, and a way to send the program signals. This section is the survival kit for entry points.
 
@@ -2323,7 +2369,9 @@ Write a tiny `cat` that takes filenames in argv and prints each file's contents.
 
 ## 23 Concurrency Primer {#concurrency}
 
-TL;DR: Spawn threads with `pthread_create`, join with `pthread_join`. Protect shared state with a mutex, use atomics for flags and counters. Build with `-fsanitize=thread`.
+::: tldr
+Spawn threads with `pthread_create`, join with `pthread_join`. Protect shared state with a mutex, use atomics for flags and counters. Build with `-fsanitize=thread`.
+:::
 
 Threads let independent work run on independent cores. The C11 standard provides `<threads.h>`; in practice most code targets POSIX `pthread.h` on Linux/macOS and Win32 threads on Windows. The 80% you need is: spawn a thread, join it, protect shared state with a mutex, communicate small flags with atomics.
 
@@ -2439,7 +2487,9 @@ Spawn 4 threads each incrementing a shared `int64_t total` 250,000 times (target
 
 ## 24 Testing {#testing}
 
-TL;DR: A C test binary returns 0 on pass, non-zero on fail. `assert.h` plus sanitizers covers 80%. Add a 40-line test helper (`EXPECT_EQ`/`RUN`/`REPORT`) before reaching for any framework.
+::: tldr
+A C test binary returns 0 on pass, non-zero on fail. `assert.h` plus sanitizers covers 80%. Add a 40-line test helper (`EXPECT_EQ`/`RUN`/`REPORT`) before reaching for any framework.
+:::
 
 C has no built-in test framework. The good news is you don't need one for the 80%: a single `tests.c` file plus `assert.h` plus the sanitizers from §02 covers most of what you actually want. Frameworks like CMocka, Unity, and Criterion exist for the remaining 20%.
 
@@ -2654,7 +2704,9 @@ Add `tests.c` to your project asserting 5 invariants of one existing function. B
 
 ## 25 Common Rookie Traps {#traps data-toc="Rookie Traps"}
 
-TL;DR: 90% of "weird C bugs" are on this list. If your code misbehaves, scan here first.
+::: tldr
+90% of "weird C bugs" are on this list. If your code misbehaves, scan here first.
+:::
 
 ### sizeof on a decayed array
 
@@ -2790,7 +2842,9 @@ Open any 1000+ line C file from an open-source project (e.g., SQLite `shell.c`, 
 
 ## 26 Undefined Behavior Catalog {#ub data-toc="Undefined Behavior"}
 
-TL;DR: UB = the standard imposes no requirement; the compiler may delete your code. Sanitizers catch most runtime UB; warnings catch most compile-time UB. Use unsigned for wrap, `memcpy` for type pun, initialize all variables.
+::: tldr
+UB = the standard imposes no requirement; the compiler may delete your code. Sanitizers catch most runtime UB; warnings catch most compile-time UB. Use unsigned for wrap, `memcpy` for type pun, initialize all variables.
+:::
 
 Undefined behaviour (UB) is the C standard's term for "anything can happen, including looking like it works". The compiler is allowed to assume your code never triggers UB and optimize on that basis. This is the source of the "but it worked on my machine" class of bugs. Knowing the common UB shapes lets you spot them before the optimizer punishes you.
 
@@ -2948,7 +3002,9 @@ Write a program with three deliberate UBs: signed overflow (`INT32_MAX + 1`), sh
 
 ## 27 CPU Performance Foundations {#cpuperf data-toc="CPU Performance"}
 
-TL;DR: Cache line is 64 B. L1 ~3 cy, L2 ~20, L3 ~100, DRAM ~200-300. Pack data tight, do work in bulk, pre-compute, use multiple cores. The cache, not big-O, is your real bottleneck.
+::: tldr
+Cache line is 64 B. L1 ~3 cy, L2 ~20, L3 ~100, DRAM ~200-300. Pack data tight, do work in bulk, pre-compute, use multiple cores. The cache, not big-O, is your real bottleneck.
+:::
 
 A game frame, an HTTP request, an animation tick - these are real-time systems. Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU is the bottleneck more often than the GPU these days. Single-threaded performance has plateaued; slow CPU code stays slow on next year's hardware. The good news: 80% of CPU performance comes from a small set of mechanical habits.
 
@@ -3834,7 +3890,9 @@ Open this repo in Helix. Run `hx --health c` and confirm clangd is found. In any
 
 ## 28 Drills {#drills data-toc="Drills"}
 
-TL;DR: reading alone gets you nowhere. Each drill has a hidden answer; try first, then expand.
+::: tldr
+reading alone gets you nowhere. Each drill has a hidden answer; try first, then expand.
+:::
 
 ### Pointers
 
@@ -4002,7 +4060,9 @@ bool b = x & (1u << 0);   // test
 
 ## 29 Glossary {#glossary data-toc="Glossary"}
 
-TL;DR: shorthand C developers throw around. Skim once.
+::: tldr
+shorthand C developers throw around. Skim once.
+:::
 
 | Term | Meaning |
 |------|---------|
