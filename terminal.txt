@@ -1,0 +1,4296 @@
+[1m[38;5;215mc-2080[0m[2m  -  20% of C for 80% of results[0m
+[2mhttps://kakkoidev.github.io/c-2080/[0m
+[2mbest read at 100+ cols, in a 256-color terminal[0m
+
+[2mskim variant: curl -L https://kakkoidev.github.io/c-2080/terminal-tldr.txt[0m
+
+[1m[38;5;215m00 Study Roadmap[0m
+[38;5;215m----------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  don't read this guide front-to-back. Pick a path below, write code as you go,
+  and treat the rest as reference.
+
+[1mTime-boxed paths[0m
+
+[1mDay 1 (3-4 hours).[22m Read these only:
+
+  - 01 Build System Minimum
+  - 02 Building & Safety (warning flags + sanitizers)
+  - 05 Types & the Memory Model
+  - 06 Pointers
+  - 08 Arrays & Decay
+  - 09 Strings
+
+Then write a [38;5;215m`wc`[0m clone (counts lines, words, bytes from a file). That's enough
+to start writing C.
+
+[1mWeek 1.[22m Day 1 plus:
+
+  - 03 C in Helix Editor (skip if not using Helix)
+  - 04 Debugger Tips
+  - 07 Visual Memory Models
+  - 10 Structs & Composition
+  - 11 Enums & Tagged Unions
+  - 12 Memory Management
+  - 13 Error Handling Idioms
+  - 14 Functions & Headers
+  - 25 Common Rookie Traps
+
+Build: a hash table (open addressing) and a tiny JSON parser.
+
+[1mMonth 1.[22m Week 1 plus everything else, plus:
+
+  - 28 Drills (do at least 5 per major topic)
+  - The full project ladder below
+
+[1mProject ladder[0m
+
+Five projects, each forces a different muscle. Build them in order. If you
+finish all five with sanitizers clean, you know enough C to ship real software.
+
+#     [2m|[0m Project                  [2m|[0m Forces                                       
+[2m----  [2m+[0m -----------------------  [2m+[0m ---------------------------------------------[0m
+1     [2m|[0m [38;5;215m`echo`[0m clone             [2m|[0m argv, exit codes, no allocations             
+2     [2m|[0m [38;5;215m`wc`[0m clone               [2m|[0m file I/O, loops, edge cases (empty file, no …
+3     [2m|[0m Hash table (open addre…  [2m|[0m malloc/free, structs, hashing, resizing      
+4     [2m|[0m Arena allocator          [2m|[0m pointer arithmetic, alignment, lifetimes     
+5     [2m|[0m Tiny shell (fork + exe…  [2m|[0m syscalls, signals, processes                 
+
+[1m[38;5;110mTIP[0m
+  Build every project under [38;5;215m`-fsanitize=address,undefined`[0m. If the sanitizers
+  complain, fix it before moving on. Most C bugs hide for years; the sanitizers
+  find them in seconds.
+
+[1m[38;5;176mRULE[0m
+  Read fast, write slow. Spend more time at the keyboard than at the page. C is
+  a muscle skill: typing [38;5;215m`malloc`[0m/[38;5;215m`free`[0m/[38;5;215m`memcpy`[0m until they're automatic is the
+  actual point.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m01 Build System Minimum[0m
+[38;5;215m-----------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  copy these files, edit the SRCS line, you're shipping.
+
+[1mJust [38;5;215m`cc`[0m (one file, dev workflow)[0m
+
+[38;5;215m`cc`[0m is the historical Unix name for "the C compiler". On Linux it usually
+points to [38;5;215m`gcc`[0m; on macOS it points to [38;5;215m`clang`[0m. Using [38;5;215m`cc`[0m keeps your build
+commands portable across both. If you'd rather be explicit, swap [38;5;215m`cc`[0m for [38;5;215m`gcc`[0m
+or [38;5;215m`clang`[0m everywhere - same flags.
+
+For a single .c file you don't need any build system at all:
+
+[38;5;245m  cc -std=c99 -Wall -Wextra -g -O0 \[0m
+[38;5;245m     -fsanitize=address,undefined \[0m
+[38;5;245m     main.c -o main[0m
+[38;5;245m  ./main[0m
+
+Wrap that in a [38;5;215m`run.sh`[0m. You can build a real project with this for a long time.
+
+[1mMinimum Makefile[0m
+
+[38;5;245m  CC      := cc[0m
+[38;5;245m  CFLAGS  := -std=c99 -Wall -Wextra -Wpedantic -g[0m
+[38;5;245m  LDFLAGS :=[0m
+[38;5;245m  SRCS    := main.c parser.c table.c[0m
+[38;5;245m  OBJS    := $(SRCS:.c=.o)[0m
+[38;5;245m  BIN     := myprog[0m
+[38;5;245m  [0m
+[38;5;245m  .PHONY: all clean run dev[0m
+[38;5;245m  [0m
+[38;5;245m  all: $(BIN)[0m
+[38;5;245m  [0m
+[38;5;245m  $(BIN): $(OBJS)[0m
+[38;5;245m  	$(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS)[0m
+[38;5;245m  [0m
+[38;5;245m  %.o: %.c[0m
+[38;5;245m  	$(CC) $(CFLAGS) -c $< -o $@[0m
+[38;5;245m  [0m
+[38;5;245m  dev: CFLAGS  += -O0 -fsanitize=address,undefined[0m
+[38;5;245m  dev: LDFLAGS += -fsanitize=address,undefined[0m
+[38;5;245m  dev: $(BIN)[0m
+[38;5;245m  [0m
+[38;5;245m  clean:[0m
+[38;5;245m  	rm -f $(OBJS) $(BIN)[0m
+[38;5;245m  [0m
+[38;5;245m  run: all[0m
+[38;5;245m  	./$(BIN)[0m
+
+[38;5;215m`make`[0m for release. [38;5;215m`make dev`[0m for sanitizers. [38;5;215m`make clean`[0m to reset.
+
+[1mMinimum CMakeLists.txt[0m
+
+[38;5;245m  cmake_minimum_required(VERSION 3.16)[0m
+[38;5;245m  project(myprog C)[0m
+[38;5;245m  [0m
+[38;5;245m  set(CMAKE_C_STANDARD 99)[0m
+[38;5;245m  set(CMAKE_C_STANDARD_REQUIRED ON)[0m
+[38;5;245m  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # enables clangd / Helix LSP[0m
+[38;5;245m  [0m
+[38;5;245m  add_compile_options(-Wall -Wextra -Wpedantic)[0m
+[38;5;245m  [0m
+[38;5;245m  add_executable(myprog[0m
+[38;5;245m      src/main.c[0m
+[38;5;245m      src/parser.c[0m
+[38;5;245m      src/table.c[0m
+[38;5;245m  )[0m
+[38;5;245m  [0m
+[38;5;245m  option(DEV "developer build" OFF)[0m
+[38;5;245m  if (DEV)[0m
+[38;5;245m      target_compile_options(myprog PRIVATE -O0 -g -fsanitize=address,undefined)[0m
+[38;5;245m      target_link_options   (myprog PRIVATE     -fsanitize=address,undefined)[0m
+[38;5;245m  endif()[0m
+
+[38;5;245m  cmake -B build -DDEV=ON[0m
+[38;5;245m  cmake --build build[0m
+[38;5;245m  ./build/myprog[0m
+
+[1m[38;5;110mTIP[0m
+  [38;5;215m`compile_commands.json`[0m is what every modern C tool reads (clangd, Helix,
+  IDEs). CMake generates one with [38;5;215m`-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`[0m; for
+  Make, run [38;5;215m`bear -- make`[0m. Without it, your editor cannot find symbols.
+
+[1mPractice[0m
+
+Drop the Makefile from this section into a 3-file project ([38;5;215m`main.c`[0m, [38;5;215m`parser.c`[0m,
+[38;5;215m`table.c`[0m - they can be empty stubs). Run [38;5;215m`make`[0m, [38;5;215m`make dev`[0m, [38;5;215m`make clean`[0m in
+sequence. Verify [38;5;215m`make dev`[0m produced a binary linked against ASan: [38;5;215m`ldd ./myprog
+| grep asan`[0m should show a libasan entry.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m02 Building & Safety[0m
+[38;5;215m--------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Pick C99. Turn on [38;5;215m`-Wall -Wextra -Werror -fsanitize=address,undefined`[0m for
+  dev. Two build modes: dev (max safety, slow, readable) and release (fast,
+  hardened with [38;5;215m`-D_FORTIFY_SOURCE=2`[0m).
+
+The C standard, the compiler, and the sanitizers form your safety net. This
+section is what every C project's build script should look like.
+
+[1mC99: the version to pick[0m
+
+C89 is widely supported but cumbersome. C99 fixes the main pain points and is
+supported by every modern compiler. C11/17/23 are fine, but C99 has the broadest
+reach and covers the 80%.
+
+  - [1mDesignated initializers[22m [38;5;215m`.field = v`[0m - the killer feature.
+  - [1mMixed declarations and statements[22m: declare where used, including [38;5;215m`for (int i
+    = 0; ...)`[0m.
+  - [1mFixed-width types[22m via [38;5;215m`<stdint.h>`[0m: [38;5;215m`int32_t`[0m, [38;5;215m`uint64_t`[0m. Plain [38;5;215m`int`[0m is at
+    least 16 bits per spec; [38;5;215m`long`[0m is 32-bit on Windows, 64-bit on Linux.
+  - [1m[38;5;215m`<stdbool.h>`[0m[22m: [38;5;215m`bool`[0m, [38;5;215m`true`[0m, [38;5;215m`false`[0m.
+  - [1m[38;5;215m`//`[0m line comments[22m.
+  - [1mCompound literals[22m: [38;5;215m`foo((Vec2){1, 2})`[0m - struct literals as arguments.
+
+[1m[38;5;176mRULE[0m
+  C89: variables must be declared at the top of a function, loop counters leak,
+  struct init is positional (you can swap two same-typed fields by mistake). C99
+  fixes all of this.
+
+[1mAlways-on warning flags[0m
+
+[38;5;245m  -Wall -Wextra -Wshadow -Wconversion -Wformat=2 -Wnull-dereference[0m
+
+Add [38;5;215m`-Werror`[0m to make warnings stop the build. Switch it on from day one - it's
+much harder to clean up later. [38;5;215m`-Wpedantic`[0m is useful when you want maximum
+portability, but it flags widely-used compiler extensions (like [38;5;215m`_Alignof`[0m in
+C99 mode) - add it when you specifically need ISO conformance.
+
+[1mSanitizers[0m
+
+[38;5;245m  # AddressSanitizer (heap/stack overflow, use-after-free, double-free, leaks)[0m
+[38;5;245m  -fsanitize=address -fno-omit-frame-pointer[0m
+[38;5;245m  # env: ASAN_OPTIONS=detect_leaks=1[0m
+[38;5;245m  [0m
+[38;5;245m  # UndefinedBehaviorSanitizer (signed overflow, null deref, alignment, OOB shifts)[0m
+[38;5;245m  -fsanitize=undefined[0m
+[38;5;245m  [0m
+[38;5;245m  # Combined[0m
+[38;5;245m  -fsanitize=address,undefined[0m
+
+[1m[38;5;110mTIP[0m
+  Run with ASan basically all the time during local dev. Without it, a one-byte
+  overrun into the slack space of a malloc block silently corrupts memory and
+  surfaces as a "visual glitch" six minutes later. ASan catches the bug at the
+  line where it happens.
+
+[1mRelease hardening[0m
+
+[38;5;245m  -fstack-protector-strong       # canaries against stack smashes[0m
+[38;5;245m  -D_FORTIFY_SOURCE=2            # bounds-checked libc (needs -O1+)[0m
+
+[1mTwo build modes[0m
+
+[38;5;245m  # dev: max safety, slow, readable crashes[0m
+[38;5;245m  clang -std=c99 -g -O0 -Wall -Wextra -Wpedantic -Werror \[0m
+[38;5;245m        -fsanitize=address,undefined -fno-omit-frame-pointer \[0m
+[38;5;245m        main.c -o app[0m
+[38;5;245m  [0m
+[38;5;245m  # release: fast, hardened[0m
+[38;5;245m  clang -std=c99 -O2 -DNDEBUG -Wall -Wextra \[0m
+[38;5;245m        -fstack-protector-strong -D_FORTIFY_SOURCE=2 \[0m
+[38;5;245m        main.c -o app[0m
+
+[1mWhat is a segfault, really[0m
+
+The OS gives your process a virtual address space. [38;5;215m`malloc`[0m maps regions into
+it. A read or write outside any mapped region traps as [38;5;215m`SIGSEGV`[0m. [38;5;215m`NULL`[0m is [38;5;215m`0`[0m,
+which is unmapped, hence the classic null-deref segfault. ASan catches the bug
+[3mbefore[23m it ever becomes a segfault by instrumenting every load and store.
+
+[1m[38;5;203mWARN[0m
+  A segfault is a [3mlucky[23m outcome. The unlucky version is silent corruption: your
+  bad write lands inside a different valid allocation and the program keeps
+  running with garbage data until something visible breaks much later.
+
+[1mPractice[0m
+
+Write a 10-line program that writes one byte past the end of a 4-byte stack
+array. Compile and run without sanitizers - probably no error. Recompile with
+[38;5;215m`-fsanitize=address`[0m and run - ASan prints the exact line and reports a
+stack-buffer-overflow.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m03 C in Helix Editor[0m
+[38;5;215m--------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Helix has built-in LSP and DAP. Install [38;5;215m`clangd`[0m plus [38;5;215m`lldb-dap`[0m, drop a
+  [38;5;215m`.clangd`[0m and [38;5;215m`compile_commands.json`[0m in the repo, wire the debugger in
+  [38;5;215m`~/.config/helix/languages.toml`[0m. [38;5;215m`hx --health c`[0m confirms the toolchain.
+
+Helix is a modal terminal editor with built-in LSP and DAP support. C works out
+of the box once you install [38;5;215m`clangd`[0m.
+
+[1mInstall[0m
+
+[38;5;245m  # macOS[0m
+[38;5;245m  brew install llvm bear helix[0m
+[38;5;245m  [0m
+[38;5;245m  # Debian / Ubuntu[0m
+[38;5;245m  sudo apt install clang clangd clang-format lldb bear gdb[0m
+[38;5;245m  # helix from https://helix-editor.com/[0m
+[38;5;245m  # lldb ships the DAP binary as lldb-dap-NN. Symlink it so Helix finds it:[0m
+[38;5;245m  sudo ln -sf "$(ls /usr/bin/lldb-dap-* | sort -V | tail -1)" /usr/local/bin/lldb-dap[0m
+[38;5;245m  [0m
+[38;5;245m  # Arch[0m
+[38;5;245m  sudo pacman -S clang lldb bear gdb helix[0m
+[38;5;245m  [0m
+[38;5;245m  # Verify[0m
+[38;5;245m  hx --health c            # clangd should show "Found"[0m
+
+[1mProject file: [38;5;215m`./.clangd`[0m[0m
+
+Save this in your repo root.
+
+[38;5;245m  CompileFlags:[0m
+[38;5;245m    Add: [-std=c99, -Wall, -Wextra, -Wpedantic][0m
+[38;5;245m  Diagnostics:[0m
+[38;5;245m    UnusedIncludes: Strict[0m
+
+[1mProject file: [38;5;215m`./compile_commands.json`[0m[0m
+
+clangd reads this for accurate cross-file analysis. Generate it with one of:
+
+[38;5;245m  # with a Makefile: bear records each clang invocation[0m
+[38;5;245m  bear -- make[0m
+[38;5;245m  [0m
+[38;5;245m  # single-file project: write the file directly via heredoc[0m
+[38;5;245m  cat > compile_commands.json <<EOF[0m
+[38;5;245m  [[0m
+[38;5;245m    {[0m
+[38;5;245m      "directory": "$(pwd)",[0m
+[38;5;245m      "command": "clang -std=c99 -Wall main.c",[0m
+[38;5;245m      "file": "main.c"[0m
+[38;5;245m    }[0m
+[38;5;245m  ][0m
+[38;5;245m  EOF[0m
+
+[1mProject file: [38;5;215m`./.clang-format`[0m[0m
+
+Save this in your repo root. [38;5;215m`clang-format`[0m picks it up automatically.
+
+[38;5;245m  BasedOnStyle: LLVM[0m
+[38;5;245m  IndentWidth: 4[0m
+[38;5;245m  ColumnLimit: 100[0m
+[38;5;245m  AlignConsecutiveDeclarations: true[0m
+
+[1mUser config: [38;5;215m`~/.config/helix/languages.toml`[0m[0m
+
+Add this single [38;5;215m`[[language]]`[0m entry. Wires up format-on-save and DAP debugging
+in one block. Create the file if it doesn't exist ([38;5;215m`mkdir -p ~/.config/helix`[0m
+first).
+
+[38;5;245m  [[language]][0m
+[38;5;245m  name = "c"[0m
+[38;5;245m  auto-format = true[0m
+[38;5;245m  formatter = { command = "clang-format" }[0m
+[38;5;245m  debugger = { name = "lldb-dap", transport = "stdio", command = "lldb-dap" }[0m
+[38;5;245m  [[language.debugger.templates]][0m
+[38;5;245m  name = "binary"[0m
+[38;5;245m  request = "launch"[0m
+[38;5;245m  completion = [ { name = "binary", completion = "filename" } ][0m
+[38;5;245m  args = { program = "{0}" }[0m
+
+In Helix: [38;5;215m`:debug-start binary ./app`[0m, then [38;5;215m`Space + g`[0m for the debug menu.
+Build with [38;5;215m`-g -O0`[0m.
+
+[1mUseful keybinds for C[0m
+
+Key        [2m|[0m Action           
+[2m---------  [2m+[0m -----------------[0m
+[38;5;215m`gd`[0m       [2m|[0m goto definition  
+[38;5;215m`gr`[0m       [2m|[0m goto references  
+[38;5;215m`Space r`[0m  [2m|[0m rename symbol    
+[38;5;215m`Space a`[0m  [2m|[0m code actions     
+[38;5;215m`Space d`[0m  [2m|[0m diagnostics list 
+[38;5;215m`Space s`[0m  [2m|[0m symbol picker    
+[38;5;215m`K`[0m        [2m|[0m hover (type info)
+
+Tree-sitter highlighting ships built-in. Run [38;5;215m`hx --grammar fetch && hx --grammar
+build`[0m once if highlights look off.
+
+[1m[38;5;110mTIP[0m
+  clangd plus ASan plus a TUI debugger gives you most of what CLion provides, in
+  30 MB of tooling. No license, no IDE startup time.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m04 Debugger Tips[0m
+[38;5;215m----------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  gdb and lldb cover 90% of C debugging with the same dozen commands: [38;5;215m`b`[0m, [38;5;215m`r`[0m,
+  [38;5;215m`n`[0m, [38;5;215m`s`[0m, [38;5;215m`c`[0m, [38;5;215m`bt`[0m, [38;5;215m`p`[0m, [38;5;215m`info locals`[0m, [38;5;215m`watch`[0m, [38;5;215m`q`[0m. Build with [38;5;215m`-g -O0`[0m for
+  clean info.
+
+You absolutely need a debugger to be productive in C. Print debugging will not
+scale. The good news: gdb and lldb are 90% the same and you only need a dozen
+commands.
+
+[1m[38;5;176mRULE[0m
+  Compile with [38;5;215m`-g -O0`[0m for clean debug info. Optimization mangles line numbers
+  and elides locals - the debugger will refuse to show variables that the
+  optimizer "doesn't believe" exist.
+
+[1mgdb cheat sheet[0m
+
+[38;5;245m  gdb ./app[0m
+[38;5;245m  b main                       # breakpoint at function[0m
+[38;5;245m  b file.c:42                  # breakpoint at line[0m
+[38;5;245m  b parse_int if x > 100         # conditional[0m
+[38;5;245m  r arg1 arg2                  # run with args[0m
+[38;5;245m  n / s                        # next / step in[0m
+[38;5;245m  c                            # continue[0m
+[38;5;245m  finish                       # step out of current frame[0m
+[38;5;245m  bt / bt full                 # backtrace (with locals)[0m
+[38;5;245m  p var / p *ptr / p/x val     # print value (decimal/hex)[0m
+[38;5;245m  info locals                  # all locals in current frame[0m
+[38;5;245m  watch ptr->field             # break when value changes[0m
+[38;5;245m  rwatch / awatch              # break on read / read-or-write[0m
+[38;5;245m  display var                  # show every step[0m
+[38;5;245m  layout src                   # TUI source view (or: gdb -tui)[0m
+[38;5;245m  set print pretty on            # readable struct dumps[0m
+[38;5;245m  q                            # quit[0m
+
+[1mlldb equivalents[0m
+
+gdb            [2m|[0m lldb             
+[2m-------------  [2m+[0m -----------------[0m
+[38;5;215m`b main`[0m       [2m|[0m [38;5;215m`b main`[0m         
+[38;5;215m`n`[0m / [38;5;215m`s`[0m      [2m|[0m [38;5;215m`n`[0m / [38;5;215m`s`[0m        
+[38;5;215m`p var`[0m        [2m|[0m [38;5;215m`p var`[0m or [38;5;215m`fr v`[0m
+[38;5;215m`bt`[0m           [2m|[0m [38;5;215m`bt`[0m             
+[38;5;215m`info locals`[0m  [2m|[0m [38;5;215m`fr v`[0m           
+[38;5;215m`watch x`[0m      [2m|[0m [38;5;215m`w s v x`[0m        
+
+[1mCore dumps (post-mortem)[0m
+
+[38;5;245m  ulimit -c unlimited[0m
+[38;5;245m  ./app                    # crashes -> ./core file[0m
+[38;5;245m  gdb ./app core           # load post-mortem[0m
+[38;5;245m  [0m
+[38;5;245m  # on systemd-based Linux[0m
+[38;5;245m  coredumpctl gdb          # picks up the latest crash[0m
+
+[1mOptional [38;5;215m`~/.gdbinit`[0m[0m
+
+[38;5;245m  set print pretty on[0m
+[38;5;245m  set print array on[0m
+[38;5;245m  set pagination off[0m
+[38;5;245m  set history save on[0m
+
+[1mWhen ASan isn't available: valgrind[0m
+
+[38;5;245m  valgrind --leak-check=full --show-leak-kinds=all ./app[0m
+
+Slower than ASan, but works without recompiling and sometimes finds different
+bugs.
+
+[1mTime-travel debugging: rr (Linux)[0m
+
+[38;5;245m  rr record ./app[0m
+[38;5;245m  rr replay                # reverse-step through any bug[0m
+
+[1mStandalone GUI debuggers[0m
+
+  - [1mRemedyBG[22m (paid, Windows/Linux) - built for game-dev iteration speed.
+  - [1mRAD Debugger[22m (free, in development) - from the Handmade community.
+  - Both wrap the same DWARF info gdb/lldb use, just with a faster UI.
+
+[1m[38;5;203mWARN[0m
+  Never debug optimized binaries unless forced to. [38;5;215m`-O0 -g`[0m first; switch to
+  [38;5;215m`-O2 -g`[0m only if the bug only reproduces under optimization.
+
+[1mPractice[0m
+
+Write a program that segfaults via NULL deref. Run under [38;5;215m`gdb ./prog`[0m. When it
+crashes: [38;5;215m`bt`[0m (see the call stack), [38;5;215m`p ptr`[0m (confirm NULL), [38;5;215m`frame N`[0m to the
+caller, [38;5;215m`p`[0m the variable that should have been set. Fix the bug and re-run.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m05 Types & the Memory Model[0m
+[38;5;215m---------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  C has no runtime. Every variable lives on the stack (auto-freed) or the heap
+  (manual). Use [38;5;215m`<stdint.h>`[0m fixed-width types and never plain [38;5;215m`int`[0m/[38;5;215m`long`[0m.
+
+C has no runtime. Every variable is either on the [1mstack[22m (automatic, freed when
+function returns) or the [1mheap[22m (manual, lives until you free it). This is
+everything.
+
+[1mThe types you'll actually use[0m
+
+[38;5;245m  #include <stdint.h>   // fixed-width types - use these always[0m
+[38;5;245m  #include <stddef.h>   // size_t, NULL, ptrdiff_t[0m
+[38;5;245m  #include <stdbool.h>  // bool, true, false[0m
+[38;5;245m  [0m
+[38;5;245m  int8_t   a;   // signed  8-bit  (-128..127)[0m
+[38;5;245m  uint8_t  b;   // unsigned 8-bit  (0..255)  - byte[0m
+[38;5;245m  int32_t  c;   // signed 32-bit  - default int choice[0m
+[38;5;245m  int64_t  d;   // signed 64-bit[0m
+[38;5;245m  uint64_t e;   // unsigned 64-bit[0m
+[38;5;245m  size_t   n;   // for sizes and counts (pointer-sized)[0m
+[38;5;245m  float    f;   // 32-bit float[0m
+[38;5;245m  double   g;   // 64-bit float[0m
+[38;5;245m  bool     ok;  // true / false[0m
+
+[1m[38;5;176mRULE[0m
+  Avoid plain [38;5;215m`int`[0m, [38;5;215m`long`[0m, [38;5;215m`short`[0m - their sizes are platform-defined. Use
+  [38;5;215m`int32_t`[0m, [38;5;215m`int64_t`[0m, etc. for anything you care about.
+
+[1mStack vs Heap at a glance[0m
+
+[38;5;245m  void example(void) {[0m
+[38;5;245m      // STACK - automatic, zero overhead, dies with function[0m
+[38;5;245m      int32_t x = 42;[0m
+[38;5;245m      float   buf[256];   // 1 KB on stack - fine[0m
+[38;5;245m  [0m
+[38;5;245m      // HEAP - manual, survives the function[0m
+[38;5;245m      int32_t *data = malloc(1024 * sizeof(int32_t)); // 4 KB[0m
+[38;5;245m      if (!data) { /* always check! */ return; }[0m
+[38;5;245m  [0m
+[38;5;245m      data[0] = 7;[0m
+[38;5;245m      free(data);  // you MUST free it - there's no GC[0m
+[38;5;245m      data = NULL; // null it out to catch use-after-free[0m
+[38;5;245m  }[0m
+
+[1m[38;5;203mWARN[0m
+  Never put large arrays on the stack (>~16 KB). Stack overflows are silent and
+  deadly. Use the heap or static storage for big data.
+
+[1mPractice[0m
+
+Write a program that allocates a 16-element [38;5;215m`int32_t`[0m array on the stack and a
+1,000,000-element [38;5;215m`int32_t`[0m array on the heap. Fill both with their indices, sum
+each, and print the totals. Build with [38;5;215m`-fsanitize=address`[0m and confirm zero
+leaks at exit.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m06 Pointers (demystified)[0m
+[38;5;215m-------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  A pointer is just an integer holding a memory address. [38;5;215m`&x`[0m reads the address;
+  [38;5;215m`*p`[0m reads (or writes) through it. Everything else is variations on that
+  theme.
+
+A pointer is just an integer holding a memory address. That's the whole mystery.
+
+[1m[38;5;110mTIP[0m
+  [1mComing from Python/JS:[22m every variable in Python/JS is already a reference
+  under the hood. C exposes the machinery. [38;5;215m`int x = 5`[0m puts the value 5 in a
+  memory cell; [38;5;215m`int *p = &x`[0m is a second cell holding the address of the first.
+  There is no magic indirection layer. The asterisk ([38;5;215m`*`[0m) and ampersand ([38;5;215m`&`[0m)
+  are how you cross between "value" and "where it lives".
+
+[38;5;245m  int32_t  x   = 10;     // x is the value[0m
+[38;5;245m  int32_t *p   = &x;    // p holds the ADDRESS of x[0m
+[38;5;245m  int32_t  val = *p;    // *p dereferences - reads through address[0m
+[38;5;245m  *p = 20;              // write through pointer - x is now 20[0m
+
+[1mThe three faces of [38;5;215m`*`[0m[0m
+
+The asterisk has three unrelated jobs in C. Reading code is easier once you can
+spot which one you're looking at.
+
+[38;5;245m  int32_t *p;             // 1. DECLARATION: p is a pointer to int32_t[0m
+[38;5;245m  int32_t  v = *p;        // 2. EXPRESSION: dereference, read through p[0m
+[38;5;245m  int32_t  z = a * b;     // 3. OPERATOR: multiplication, unrelated[0m
+[38;5;245m  [0m
+[38;5;245m  // In a declaration, * binds to the variable, not the type:[0m
+[38;5;245m  int32_t *a, *b;         // both a and b are pointers[0m
+[38;5;245m  int32_t *a,  b;         // a is a pointer, b is just int32_t[0m
+
+[1m[38;5;176mRULE[0m
+  Convention: write [38;5;215m`int32_t *p`[0m with the asterisk hugging the name. It makes
+  the second case above immediately obvious.
+
+[1m[38;5;215m`&`[0m - address-of[0m
+
+[38;5;215m`&`[0m returns the address of an lvalue. It is the mirror of [38;5;215m`*`[0m: [38;5;215m`*(&x) == x`[0m.
+
+[38;5;245m  int32_t  x = 42;[0m
+[38;5;245m  int32_t *p = &x;          // fine: x has an address[0m
+[38;5;245m  [0m
+[38;5;245m  // Cannot take address of:[0m
+[38;5;245m  //   - a literal:        &42         (error)[0m
+[38;5;245m  //   - an rvalue:        &(a + b)    (error)[0m
+[38;5;245m  //   - a register var:   ®_var    (error if marked register)[0m
+
+[1m[38;5;203mWARN[0m
+  Dereferencing a [38;5;215m`NULL`[0m, freed, or uninitialized pointer is undefined
+  behaviour. In practice you get a segfault if you're lucky and silent memory
+  corruption if you're not. Build with [38;5;215m`-fsanitize=address`[0m during development.
+
+[1mWhy pointers exist[0m
+
+   1. Pass large data without copying. 2. Let a function mutate a caller's
+      variable. 3. Point into heap memory. 4. Build data structures.
+
+[38;5;245m  // Without pointer: caller's value unchanged[0m
+[38;5;245m  void bad_add(int32_t n) { n += 1; }[0m
+[38;5;245m  [0m
+[38;5;245m  // With pointer: caller's value IS changed[0m
+[38;5;245m  void good_add(int32_t *n) { *n += 1; }[0m
+[38;5;245m  [0m
+[38;5;245m  int32_t val = 5;[0m
+[38;5;245m  good_add(&val);  // val is now 6[0m
+
+[1mPointer arithmetic[0m
+
+[38;5;245m  int32_t arr[4] = {10, 20, 30, 40};[0m
+[38;5;245m  int32_t *p = arr;       // points to arr[0][0m
+[38;5;245m  int32_t  a = *(p + 2); // same as arr[2] == 30[0m
+[38;5;245m  p++;                    // p now points to arr[1][0m
+
+[1m[38;5;110mTIP[0m
+  [38;5;215m`arr[i]`[0m is literally syntactic sugar for [38;5;215m`*(arr + i)`[0m. Arrays and pointers
+  are deeply the same thing in C.
+
+[1mPointer to pointer [38;5;215m`**`[0m[0m
+
+Three real-world cases where you need a double pointer.
+
+[38;5;245m  // 1. Output parameter - function allocates, returns via arg[0m
+[38;5;245m  void alloc_buf(uint8_t **out, size_t n) {[0m
+[38;5;245m      *out = malloc(n);[0m
+[38;5;245m  }[0m
+[38;5;245m  uint8_t *buf = NULL;[0m
+[38;5;245m  alloc_buf(&buf, 1024);[0m
+[38;5;245m  [0m
+[38;5;245m  // 2. argv - array of strings (each string is a char*)[0m
+[38;5;245m  int main(int argc, char **argv) {[0m
+[38;5;245m      for (int i = 0; i < argc; i++) {[0m
+[38;5;245m          printf("%s\n", argv[i]);  // argv[i] is char*[0m
+[38;5;245m      }[0m
+[38;5;245m      return 0;[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  // 3. Pointer-to-pointer to update a list head from a helper[0m
+[38;5;245m  typedef struct Node { int32_t v; struct Node *next; } Node;[0m
+[38;5;245m  [0m
+[38;5;245m  void push_front(Node **head, int32_t v) {[0m
+[38;5;245m      Node *n = malloc(sizeof(*n));[0m
+[38;5;245m      n->v = v; n->next = *head;[0m
+[38;5;245m      *head = n;                          // caller's head now points to n[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  Node *list = NULL;[0m
+[38;5;245m  push_front(&list, 42);[0m
+
+[1m[38;5;110mTIP[0m
+  Read [38;5;215m`**`[0m right-to-left: [38;5;215m`char **argv`[0m = "argv is a pointer to a pointer to
+  char" = "an array of strings". Same pattern works for any output-parameter or
+  container-of-pointers situation.
+
+[1mPractice[0m
+
+Implement [38;5;215m`void swap(int32_t *a, int32_t *b)`[0m and [38;5;215m`void reverse(int32_t *xs,
+size_t n)`[0m (two-pointer walk inward, no recursion, no extra array). Verify by
+reversing [38;5;215m`{1,2,3,4,5}`[0m to [38;5;215m`{5,4,3,2,1}`[0m.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m07 Visual Memory Models[0m
+[38;5;215m-----------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.
+
+[1mProcess memory layout[0m
+
+[38;5;245m      high addresses[0m
+[38;5;245m      ┌──────────────────┐[0m
+[38;5;245m      │  command line    │[0m
+[38;5;245m      │  environment     │[0m
+[38;5;245m      ├──────────────────┤[0m
+[38;5;245m      │  STACK           │   ← grows DOWN[0m
+[38;5;245m      │  ──────────      │[0m
+[38;5;245m      │  local vars      │[0m
+[38;5;245m      │  return addr     │[0m
+[38;5;245m      │  saved regs      │[0m
+[38;5;245m      │       ↓          │[0m
+[38;5;245m      │                  │[0m
+[38;5;245m      │       ↑          │[0m
+[38;5;245m      │  HEAP            │   ← grows UP (malloc)[0m
+[38;5;245m      ├──────────────────┤[0m
+[38;5;245m      │  .bss            │   uninitialised globals (zeroed)[0m
+[38;5;245m      │  .data           │   initialised globals[0m
+[38;5;245m      │  .rodata         │   string literals (read-only)[0m
+[38;5;245m      │  .text           │   the code[0m
+[38;5;245m      └──────────────────┘[0m
+[38;5;245m      low addresses[0m
+
+[1mA pointer in pictures[0m
+
+[38;5;245m  int x = 42;[0m
+[38;5;245m  int *p = &x;[0m
+[38;5;245m  [0m
+[38;5;245m    STACK[0m
+[38;5;245m    ┌───────────┐   address: 0x7ffd_a0[0m
+[38;5;245m    │    42     │   ← x[0m
+[38;5;245m    └───────────┘[0m
+[38;5;245m  [0m
+[38;5;245m    ┌───────────┐   address: 0x7ffd_a8[0m
+[38;5;245m    │ 0x7ffd_a0 │   ← p (holds the address of x)[0m
+[38;5;245m    └───────────┘[0m
+[38;5;245m  [0m
+[38;5;245m    *p reads through the arrow: 0x7ffd_a8 ──→ 0x7ffd_a0 ──→ 42[0m
+
+[1mPointer to pointer (argv)[0m
+
+[38;5;245m  char **argv;[0m
+[38;5;245m  [0m
+[38;5;245m    ┌───────┐       ┌───┬───┬───┬─────┬───┐[0m
+[38;5;245m    │ argv  │  ──→  │ * │ * │ * │ ... │ 0 │   ← array of char*[0m
+[38;5;245m    └───────┘       └─┬─┴─┬─┴─┬─┴─────┴───┘[0m
+[38;5;245m                      │   │   │[0m
+[38;5;245m                      ↓   ↓   ↓[0m
+[38;5;245m                    "./a" "x" "yz"             ← the actual strings[0m
+
+[1mA struct in memory[0m
+
+[38;5;245m  struct Point { int32_t x; int32_t y; };[0m
+[38;5;245m  Point p = {3, 7};[0m
+[38;5;245m  [0m
+[38;5;245m    ┌────┬────┬────┬────┬────┬────┬────┬────┐[0m
+[38;5;245m    │ 03 │ 00 │ 00 │ 00 │ 07 │ 00 │ 00 │ 00 │   little-endian, 8 bytes total[0m
+[38;5;245m    └────┴────┴────┴────┴────┴────┴────┴────┘[0m
+[38;5;245m      ↑                  ↑[0m
+[38;5;245m      p.x  (offset 0)    p.y  (offset 4)[0m
+
+[1mArray decay[0m
+
+[38;5;245m  int arr[4] = {10, 20, 30, 40};[0m
+[38;5;245m  [0m
+[38;5;245m  In its own scope:[0m
+[38;5;245m    arr     ──→  the whole array, sizeof(arr) == 16[0m
+[38;5;245m    &arr    ──→  pointer to int[4][0m
+[38;5;245m  [0m
+[38;5;245m  Passed to a function:[0m
+[38;5;245m    void f(int a[]) { ... }[0m
+[38;5;245m    f(arr);[0m
+[38;5;245m          arr decays to &arr[0] - a plain int*[0m
+[38;5;245m          sizeof(a) inside f == sizeof(int*) (8 on 64-bit), NOT 16[0m
+
+[1m[38;5;203mWARN[0m
+  This decay is the most common source of [38;5;215m`sizeof`[0m bugs. Inside a function
+  parameter, [38;5;215m`int a[]`[0m and [38;5;215m`int *a`[0m are the same type. The size of the original
+  array is gone forever; pass the length explicitly.
+
+[1mStack frame layout[0m
+
+[38;5;245m  caller calls callee(x, y):[0m
+[38;5;245m  [0m
+[38;5;245m    ┌─────────────────────┐   ← top of stack BEFORE call[0m
+[38;5;245m    │ caller locals       │[0m
+[38;5;245m    ├─────────────────────┤[0m
+[38;5;245m    │ y           (arg)   │     args (or in registers, x86_64 SysV)[0m
+[38;5;245m    │ x           (arg)   │[0m
+[38;5;245m    │ return addr         │     saved by `call`[0m
+[38;5;245m    │ saved frame ptr     │[0m
+[38;5;245m    │ callee locals       │     callee allocates[0m
+[38;5;245m    └─────────────────────┘   ← top during call[0m
+[38;5;245m  [0m
+[38;5;245m  On return: restore frame ptr, jump to return addr.[0m
+[38;5;245m  Caller's stack is exactly as it was.[0m
+
+[1mPractice[0m
+
+Compile a 5-line program with [38;5;215m`int x = 42; int *p = &x; uint8_t *heap =
+malloc(8);`[0m. Run it under [38;5;215m`gdb`[0m and [38;5;215m`p &x`[0m, [38;5;215m`p p`[0m, [38;5;215m`p heap`[0m. Sketch the three
+addresses on paper, label which is stack and which is heap based on the
+magnitude.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m08 Arrays & Decay[0m
+[38;5;215m-----------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Arrays know their size; pointers do not. The moment you pass an array to a
+  function, it decays to a pointer and [38;5;215m`sizeof`[0m lies. Always pass length
+  explicitly.
+
+An array is a contiguous run of elements. In C it is [3mnot[23m a pointer, but it
+silently turns into one almost everywhere you use it. Knowing exactly when that
+happens is the difference between code that works and code that quietly reads
+garbage.
+
+[1mDeclaration vs decay[0m
+
+[38;5;245m  int32_t arr[5] = {10, 20, 30, 40, 50};[0m
+[38;5;245m  [0m
+[38;5;245m  // At the point of declaration, arr is an ARRAY of 5 int32_t.[0m
+[38;5;245m  sizeof(arr);              // 20 bytes (5 * 4) - knows the size[0m
+[38;5;245m  sizeof(arr) / sizeof(arr[0]); // 5 - element count[0m
+[38;5;245m  [0m
+[38;5;245m  // In almost any expression, arr decays to a pointer to its first element.[0m
+[38;5;245m  int32_t *p = arr;        // implicit decay: arr -> &arr[0][0m
+[38;5;245m  sizeof(p);                // 8 bytes (a pointer) - size info LOST[0m
+
+[1m[38;5;176mRULE[0m
+  [38;5;215m`sizeof`[0m on a declared array gives total bytes. [38;5;215m`sizeof`[0m on a pointer gives
+  the pointer's own size (8 on 64-bit). The compiler cannot recover the element
+  count from a pointer.
+
+[1mThe decay rule[0m
+
+An array expression converts to a pointer to its first element [1mexcept[22m in three
+cases:
+
+  - Operand of [38;5;215m`sizeof`[0m
+  - Operand of unary [38;5;215m`&`[0m (address-of)
+  - String literal used to initialize a [38;5;215m`char`[0m array
+
+[38;5;245m  int32_t arr[5];[0m
+[38;5;245m  [0m
+[38;5;245m  sizeof(arr);   // no decay: 20[0m
+[38;5;245m  &arr;           // no decay: type is int32_t (*)[5] - pointer to array of 5[0m
+[38;5;245m  arr + 1;        // decays: pointer arithmetic, type int32_t*[0m
+[38;5;245m  arr[2];         // decays then derefs: equivalent to *(arr + 2)[0m
+
+[1mArray as a function parameter[0m
+
+This trips everyone up. These three signatures are [3midentical[23m to the compiler:
+
+[38;5;245m  void f(int32_t arr[10]);   // looks like an array[0m
+[38;5;245m  void f(int32_t arr[]);     // also looks like an array[0m
+[38;5;245m  void f(int32_t *arr);      // the truth[0m
+[38;5;245m  [0m
+[38;5;245m  void f(int32_t arr[10]) {[0m
+[38;5;245m      sizeof(arr);            // 8 (a pointer) - the [10] is a LIE[0m
+[38;5;245m  }[0m
+
+[1m[38;5;203mWARN[0m
+  A function never receives an array. It receives a pointer. The bracketed size
+  is documentation for humans; the compiler ignores it. To pass length, pass it
+  explicitly as a separate parameter, or use a slice struct ([4mPattern: Slices[24m[2m
+  (#slices)[0m).
+
+[1mThe C99 [38;5;215m`static`[0m hint[0m
+
+[38;5;245m  // "arr will be at least 4 elements" - a contract, not a check[0m
+[38;5;245m  void sum4(int32_t arr[static 4]) {[0m
+[38;5;245m      // compiler may use this for optimization / warnings[0m
+[38;5;245m      // some compilers warn if you call it with NULL or fewer elements[0m
+[38;5;245m  }[0m
+
+[1mIterating safely[0m
+
+[38;5;245m  int32_t arr[] = {10, 20, 30, 40};[0m
+[38;5;245m  size_t  n   = sizeof(arr) / sizeof(arr[0]);[0m
+[38;5;245m  [0m
+[38;5;245m  for (size_t i = 0; i < n; i++) {[0m
+[38;5;245m      printf("%d\n", arr[i]);[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  // Common helper macro - works ONLY where arr has not decayed[0m
+[38;5;245m  #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))[0m
+[38;5;245m  [0m
+[38;5;245m  for (size_t i = 0; i < ARRAY_LEN(arr); i++) { /* ... */ }[0m
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`ARRAY_LEN`[0m silently returns the wrong value if [38;5;215m`arr`[0m is actually a pointer
+  (function parameter, dynamic allocation). Use it only on declared arrays whose
+  definition is in scope.
+
+[1mVLAs - skip them[0m
+
+[38;5;245m  // Variable Length Array: size known at runtime, lives on stack[0m
+[38;5;245m  void process(size_t n) {[0m
+[38;5;245m      int32_t buf[n];           // C99 VLA - tempting, dangerous[0m
+[38;5;245m      // stack overflow if n is large or attacker-controlled[0m
+[38;5;245m      // no way to handle the failure - it's just a crash[0m
+[38;5;245m  }[0m
+
+[1m[38;5;176mRULE[0m
+  VLAs are optional in C11 and later. They have unpredictable stack costs and no
+  failure path. Use a fixed-size buffer for small bounded sizes; [38;5;215m`malloc`[0m or an
+  arena for anything dynamic. Many code bases ban VLAs outright.
+
+[1mMulti-dimensional arrays[0m
+
+[38;5;245m  // Row-major in memory: grid[0][0], grid[0][1], ..., grid[1][0], ...[0m
+[38;5;245m  int32_t grid[3][4];[0m
+[38;5;245m  [0m
+[38;5;245m  grid[2][1] = 7;             // row 2, column 1[0m
+[38;5;245m  [0m
+[38;5;245m  // As a parameter: only the FIRST dimension may be omitted[0m
+[38;5;245m  void draw(int32_t g[][4], size_t rows);[0m
+[38;5;245m  [0m
+[38;5;245m  // In practice: flatten to 1D and compute the index yourself[0m
+[38;5;245m  void draw_flat(int32_t *g, size_t rows, size_t cols) {[0m
+[38;5;245m      for (size_t y = 0; y < rows; y++)[0m
+[38;5;245m          for (size_t x = 0; x < cols; x++)[0m
+[38;5;245m              g[y * cols + x] = 0;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;110mTIP[0m
+  Flat 1D arrays plus manual indexing give you the same memory layout as a 2D
+  array, but pass and resize cleanly and play well with arenas. The CPU sees
+  identical bytes; only the source looks different.
+
+[1mOut-of-bounds is undefined[0m
+
+[38;5;245m  int32_t arr[4] = {0};[0m
+[38;5;245m  arr[4] = 99;     // UB: index 4 is one PAST the end[0m
+[38;5;245m  arr[-1] = 99;    // UB: before the array[0m
+
+[1m[38;5;203mWARN[0m
+  Reading or writing outside an array is undefined behaviour, even by one
+  element. The hardware will not stop you. Build with [38;5;215m`-fsanitize=address`[0m in
+  dev and the bug surfaces at the offending line; without it, you corrupt a
+  neighbour and the symptom appears anywhere.
+
+[1mPractice[0m
+
+Write [38;5;215m`bool all_positive(const int32_t *xs, size_t n)`[0m. Call it twice from main:
+once with a stack array literal [38;5;215m`{1, 2, 3}`[0m and once with a heap-allocated array
+of zeros. Do not use [38;5;215m`sizeof`[0m inside the function.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m09 Strings[0m
+[38;5;215m----------[0m
+
+[1m[38;5;215mTL;DR[0m
+  C strings are null-terminated [38;5;215m`char`[0m arrays. Never use [38;5;215m`strcpy`[0m/[38;5;215m`strcat`[0m/[38;5;215m`==`[0m.
+  Use [38;5;215m`snprintf`[0m for building strings and [38;5;215m`strcmp`[0m for comparing them.
+
+C strings are null-terminated arrays of [38;5;215m`char`[0m. They are the biggest source of
+bugs in C. Know the rules.
+
+[38;5;245m  #include <string.h>[0m
+[38;5;245m  [0m
+[38;5;245m  // String literal - lives in read-only memory, do NOT write to it[0m
+[38;5;245m  const char *s1 = "hello";[0m
+[38;5;245m  [0m
+[38;5;245m  // Mutable copy on stack - you CAN write to this[0m
+[38;5;245m  char buf[64] = "hello";[0m
+[38;5;245m  [0m
+[38;5;245m  // NEVER use strcpy/strcat - use the safe n-versions[0m
+[38;5;245m  strncpy(buf, "world", sizeof(buf) - 1);[0m
+[38;5;245m  buf[sizeof(buf) - 1] = '\0';  // always null-terminate[0m
+[38;5;245m  [0m
+[38;5;245m  // Better: use snprintf for building strings[0m
+[38;5;245m  char msg[128];[0m
+[38;5;245m  snprintf(msg, sizeof(msg), "Player %d: score=%d", id, score);[0m
+[38;5;245m  [0m
+[38;5;245m  // Useful string functions[0m
+[38;5;245m  size_t len = strlen(s1);         // length (not counting \0)[0m
+[38;5;245m  int    cmp = strcmp(s1, "hi");   // 0 if equal[0m
+
+[1m[38;5;203mWARN[0m
+  Never compare strings with [38;5;215m`==`[0m. That compares pointer addresses, not content.
+  Always use [38;5;215m`strcmp`[0m.
+
+[1mModern: String View (non-owning slice)[0m
+
+[38;5;245m  // A string that doesn't own its memory - great for parsing[0m
+[38;5;245m  typedef struct {[0m
+[38;5;245m      const char *data;[0m
+[38;5;245m      size_t      len;[0m
+[38;5;245m  } Str;[0m
+[38;5;245m  [0m
+[38;5;245m  #define STR(literal) ((Str){ (literal), sizeof(literal)-1 })[0m
+[38;5;245m  #define STR_FMT      "%.*s"[0m
+[38;5;245m  #define STR_ARG(s)   (int)(s).len, (s).data[0m
+[38;5;245m  [0m
+[38;5;245m  Str name = STR("Alice");[0m
+[38;5;245m  printf("Hello, " STR_FMT "!\n", STR_ARG(name));[0m
+[38;5;245m  // → Hello, Alice![0m
+
+[1mPractice[0m
+
+Implement [38;5;215m`bool starts_with(const char *s, const char *prefix)`[0m from scratch (no
+[38;5;215m`strncmp`[0m). Test on these cases and assert: [38;5;215m`("hello", "he") -> true`[0m, [38;5;215m`("hi",
+"hello") -> false`[0m, [38;5;215m`("", "") -> true`[0m, [38;5;215m`("abc", "") -> true`[0m.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m10 Structs & Composition[0m
+[38;5;215m------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  C has no classes. Structs are your objects. Use designated initializers
+  ([38;5;215m`.field = v`[0m); pass a [38;5;215m`Self *self`[0m as the first arg of "method" functions.
+
+C has no classes. Structs are your objects. Composition over inheritance.
+
+[38;5;245m  typedef struct {[0m
+[38;5;245m      float x, y;[0m
+[38;5;245m  } Vec2;[0m
+[38;5;245m  [0m
+[38;5;245m  typedef struct {[0m
+[38;5;245m      Vec2    pos;      // embedded struct[0m
+[38;5;245m      Vec2    vel;[0m
+[38;5;245m      float   radius;[0m
+[38;5;245m      bool    active;[0m
+[38;5;245m  } Ball;[0m
+[38;5;245m  [0m
+[38;5;245m  // Designated initializers (C99+) - use these, they're clear[0m
+[38;5;245m  Ball b = {[0m
+[38;5;245m      .pos    = {100.0f, 200.0f},[0m
+[38;5;245m      .vel    = {3.0f,   -1.5f},[0m
+[38;5;245m      .radius = 16.0f,[0m
+[38;5;245m      .active = true,[0m
+[38;5;245m  };[0m
+[38;5;245m  [0m
+[38;5;245m  // Accessing fields through pointer[0m
+[38;5;245m  Ball *bp = &b;[0m
+[38;5;245m  bp->radius = 20.0f;   // arrow = dereference + access[0m
+[38;5;245m  (*bp).radius = 20.0f; // same thing, uglier[0m
+
+[1mFunction "methods" on structs[0m
+
+[38;5;245m  // Convention: first arg is pointer to the struct[0m
+[38;5;245m  void  ball_update(Ball *b, float dt);[0m
+[38;5;245m  void  ball_draw  (const Ball *b);  // const = won't mutate[0m
+[38;5;245m  bool  ball_alive (const Ball *b);[0m
+[38;5;245m  [0m
+[38;5;245m  // Call-site reads naturally[0m
+[38;5;245m  ball_update(&b, 0.016f);[0m
+[38;5;245m  ball_draw(&b);[0m
+
+[1mPractice[0m
+
+Define [38;5;215m`Ball { Vec2 pos, vel; float radius; bool active; }`[0m and [38;5;215m`void
+ball_update(Ball *b, float dt)`[0m that advances [38;5;215m`pos`[0m by [38;5;215m`vel*dt`[0m. Initialize a
+Ball with designated init, call update 10 times, print the final position.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m11 Enums & Tagged Unions[0m
+[38;5;215m------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Enum gives names to integer constants. Union holds one of several payloads in
+  the same memory. Together they encode "this is exactly one of N variants".
+
+Enums give you typed names instead of magic numbers. Unions let one piece of
+memory hold one of several types. Combined, they encode [3msum types[23m: "this thing
+is exactly one of these variants". This is the C answer to Rust's [38;5;215m`enum`[0m and
+Haskell's algebraic data types.
+
+[1mPlain enums[0m
+
+[38;5;245m  typedef enum {[0m
+[38;5;245m      DIR_UP    = 0,[0m
+[38;5;245m      DIR_RIGHT = 1,[0m
+[38;5;245m      DIR_DOWN  = 2,[0m
+[38;5;245m      DIR_LEFT  = 3,[0m
+[38;5;245m      DIR_COUNT          // = 4 - automatic, useful sentinel[0m
+[38;5;245m  } Direction;[0m
+[38;5;245m  [0m
+[38;5;245m  Direction d = DIR_UP;[0m
+[38;5;245m  [0m
+[38;5;245m  switch (d) {[0m
+[38;5;245m      case DIR_UP:    /* ... */ break;[0m
+[38;5;245m      case DIR_DOWN:  /* ... */ break;[0m
+[38;5;245m      case DIR_LEFT:[0m
+[38;5;245m      case DIR_RIGHT: /* ... */ break;[0m
+[38;5;245m      // no default - compiler warns about missing cases with -Wswitch-enum[0m
+[38;5;245m  }[0m
+
+[1m[38;5;176mRULE[0m
+  An enum value is an [38;5;215m`int`[0m-sized constant. You can mix it with integer
+  arithmetic - [38;5;215m`d + 1`[0m compiles - but treat enum values as [3mopaque names[23m, not
+  numbers. Use [38;5;215m`DIR_COUNT`[0m as the loop bound instead of hard-coding 4.
+
+[1mBit flags[0m
+
+[38;5;245m  typedef enum {[0m
+[38;5;245m      PERM_READ  = 1 << 0,   // 0b0001[0m
+[38;5;245m      PERM_WRITE = 1 << 1,   // 0b0010[0m
+[38;5;245m      PERM_EXEC  = 1 << 2,   // 0b0100[0m
+[38;5;245m      PERM_OWNER = 1 << 3,   // 0b1000[0m
+[38;5;245m  } Perm;[0m
+[38;5;245m  [0m
+[38;5;245m  uint32_t perms = PERM_READ | PERM_WRITE;   // combine[0m
+[38;5;245m  [0m
+[38;5;245m  if (perms & PERM_WRITE) { /* writable */ }   // test[0m
+[38;5;245m  perms |=  PERM_EXEC;                          // set[0m
+[38;5;245m  perms &= ~PERM_WRITE;                         // clear[0m
+[38;5;245m  perms ^=  PERM_READ;                          // toggle[0m
+
+[1m[38;5;110mTIP[0m
+  Always store flag combinations in an unsigned integer ([38;5;215m`uint32_t`[0m) rather than
+  the enum type. The combined value is not a valid enum constant; signed bit ops
+  can also surprise you on [38;5;215m`~`[0m and shifts.
+
+[1mTagged unions (sum types)[0m
+
+The single most useful pattern enums and unions enable. Pair a discriminator
+([38;5;215m`tag`[0m) with a union of payloads. Read the tag first, then read the matching
+union arm.
+
+[38;5;245m  typedef enum {[0m
+[38;5;245m      EVENT_KEY,[0m
+[38;5;245m      EVENT_MOUSE,[0m
+[38;5;245m      EVENT_RESIZE,[0m
+[38;5;245m      EVENT_QUIT,[0m
+[38;5;245m  } EventKind;[0m
+[38;5;245m  [0m
+[38;5;245m  typedef struct {[0m
+[38;5;245m      EventKind kind;[0m
+[38;5;245m      union {[0m
+[38;5;245m          struct { int32_t code; bool down; }       key;[0m
+[38;5;245m          struct { int32_t x, y; uint8_t button; } mouse;[0m
+[38;5;245m          struct { int32_t w, h; }                  resize;[0m
+[38;5;245m          // EVENT_QUIT carries no payload - no arm needed[0m
+[38;5;245m      };[0m
+[38;5;245m  } Event;[0m
+[38;5;245m  [0m
+[38;5;245m  void handle(const Event *e) {[0m
+[38;5;245m      switch (e->kind) {[0m
+[38;5;245m      case EVENT_KEY:[0m
+[38;5;245m          printf("key %d %s\n", e->key.code, e->key.down ? "down" : "up");[0m
+[38;5;245m          break;[0m
+[38;5;245m      case EVENT_MOUSE:[0m
+[38;5;245m          printf("mouse %d,%d btn=%u\n", e->mouse.x, e->mouse.y, e->mouse.button);[0m
+[38;5;245m          break;[0m
+[38;5;245m      case EVENT_RESIZE:[0m
+[38;5;245m          printf("resize %dx%d\n", e->resize.w, e->resize.h);[0m
+[38;5;245m          break;[0m
+[38;5;245m      case EVENT_QUIT:[0m
+[38;5;245m          return;[0m
+[38;5;245m      }[0m
+[38;5;245m  }[0m
+
+Building one:
+
+[38;5;245m  Event e = {[0m
+[38;5;245m      .kind  = EVENT_KEY,[0m
+[38;5;245m      .key   = { .code = 27, .down = true },   // designated init for the active arm[0m
+[38;5;245m  };[0m
+
+[1m[38;5;176mRULE[0m
+  Read only the union arm that matches the current tag. Reading any other arm is
+  undefined behaviour (it crosses C's "type-punning through union" line in older
+  standards). Always go: read tag, switch, then access the corresponding member.
+
+[1mMemory size[0m
+
+[38;5;245m  // A union is as large as its biggest arm[0m
+[38;5;245m  union Big {[0m
+[38;5;245m      uint8_t  small[4];     // 4 bytes[0m
+[38;5;245m      double   d;            // 8 bytes[0m
+[38;5;245m      char     buf[32];      // 32 bytes[0m
+[38;5;245m  };[0m
+[38;5;245m  sizeof(union Big);            // 32 (rounded up for alignment)[0m
+[38;5;245m  [0m
+[38;5;245m  // Tagged union pays one tag plus the biggest arm plus padding[0m
+[38;5;245m  sizeof(Event);                  // ~24 on 64-bit, mostly the mouse arm[0m
+
+[1m[38;5;203mWARN[0m
+  Tagged unions trade memory for clarity. If your variants differ wildly in size
+  and the small variants dominate, consider [3mtype-erased pointers[23m instead: store
+  a tag plus a [38;5;215m`void*`[0m to a heap-allocated payload. The downside is one
+  indirection per access.
+
+[1mAnonymous unions and structs (C11)[0m
+
+[38;5;245m  // C11+: skip the .as / .key prefix entirely[0m
+[38;5;245m  typedef struct {[0m
+[38;5;245m      EventKind kind;[0m
+[38;5;245m      union {                  // no name -> members are reachable on the parent[0m
+[38;5;245m          struct { int32_t code; bool down; };  // also anonymous[0m
+[38;5;245m          struct { int32_t x, y; uint8_t button; };[0m
+[38;5;245m      };[0m
+[38;5;245m  } Ev2;[0m
+[38;5;245m  [0m
+[38;5;245m  Ev2 e;[0m
+[38;5;245m  e.code = 27;   // no e.key.code[0m
+
+[1m[38;5;110mTIP[0m
+  Anonymous unions are clean but every member name lives in the same namespace -
+  [38;5;215m`code`[0m, [38;5;215m`down`[0m, [38;5;215m`x`[0m, [38;5;215m`y`[0m all have to be unique across all arms. Switch to
+  named arms ([38;5;215m`e->key.code`[0m) when collisions appear.
+
+[1mType punning - do this with [38;5;215m`memcpy`[0m[0m
+
+[38;5;245m  // You have float bits, you want to inspect them as a uint32_t[0m
+[38;5;245m  float    f = 3.14f;[0m
+[38;5;245m  uint32_t u;[0m
+[38;5;245m  memcpy(&u, &f, sizeof(u));   // well-defined, optimizes to a register move[0m
+[38;5;245m  [0m
+[38;5;245m  // DO NOT do this - violates strict aliasing, may be miscompiled at -O2:[0m
+[38;5;245m  // uint32_t bad = *(uint32_t*)&f;[0m
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`memcpy`[0m between same-sized objects is the portable, defined way to
+  reinterpret bytes. Casting through a different pointer type is undefined
+  behaviour under the strict-aliasing rules - see [4mUndefined Behavior[24m[2m (#ub)[0m.
+
+[1mPractice[0m
+
+Build a tagged-union [38;5;215m`Event`[0m with [38;5;215m`KEY`[0m, [38;5;215m`MOUSE`[0m, [38;5;215m`QUIT`[0m arms (key has [38;5;215m`code,
+down`[0m; mouse has [38;5;215m`x, y`[0m). Construct one of each in an array, write [38;5;215m`void
+handle(const Event *e)`[0m that switches on the tag and prints a one-line summary
+per event.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m12 Memory Management[0m
+[38;5;215m--------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  malloc takes memory, free returns it. Lose the pointer and you've leaked. Free
+  twice and you've corrupted the heap. Use arenas to make ownership obvious.
+
+[1mThe four allocators[0m
+
+[38;5;245m  #include <stdlib.h>[0m
+[38;5;245m  [0m
+[38;5;245m  void *malloc(size_t n);                  // n bytes, uninitialised[0m
+[38;5;245m  void *calloc(size_t count, size_t size); // count*size bytes, zeroed[0m
+[38;5;245m  void *realloc(void *p, size_t n);        // grow/shrink an existing block[0m
+[38;5;245m  void  free(void *p);                     // release back to the heap[0m
+
+[38;5;245m  // malloc - fastest, contents are garbage[0m
+[38;5;245m  char *buf = malloc(1024);[0m
+[38;5;245m  if (!buf) abort();         // ALWAYS check[0m
+[38;5;245m  memset(buf, 0, 1024);      // zero it yourself if needed[0m
+[38;5;245m  [0m
+[38;5;245m  // calloc - zero-initialised, slightly slower[0m
+[38;5;245m  int32_t *counts = calloc(256, sizeof *counts);[0m
+[38;5;245m  [0m
+[38;5;245m  // realloc done WRONG - leaks original block on failure[0m
+[38;5;245m  buf = realloc(buf, 4096);[0m
+[38;5;245m  [0m
+[38;5;245m  // realloc done right[0m
+[38;5;245m  char *tmp = realloc(buf, 4096);[0m
+[38;5;245m  if (!tmp) { free(buf); abort(); }[0m
+[38;5;245m  buf = tmp;[0m
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`realloc(NULL, n)`[0m behaves like [38;5;215m`malloc(n)`[0m, and [38;5;215m`realloc(p, 0)`[0m is
+  implementation-defined. Don't rely on either; spell out the intent explicitly.
+
+[1mComing from Python/JS[0m
+
+In Python/JS, the runtime tracks every reference and frees memory when the last
+one goes out of scope. C has no runtime. [1mYou[22m decide when memory is freed. If you
+don't, it lives until the process exits (a "leak"). If you free too early, every
+remaining pointer to it is a bomb.
+
+Concept         [2m|[0m Python / JS              [2m|[0m C                             
+[2m--------------  [2m+[0m -----------------------  [2m+[0m ------------------------------[0m
+Allocate        [2m|[0m [38;5;215m`[]`[0m, [38;5;215m`{}`[0m, [38;5;215m`new Foo()`[0m  [2m|[0m [38;5;215m`malloc(sizeof(Foo))`[0m         
+Free            [2m|[0m implicit (GC)            [2m|[0m explicit ([38;5;215m`free`[0m)             
+Variable holds  [2m|[0m reference                [2m|[0m value or pointer              
+Out of scope    [2m|[0m maybe collected later    [2m|[0m freed (stack) or leaked (heap)
+
+[1mOwnership[0m
+
+Every heap allocation has exactly one owner. The owner is responsible for
+freeing it. Document this in the API.
+
+[38;5;245m  // pattern 1: caller owns - function returns, caller frees[0m
+[38;5;245m  char *read_file(const char *path);          // caller MUST free()[0m
+[38;5;245m  [0m
+[38;5;245m  // pattern 2: callee owns - caller hands off[0m
+[38;5;245m  void log_take_ownership(char *msg);         // log frees msg eventually[0m
+[38;5;245m  [0m
+[38;5;245m  // pattern 3: borrowed - lifetime tied to something else[0m
+[38;5;245m  const char *get_name(const Person *p);      // valid while p is valid[0m
+
+[1m[38;5;176mRULE[0m
+  If a function name contains [38;5;215m`make`[0m, [38;5;215m`new`[0m, [38;5;215m`clone`[0m, [38;5;215m`dup`[0m, or [38;5;215m`read_*`[0m, the
+  caller almost always owns the result. State it in the header comment.
+
+[1mArenas (the lifetime trick)[0m
+
+Per-allocation [38;5;215m`free`[0m is bug-prone. An arena groups allocations that all die
+together; you free the whole arena in one shot.
+
+[38;5;245m  typedef struct {[0m
+[38;5;245m      uint8_t *base;[0m
+[38;5;245m      size_t   cap;[0m
+[38;5;245m      size_t   used;[0m
+[38;5;245m  } Arena;[0m
+[38;5;245m  [0m
+[38;5;245m  void *arena_alloc(Arena *a, size_t n) {[0m
+[38;5;245m      if (a->used + n > a->cap) return NULL;[0m
+[38;5;245m      void *p = a->base + a->used;[0m
+[38;5;245m      a->used += n;[0m
+[38;5;245m      return p;[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  void arena_reset(Arena *a) { a->used = 0; }   // reuse - O(1)[0m
+
+Use one arena per request, per frame, per parse. Free is just [38;5;215m`arena_reset`[0m or
+[38;5;215m`free(arena.base)`[0m. No leaks, no double-frees, no shared ownership.
+
+[1mDetecting leaks[0m
+
+Don't audit by hand. Run the binary under AddressSanitizer:
+
+[38;5;245m  clang -g -O0 -fsanitize=address,undefined main.c -o main[0m
+[38;5;245m  ASAN_OPTIONS=detect_leaks=1 ./main[0m
+
+ASan prints every leaked block with a stack trace at exit. Treat any leak found
+this way as a bug.
+
+[1m[38;5;203mWARN[0m
+  On Linux, [38;5;215m`malloc`[0m can succeed even when the system is out of memory and only
+  fail later when you touch the page (overcommit). Always check the return, but
+  don't rely on it as your OOM strategy.
+
+[1m[38;5;110mTIP[0m
+  [38;5;215m`free(NULL)`[0m is a defined no-op. You don't need to null-check before freeing.
+  Only file/socket cleanup needs the guard.
+
+[1mPractice[0m
+
+Write a program that does [38;5;215m`char *p = malloc(100);`[0m and exits without [38;5;215m`free`[0m.
+Compile with [38;5;215m`clang -fsanitize=address`[0m. Run with [38;5;215m`ASAN_OPTIONS=detect_leaks=1
+./prog`[0m - confirm a 100-byte leak is reported. Add the [38;5;215m`free`[0m, re-run, confirm
+clean exit.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m13 Error Handling Idioms[0m
+[38;5;215m------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  C has no exceptions. Pick one error convention per project and hold the line.
+  Cleanup goes through [38;5;215m`goto`[0m.
+
+[1mThe three conventions[0m
+
+[38;5;245m  // 1. Return an int: 0 = ok, non-zero = error code[0m
+[38;5;245m  int parse(const char *s, int32_t *out);[0m
+[38;5;245m  if (parse(s, &x) != 0) { /* handle */ }[0m
+[38;5;245m  [0m
+[38;5;245m  // 2. Return a pointer: NULL = error, errno set by libc[0m
+[38;5;245m  FILE *f = fopen(path, "r");[0m
+[38;5;245m  if (!f) { perror("fopen"); }[0m
+[38;5;245m  [0m
+[38;5;245m  // 3. Result struct: explicit ok flag, no out-parameter[0m
+[38;5;245m  typedef struct { int32_t value; bool ok; } ParseInt;[0m
+[38;5;245m  ParseInt parse_int(const char *s);[0m
+[38;5;245m  ParseInt r = parse_int(s);[0m
+[38;5;245m  if (!r.ok) { /* handle */ }[0m
+
+[1m[38;5;176mRULE[0m
+  Pick one and use it everywhere. Mixing conventions inside one codebase is the
+  leading cause of "we forgot to check this".
+
+[1merrno[0m
+
+[38;5;215m`errno`[0m is the global C error variable, set by libc on failure.
+
+[38;5;245m  #include <errno.h>[0m
+[38;5;245m  #include <string.h>[0m
+[38;5;245m  [0m
+[38;5;245m  FILE *f = fopen(path, "r");[0m
+[38;5;245m  if (!f) {[0m
+[38;5;245m      fprintf(stderr, "fopen %s: %s\n", path, strerror(errno));[0m
+[38;5;245m      return -1;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`errno`[0m is only valid right after a libc call that documents setting it.
+  Anything else (even a [38;5;215m`printf`[0m) can clobber it. Save it immediately if you're
+  going to log later: [38;5;215m`int e = errno;`[0m.
+
+[1mCleanup with goto[0m
+
+C has no destructors. [38;5;215m`goto`[0m to a single cleanup label is the canonical pattern.
+The Linux kernel and every serious C codebase use it. Don't fight it.
+
+[38;5;245m  int run(void) {[0m
+[38;5;245m      void *a = NULL, *b = NULL, *c = NULL;[0m
+[38;5;245m      int rc = -1;[0m
+[38;5;245m  [0m
+[38;5;245m      if (!(a = step1())) goto fail;[0m
+[38;5;245m      if (!(b = step2())) goto fail;[0m
+[38;5;245m      if (!(c = step3())) goto fail;[0m
+[38;5;245m  [0m
+[38;5;245m      do_work(a, b, c);[0m
+[38;5;245m      rc = 0;[0m
+[38;5;245m  fail:[0m
+[38;5;245m      free(c); free(b); free(a);[0m
+[38;5;245m      return rc;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;110mTIP[0m
+  Forward [38;5;215m`goto`[0m only. Never goto backwards (that's a loop). Never jump into the
+  middle of a block. Keep cleanup labels at function scope, never inside an
+  [38;5;215m`if`[0m.
+
+[1mAsserts vs returns[0m
+
+[38;5;245m  #include <assert.h>[0m
+[38;5;245m  [0m
+[38;5;245m  int process(Buf *b, size_t i) {[0m
+[38;5;245m      assert(b != NULL);          // INVARIANT: a bug if false. Crashes in debug.[0m
+[38;5;245m      if (i >= b->len) return -1; // RUNTIME: legitimate error path.[0m
+[38;5;245m      return 0;[0m
+[38;5;245m  }[0m
+
+[38;5;215m`assert`[0m is for things that should never happen. Errors that [3mcan[23m happen at
+runtime (bad user input, network failures, missing files) need a real return
+path.
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`assert`[0m is compiled out under [38;5;215m`-DNDEBUG`[0m (release builds). Don't put side
+  effects inside it: [38;5;215m`assert(do_thing() == 0)`[0m becomes nothing in release.
+
+[1mPractice[0m
+
+Write [38;5;215m`int copy_transform(const char *src_path, const char *dst_path)`[0m that
+opens both files, reads [38;5;215m`src`[0m line-by-line, writes upper-cased lines to [38;5;215m`dst`[0m,
+and returns 0/non-zero. Use the [38;5;215m`goto cleanup`[0m pattern so both [38;5;215m`FILE*`[0m close on
+every path (early failure included).
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m14 Functions & Headers[0m
+[38;5;215m----------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Headers declare; [38;5;215m`.c`[0m files define. [38;5;215m`#pragma once`[0m at the top. Only
+  declarations, typedefs, and [38;5;215m`static inline`[0m helpers belong in headers.
+
+[38;5;245m  // mylib.h - declarations only[0m
+[38;5;245m  #pragma once           // include guard (supported everywhere)[0m
+[38;5;245m  #include <stdint.h>[0m
+[38;5;245m  [0m
+[38;5;245m  typedef struct MyLib MyLib;  // forward declare[0m
+[38;5;245m  [0m
+[38;5;245m  MyLib  *mylib_create(size_t capacity);[0m
+[38;5;245m  void    mylib_destroy(MyLib *lib);[0m
+[38;5;245m  int32_t mylib_process(MyLib *lib, const uint8_t *data, size_t n);[0m
+
+[38;5;245m  // mylib.c - definitions[0m
+[38;5;245m  #include "mylib.h"[0m
+[38;5;245m  #include <stdlib.h>[0m
+[38;5;245m  [0m
+[38;5;245m  struct MyLib {[0m
+[38;5;245m      uint8_t *buf;[0m
+[38;5;245m      size_t   cap;[0m
+[38;5;245m      size_t   len;[0m
+[38;5;245m  };[0m
+[38;5;245m  [0m
+[38;5;245m  MyLib *mylib_create(size_t capacity) {[0m
+[38;5;245m      MyLib *lib = calloc(1, sizeof(*lib));  // calloc = malloc + zero[0m
+[38;5;245m      if (!lib) return NULL;[0m
+[38;5;245m      lib->buf = malloc(capacity);[0m
+[38;5;245m      if (!lib->buf) { free(lib); return NULL; }[0m
+[38;5;245m      lib->cap = capacity;[0m
+[38;5;245m      return lib;[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  void mylib_destroy(MyLib *lib) {[0m
+[38;5;245m      if (!lib) return;[0m
+[38;5;245m      free(lib->buf);[0m
+[38;5;245m      free(lib);[0m
+[38;5;245m  }[0m
+
+[1m[38;5;176mRULE[0m
+  Put only [3mdeclarations[23m in headers. Definitions (function bodies, global
+  variable storage) go in .c files. [38;5;215m`#pragma once`[0m prevents double-inclusion.
+
+[1mPractice[0m
+
+Split a 1-file program into [38;5;215m`mylib.h`[0m (declarations), [38;5;215m`mylib.c`[0m (definitions,
+plus a [38;5;215m`static`[0m helper), and [38;5;215m`main.c`[0m. Try calling the static helper from
+[38;5;215m`main.c`[0m and observe the linker error. Then call the public function and confirm
+it links.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m15 Function Pointers[0m
+[38;5;215m--------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  A function pointer holds the address of code, letting you pick which function
+  to call at runtime. [38;5;215m`typedef`[0m non-trivial signatures. Always pass a trailing
+  [38;5;215m`void *user`[0m for state.
+
+A function pointer holds the address of executable code. It lets you choose at
+runtime which function to call. That's the entire mechanism behind callbacks,
+plugin tables, dispatch in interpreters, and C's stand-in for virtual methods.
+
+[1mThe syntax[0m
+
+[38;5;245m  // A function[0m
+[38;5;245m  int32_t add(int32_t a, int32_t b) { return a + b; }[0m
+[38;5;245m  [0m
+[38;5;245m  // A pointer that can hold its address[0m
+[38;5;245m  int32_t (*op)(int32_t, int32_t);[0m
+[38;5;245m  [0m
+[38;5;245m  op = add;          // no & needed, function names decay like arrays[0m
+[38;5;245m  op = &add;         // also legal, identical effect[0m
+[38;5;245m  [0m
+[38;5;245m  int32_t r = op(2, 3);    // 5 - call through the pointer[0m
+[38;5;245m  int32_t q = (*op)(2, 3);  // also 5 - the deref is implicit[0m
+
+[1m[38;5;176mRULE[0m
+  Always [38;5;215m`typedef`[0m non-trivial function-pointer types. The bare syntax stacks
+  parens and asterisks until it is unreadable. A typedef hides the noise and the
+  call site reads like a normal function call.
+
+[38;5;245m  // Typedef the type itself, not a pointer to it - keeps the * at use sites visible[0m
+[38;5;245m  typedef int32_t BinaryOp(int32_t, int32_t);[0m
+[38;5;245m  [0m
+[38;5;245m  BinaryOp *op = add;[0m
+[38;5;245m  op(2, 3);[0m
+
+[1mCallbacks: [38;5;215m`qsort`[0m[0m
+
+[38;5;245m  #include <stdlib.h>[0m
+[38;5;245m  [0m
+[38;5;245m  static int cmp_int32(const void *a, const void *b) {[0m
+[38;5;245m      int32_t x = *(const int32_t*)a;[0m
+[38;5;245m      int32_t y = *(const int32_t*)b;[0m
+[38;5;245m      return (x > y) - (x < y);   // safe: no overflow on subtraction[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  int32_t nums[] = { 5, 2, 8, 1, 9 };[0m
+[38;5;245m  qsort(nums, 5, sizeof(nums[0]), cmp_int32);[0m
+
+[1m[38;5;203mWARN[0m
+  A comparator that returns [38;5;215m`x - y`[0m is a classic bug: it overflows for distant
+  values. Always return [38;5;215m`(x > y) - (x < y)`[0m or compare with explicit [38;5;215m`if`[0ms.
+
+[1mThe "context pointer" idiom[0m
+
+Pure function pointers cannot capture state. C's universal fix is a [38;5;215m`void *user`[0m
+trailing argument that the caller hands back to you on every callback.
+
+[38;5;245m  typedef void EachFn(const char *line, void *user);[0m
+[38;5;245m  [0m
+[38;5;245m  void file_each_line(FILE *f, EachFn *fn, void *user) {[0m
+[38;5;245m      char buf[512];[0m
+[38;5;245m      while (fgets(buf, sizeof(buf), f)) fn(buf, user);[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  static void count_cb(const char *line, void *user) {[0m
+[38;5;245m      (*(int32_t*)user)++;     // user points to the counter[0m
+[38;5;245m      (void)line;[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  int32_t count = 0;[0m
+[38;5;245m  file_each_line(f, count_cb, &count);[0m
+
+[1m[38;5;176mRULE[0m
+  Every callback API in any well-designed C library takes a [38;5;215m`void *user`[0m. If a
+  library forces you to use globals to share state with the callback, that API
+  is broken.
+
+[1mDispatch table (poor man's vtable)[0m
+
+[38;5;245m  typedef struct {[0m
+[38;5;245m      void (*draw)  (void *self);[0m
+[38;5;245m      void (*update)(void *self, float dt);[0m
+[38;5;245m      void (*destroy)(void *self);[0m
+[38;5;245m  } EntityVTable;[0m
+[38;5;245m  [0m
+[38;5;245m  typedef struct {[0m
+[38;5;245m      const EntityVTable *vt;[0m
+[38;5;245m      // per-instance fields follow[0m
+[38;5;245m  } Entity;[0m
+[38;5;245m  [0m
+[38;5;245m  // Concrete type embeds an Entity at the front (composition)[0m
+[38;5;245m  typedef struct {[0m
+[38;5;245m      Entity base;[0m
+[38;5;245m      float  hp;[0m
+[38;5;245m  } Player;[0m
+[38;5;245m  [0m
+[38;5;245m  static void player_draw(void *self) {[0m
+[38;5;245m      Player *p = self;          // safe: layout-compatible cast from base[0m
+[38;5;245m      // ... draw using p->hp etc[0m
+[38;5;245m      (void)p;[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  static const EntityVTable kPlayerVT = {[0m
+[38;5;245m      .draw    = player_draw,[0m
+[38;5;245m      .update  = NULL,[0m
+[38;5;245m      .destroy = NULL,[0m
+[38;5;245m  };[0m
+[38;5;245m  [0m
+[38;5;245m  Player p = { .base = { .vt = &kPlayerVT } };[0m
+[38;5;245m  p.base.vt->draw(&p);[0m
+
+[1m[38;5;110mTIP[0m
+  Keep the vtable pointer at offset 0 so a generic [38;5;215m`Entity*`[0m can call
+  [38;5;215m`e->vt->draw(e)`[0m regardless of the concrete subtype. This is exactly how C++
+  implements virtual calls under the hood.
+
+[1mNULL function pointers[0m
+
+[38;5;245m  // Calling NULL crashes. Default to a no-op stub instead of NULL-checking everywhere.[0m
+[38;5;245m  static void noop_update(void *self, float dt) { (void)self; (void)dt; }[0m
+[38;5;245m  [0m
+[38;5;245m  static const EntityVTable kDefaultVT = {[0m
+[38;5;245m      .draw    = noop_update_void,   // fill every slot[0m
+[38;5;245m      .update  = noop_update,[0m
+[38;5;245m      .destroy = noop_update_void,[0m
+[38;5;245m  };[0m
+
+[1m[38;5;203mWARN[0m
+  A function pointer with the wrong signature is undefined behaviour to call,
+  even if the cast compiled. Match prototypes exactly. Use the typedef and let
+  the compiler check the assignment.
+
+[1mPractice[0m
+
+Write [38;5;215m`bool foreach_int(const int32_t *xs, size_t n, bool (*fn)(int32_t v, void
+*user), void *user)`[0m that calls [38;5;215m`fn`[0m for each element and stops early if [38;5;215m`fn`[0m
+returns true. Use it with a callback that finds the first negative number,
+returning the index via [38;5;215m`user`[0m.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m16 Linkage & Storage[0m
+[38;5;215m--------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  [38;5;215m`static`[0m at file scope = private to this TU. [38;5;215m`static`[0m inside a function =
+  lifetime of the program but local name. [38;5;215m`extern`[0m = declare without defining.
+  Mark every file-local helper [38;5;215m`static`[0m.
+
+"Linkage" is C's word for "who can see this name". "Storage" is "where does this
+object live and how long". Get these two right and most "weird header bug"
+disappears.
+
+[1mTranslation units[0m
+
+A translation unit (TU) is one [38;5;215m`.c`[0m file plus everything its preprocessor pulls
+in. Each TU is compiled to an object file independently. The [3mlinker[23m stitches
+object files together by matching names. [38;5;215m`#pragma once`[0m stops a header pasting
+twice into the same TU; it does nothing across TUs.
+
+[38;5;245m  // foo.c    -+[0m
+[38;5;245m  //           +- foo.o  <- compile[0m
+[38;5;245m  // foo.h     |[0m
+[38;5;245m  // bar.c    -+- bar.o  <- compile[0m
+[38;5;245m  //           +[0m
+[38;5;245m  //           +- app    <- link foo.o + bar.o[0m
+
+[1mThe four scopes[0m
+
+Where declared                 [2m|[0m Lifetime     [2m|[0m Visible to                  
+[2m-----------------------------  [2m+[0m -----------  [2m+[0m ----------------------------[0m
+Inside a function (no qualif…  [2m|[0m Block (aut…  [2m|[0m Just that block             
+Inside a function, [38;5;215m`static`[0m    [2m|[0m Whole prog…  [2m|[0m Just that block             
+File scope, no [38;5;215m`static`[0m        [2m|[0m Whole prog…  [2m|[0m All TUs (external linkage)  
+File scope, [38;5;215m`static`[0m           [2m|[0m Whole prog…  [2m|[0m This TU only (internal link…
+
+[38;5;245m  // foo.c[0m
+[38;5;245m  int32_t        public_count;        // EXTERNAL: visible everywhere[0m
+[38;5;245m  static int32_t private_count;       // INTERNAL: this file only[0m
+[38;5;245m  [0m
+[38;5;245m  void tick(void) {[0m
+[38;5;245m      static int32_t calls = 0;        // LIFETIME=program, SCOPE=function[0m
+[38;5;245m      calls++;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;176mRULE[0m
+  Default file-scope visibility is [3mexternal[23m. That means a missing [38;5;215m`static`[0m on a
+  helper leaks the symbol to every other TU, risks name collisions at link time,
+  and bloats public surface. Mark every file-local helper [38;5;215m`static`[0m.
+
+[1m[38;5;215m`extern`[0m: declaring something defined elsewhere[0m
+
+[38;5;245m  // app.h[0m
+[38;5;245m  extern int32_t g_frame_count;   // declaration, no storage[0m
+[38;5;245m  [0m
+[38;5;245m  // app.c[0m
+[38;5;245m  int32_t g_frame_count = 0;       // definition, allocates storage[0m
+
+[1m[38;5;203mWARN[0m
+  A header that [3mdefines[23m a global (no [38;5;215m`extern`[0m, with an initializer) and is
+  included by two TUs is a multiple-definition link error. Headers declare with
+  [38;5;215m`extern`[0m; exactly one [38;5;215m`.c`[0m file defines.
+
+[1m[38;5;215m`static`[0m has three meanings[0m
+
+  - At [1mfile scope[22m: internal linkage. The name is private to this TU.
+  - Inside a [1mfunction[22m: storage lives for the whole program; the name is still
+    local.
+  - Inside [1marray parameter brackets[22m (C99): "at least N elements" hint - see
+    Arrays section.
+
+[1m[38;5;215m`inline`[0m: hint, not contract[0m
+
+[38;5;245m  // header.h - safe pattern: static inline[0m
+[38;5;245m  static inline int32_t sq(int32_t x) { return x * x; }[0m
+
+[38;5;215m`static inline`[0m in a header is the modern, no-surprises way to put short helpers
+in headers. Each TU gets its own private copy that the optimizer can inline
+freely. Plain [38;5;215m`inline`[0m without [38;5;215m`static`[0m has subtle one-definition-rule semantics
+that almost nobody gets right.
+
+[1m[38;5;176mRULE[0m
+  Trust the optimizer. [38;5;215m`inline`[0m is a hint that compilers may ignore. Use [38;5;215m`static
+  inline`[0m for tiny helpers in headers; otherwise just write a normal function in
+  a [38;5;215m`.c`[0m file.
+
+[1mStorage durations[0m
+
+Class       [2m|[0m Lifetime                          [2m|[0m Example                   
+[2m----------  [2m+[0m --------------------------------  [2m+[0m --------------------------[0m
+Automatic   [2m|[0m Block (created on entry, freed …  [2m|[0m Local var without [38;5;215m`static`[0m
+Static      [2m|[0m Entire program                    [2m|[0m Globals, function-level `…
+Allocated   [2m|[0m From [38;5;215m`malloc`[0m until [38;5;215m`free`[0m        [2m|[0m Heap data                 
+Thread (C…  [2m|[0m Per-thread                        [2m|[0m `thread_local` / `_Thread…
+
+[1mThe header rules in one box[0m
+
+[1m[38;5;176mRULE[0m
+  Headers contain: declarations, [38;5;215m`typedef`[0ms, [38;5;215m`struct`[0m/[38;5;215m`enum`[0m definitions,
+  [38;5;215m`#define`[0ms, [38;5;215m`static inline`[0m helpers.
+  Headers do [3mnot[23m contain: function bodies (except [38;5;215m`static inline`[0m), variable
+  definitions, anything else that produces storage.
+  Use [38;5;215m`#pragma once`[0m at the top.
+  Mark every file-local symbol in a [38;5;215m`.c`[0m file [38;5;215m`static`[0m.
+
+[1mPractice[0m
+
+Write [38;5;215m`int32_t next_id(void)`[0m using a function-local [38;5;215m`static int32_t counter =
+0;`[0m that returns [38;5;215m`++counter`[0m. Call it from two different [38;5;215m`.c`[0m files (compile
+both, link). Confirm calls from either file share the same counter (1, 2, 3,
+...).
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m17 The Preprocessor & [38;5;215m`#define`[0m[0m
+[38;5;215m-----------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Textual phase before compilation. [38;5;215m`#include`[0m pastes, [38;5;215m`#define`[0m substitutes,
+  [38;5;215m`#ifdef`[0m gates. No types, no scope, no surprises once you remember it's just
+  text.
+
+The preprocessor is a textual phase that runs before the compiler. It does three
+things: pastes files ([38;5;215m`#include`[0m), substitutes text ([38;5;215m`#define`[0m), and
+conditionally keeps or drops code ([38;5;215m`#ifdef`[0m). That's it.
+
+[38;5;245m  // See exactly what the preprocessor produced:[0m
+[38;5;245m  clang -E main.c              # prints expanded source to stdout[0m
+[38;5;245m  clang --save-temps main.c    # also keeps main.i (preprocessed .c)[0m
+
+[1m[38;5;215m`#include`[0m[0m
+
+Literally pastes the file's contents at the line of the include. [38;5;215m`<name>`[0m
+searches system paths, [38;5;215m`"name"`[0m searches the project. You could include a
+[38;5;215m`.json`[0m file - it would not compile, but the paste would happen.
+
+[1m[38;5;215m`#define`[0m constants[0m
+
+[38;5;245m  #define MAX_ENTITIES 1024[0m
+[38;5;245m  #define PI           3.14159f[0m
+[38;5;245m  #define APP_NAME     "c-2080"[0m
+
+Untyped, no scope, replaced as raw text. Convention: [38;5;215m`SCREAMING_SNAKE_CASE`[0m so a
+reader knows it's a macro.
+
+[1m[38;5;176mRULE[0m
+  Prefer [38;5;215m`static const`[0m and [38;5;215m`enum`[0m for typed constants. Use [38;5;215m`#define`[0m only when
+  you need text substitution: macros, conditional compile, header guards.
+
+[1mFunction-like macros[0m
+
+[38;5;245m  // BUG: SQUARE(1+2) becomes 1+2*1+2 = 5, not 9[0m
+[38;5;245m  #define SQUARE(x) x*x[0m
+[38;5;245m  [0m
+[38;5;245m  // Fix: parens around args AND around the whole expression[0m
+[38;5;245m  #define SQUARE(x) ((x)*(x))[0m
+[38;5;245m  [0m
+[38;5;245m  // Multi-statement: wrap in do-while(0) so it works in any context[0m
+[38;5;245m  #define LOG(msg) do { \[0m
+[38;5;245m      fprintf(stderr, "[%s:%d] %s\n", __FILE__, __LINE__, msg); \[0m
+[38;5;245m  } while (0)[0m
+[38;5;245m  [0m
+[38;5;245m  LOG("started");  // safe inside if/while/for without braces[0m
+
+[1mConditional compilation[0m
+
+[38;5;245m  #ifdef _WIN32[0m
+[38;5;245m      // Windows-only code[0m
+[38;5;245m  #elif defined(__linux__)[0m
+[38;5;245m      // Linux-only code[0m
+[38;5;245m  #endif[0m
+[38;5;245m  [0m
+[38;5;245m  #ifndef NDEBUG[0m
+[38;5;245m      printf("debug build\n");[0m
+[38;5;245m  #endif[0m
+[38;5;245m  [0m
+[38;5;245m  // Single-header library trick (see Barker's Way pattern)[0m
+[38;5;245m  #ifdef LIB_IMPLEMENTATION[0m
+[38;5;245m  /* function bodies go here */[0m
+[38;5;245m  #endif[0m
+
+[1mBuilt-in macros[0m
+
+[38;5;245m  printf("at %s:%d in %s\n", __FILE__, __LINE__, __func__);[0m
+[38;5;245m  // at main.c:42 in process_input[0m
+
+[1mStringify [38;5;215m`#`[0m and token paste [38;5;215m`##`[0m[0m
+
+[38;5;245m  #define STR(x)   #x            // turn arg into string literal[0m
+[38;5;245m  #define CAT(a,b) a##b          // glue two tokens[0m
+[38;5;245m  [0m
+[38;5;245m  printf("%s\n", STR(hello));   // prints: hello[0m
+[38;5;245m  int32_t CAT(my_, var) = 7;       // declares my_var[0m
+
+[1m[38;5;203mWARN[0m
+  Macros do text substitution, not function calls. They have no type checking
+  and side effects in arguments are evaluated more than once: [38;5;215m`SQUARE(i++)`[0m
+  increments [38;5;215m`i`[0m twice. Prefer [38;5;215m`static inline`[0m functions when you need
+  behaviour, not text.
+
+[1mPractice[0m
+
+Write a [38;5;215m`LOG_INFO(fmt, ...)`[0m macro that prefixes [38;5;215m`__FILE__:__LINE__`[0m and a
+[38;5;215m`SQUARE(x)`[0m that does NOT double-evaluate its arg (use a [38;5;215m`static inline`[0m
+function). Run [38;5;215m`clang -E your.c | tail -20`[0m and confirm [38;5;215m`LOG_INFO`[0m expanded with
+the file:line prefix you expected.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m18 Variadic Functions[0m
+[38;5;215m---------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  [38;5;215m`...`[0m takes a variable arg list, read with [38;5;215m`va_list`[0m. The function cannot tell
+  how many were passed. Wrap [38;5;215m`vprintf`[0m/[38;5;215m`vsnprintf`[0m; pass a count or sentinel.
+
+A variadic function takes a variable number of arguments. [38;5;215m`printf`[0m is the famous
+one. You almost never write new variadic functions in modern C; what you do
+write are [3mwrappers[23m around [38;5;215m`printf`[0m/[38;5;215m`vprintf`[0m for logging, formatting, error
+reporting.
+
+[1mCalling variadic functions[0m
+
+[38;5;245m  #include <stdio.h>[0m
+[38;5;245m  [0m
+[38;5;245m  printf("%s is %d\n", name, age);  // the format string is the discriminator[0m
+[38;5;245m  [0m
+[38;5;245m  // Format spec mismatches are silent UB. Enable -Wformat=2 -Werror.[0m
+
+[1m[38;5;203mWARN[0m
+  Mismatched format specifiers ([38;5;215m`%d`[0m vs [38;5;215m`%lld`[0m vs [38;5;215m`%zu`[0m) are undefined
+  behaviour. They will silently print garbage on platforms where the argument
+  width does not match the spec. [38;5;215m`-Wformat=2`[0m in your build catches almost all
+  of these at compile time.
+
+[1mWriting a wrapper[0m
+
+[38;5;245m  #include <stdarg.h>[0m
+[38;5;245m  #include <stdio.h>[0m
+[38;5;245m  [0m
+[38;5;245m  // Take a format string + ... and forward to vfprintf[0m
+[38;5;245m  void log_info(const char *fmt, ...) {[0m
+[38;5;245m      va_list ap;[0m
+[38;5;245m      va_start(ap, fmt);              // last named arg goes here[0m
+[38;5;245m      fprintf(stderr, "[info] ");[0m
+[38;5;245m      vfprintf(stderr, fmt, ap);     // the v-version takes a va_list[0m
+[38;5;245m      fprintf(stderr, "\n");[0m
+[38;5;245m      va_end(ap);                     // always end - paired with va_start[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  log_info("player %s scored %d", name, score);[0m
+
+[1m[38;5;176mRULE[0m
+  Always wrap [38;5;215m`vprintf`[0m/[38;5;215m`vsnprintf`[0m, not [38;5;215m`printf`[0m directly. The [38;5;215m`v`[0m-versions
+  accept the [38;5;215m`va_list`[0m you have already started; the non-[38;5;215m`v`[0m versions cannot.
+  Forgetting [38;5;215m`va_end`[0m is technically UB; on most ABIs it is a no-op, but write
+  it anyway.
+
+[1mFormat-string attribute (gcc / clang)[0m
+
+[38;5;245m  // Tell the compiler the 1st arg is a printf format and args start at 2[0m
+[38;5;245m  void log_info(const char *fmt, ...)[0m
+[38;5;245m      __attribute__((format(printf, 1, 2)));[0m
+
+With this attribute, your wrapper gets the same [38;5;215m`-Wformat=2`[0m checking that
+[38;5;215m`printf`[0m itself gets. Free bug prevention.
+
+[1mReading a [38;5;215m`va_list`[0m directly[0m
+
+[38;5;245m  // Sum a variable number of int32_t. Caller passes a -1 sentinel.[0m
+[38;5;245m  int32_t sum_until_neg1(int32_t first, ...) {[0m
+[38;5;245m      int32_t total = first;[0m
+[38;5;245m      va_list ap;[0m
+[38;5;245m      va_start(ap, first);[0m
+[38;5;245m      for (;;) {[0m
+[38;5;245m          int32_t n = va_arg(ap, int32_t);   // promotion rules apply[0m
+[38;5;245m          if (n == -1) break;[0m
+[38;5;245m          total += n;[0m
+[38;5;245m      }[0m
+[38;5;245m      va_end(ap);[0m
+[38;5;245m      return total;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;203mWARN[0m
+  There is no way to know how many arguments were passed - the function only
+  sees the format string or a sentinel value. Reading past the actual arguments
+  is undefined behaviour. Pass a count or a terminator and trust nothing else.
+
+[1mPromotion rules (the gotcha)[0m
+
+  - [38;5;215m`float`[0m arguments are promoted to [38;5;215m`double`[0m
+  - [38;5;215m`char`[0m, [38;5;215m`short`[0m, [38;5;215m`bool`[0m are promoted to [38;5;215m`int`[0m
+  - Pass them, but [38;5;215m`va_arg(ap, double)`[0m and [38;5;215m`va_arg(ap, int)`[0m respectively
+
+[1m[38;5;110mTIP[0m
+  Modern alternative: pass an array. [38;5;215m`void emit(size_t n, const Event *evs)`[0m
+  beats [38;5;215m`void emit(int dummy, ...)`[0m on every metric - type checking, no
+  promotion mess, no sentinel, easy to grow.
+
+[1mPractice[0m
+
+Write [38;5;215m`int32_t sum_n(int n, ...)`[0m that sums [38;5;215m`n`[0m [38;5;215m`int32_t`[0m args using [38;5;215m`va_list`[0m.
+Then write [38;5;215m`int32_t sum_until(int32_t first, ...)`[0m that stops at a [38;5;215m`-1`[0m
+sentinel. Print both totals and confirm they match for the same numbers.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m19 File I/O[0m
+[38;5;215m-----------[0m
+
+[1m[38;5;215mTL;DR[0m
+  [38;5;215m`fopen`[0m/[38;5;215m`fread`[0m/[38;5;215m`fwrite`[0m/[38;5;215m`fclose`[0m is 80% of C file I/O. Use [38;5;215m`"rb"`[0m/[38;5;215m`"wb"`[0m for
+  binary, especially on Windows. [38;5;215m`mmap`[0m only when you need zero-copy on big
+  files.
+
+The [38;5;215m`<stdio.h>`[0m stream API is the 80% of file I/O. [38;5;215m`fopen`[0m, read or write,
+[38;5;215m`fclose`[0m. For very large files or zero-copy workflows, drop down to [38;5;215m`mmap`[0m.
+
+[1mOpen, read, close[0m
+
+[38;5;245m  #include <stdio.h>[0m
+[38;5;245m  [0m
+[38;5;245m  FILE *f = fopen("data.bin", "rb");   // "rb" = read binary[0m
+[38;5;245m  if (!f) {[0m
+[38;5;245m      perror("data.bin");              // prints reason via errno[0m
+[38;5;245m      return -1;[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  uint8_t buf[4096];[0m
+[38;5;245m  size_t  n = fread(buf, 1, sizeof(buf), f);[0m
+[38;5;245m  // fread returns elements read; with size=1 you get bytes[0m
+[38;5;245m  [0m
+[38;5;245m  fclose(f);                          // must close on success AND failure paths[0m
+
+[1m[38;5;176mRULE[0m
+  [38;5;215m`fopen`[0m mode strings: [38;5;215m`"r"`[0m read, [38;5;215m`"w"`[0m create/truncate, [38;5;215m`"a"`[0m append, [38;5;215m`"r+"`[0m
+  read+write existing, [38;5;215m`"w+"`[0m create+read+write, suffix [38;5;215m`"b"`[0m for binary on
+  Windows. Always pass [38;5;215m`"b"`[0m in cross-platform code if you are not parsing text
+  - on Windows the non-binary mode rewrites [38;5;215m`\r\n`[0m to [38;5;215m`\n`[0m on read.
+
+[1mSlurp a whole file (the helper everyone re-writes)[0m
+
+[38;5;245m  // Reads file into a malloc'd buffer. Returns NULL on error.[0m
+[38;5;245m  // Caller frees with free().[0m
+[38;5;245m  uint8_t *slurp(const char *path, size_t *out_len) {[0m
+[38;5;245m      FILE *f = fopen(path, "rb");[0m
+[38;5;245m      if (!f) return NULL;[0m
+[38;5;245m  [0m
+[38;5;245m      fseek(f, 0, SEEK_END);[0m
+[38;5;245m      long sz = ftell(f);              // long, not size_t - C legacy[0m
+[38;5;245m      fseek(f, 0, SEEK_SET);[0m
+[38;5;245m      if (sz < 0) { fclose(f); return NULL; }[0m
+[38;5;245m  [0m
+[38;5;245m      uint8_t *buf = malloc((size_t)sz + 1);   // +1 for optional NUL[0m
+[38;5;245m      if (!buf) { fclose(f); return NULL; }[0m
+[38;5;245m  [0m
+[38;5;245m      size_t got = fread(buf, 1, (size_t)sz, f);[0m
+[38;5;245m      fclose(f);[0m
+[38;5;245m      if (got != (size_t)sz) { free(buf); return NULL; }[0m
+[38;5;245m  [0m
+[38;5;245m      buf[got] = '\0';                 // makes text usable as a C string[0m
+[38;5;245m      *out_len = got;[0m
+[38;5;245m      return buf;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`fseek`[0m/[38;5;215m`ftell`[0m can fail or report garbage on pipes, sockets, character
+  devices, and very large files (>2 GB on 32-bit [38;5;215m`long`[0m). For real production
+  code, prefer [38;5;215m`stat()`[0m for size or read in chunks until [38;5;215m`fread`[0m returns 0.
+
+[1mWriting[0m
+
+[38;5;245m  FILE *f = fopen("out.bin", "wb");[0m
+[38;5;245m  if (!f) return -1;[0m
+[38;5;245m  [0m
+[38;5;245m  const uint8_t data[] = { 0xDE, 0xAD, 0xBE, 0xEF };[0m
+[38;5;245m  size_t w = fwrite(data, 1, sizeof(data), f);[0m
+[38;5;245m  if (w != sizeof(data)) { /* short write - disk full? */ }[0m
+[38;5;245m  [0m
+[38;5;245m  fflush(f);                          // flush user-space buffer to OS[0m
+[38;5;245m  // fsync(fileno(f));                  // POSIX: flush OS buffer to disk[0m
+[38;5;245m  fclose(f);[0m
+
+[1mLine-oriented text[0m
+
+[38;5;245m  FILE *f = fopen("log.txt", "r");[0m
+[38;5;245m  char  line[512];[0m
+[38;5;245m  while (fgets(line, sizeof(line), f)) {[0m
+[38;5;245m      // fgets keeps the trailing \n if one fit; strip it if needed[0m
+[38;5;245m      size_t len = strlen(line);[0m
+[38;5;245m      if (len && line[len-1] == '\n') line[len-1] = '\0';[0m
+[38;5;245m      // process line[0m
+[38;5;245m  }[0m
+[38;5;245m  fclose(f);[0m
+
+[1m[38;5;203mWARN[0m
+  Never use [38;5;215m`gets()`[0m. It cannot bound its read and was removed from the
+  language. [38;5;215m`fgets(buf, sizeof(buf), f)`[0m is the safe replacement.
+
+[1mMemory-mapped files (POSIX)[0m
+
+[38;5;245m  #include <sys/mman.h>[0m
+[38;5;245m  #include <sys/stat.h>[0m
+[38;5;245m  #include <fcntl.h>[0m
+[38;5;245m  #include <unistd.h>[0m
+[38;5;245m  [0m
+[38;5;245m  int   fd = open("big.bin", O_RDONLY);[0m
+[38;5;245m  struct stat st;[0m
+[38;5;245m  fstat(fd, &st);[0m
+[38;5;245m  [0m
+[38;5;245m  const uint8_t *data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);[0m
+[38;5;245m  close(fd);                          // mmap keeps its own reference[0m
+[38;5;245m  [0m
+[38;5;245m  // access data[0..st.st_size-1] like a normal byte array[0m
+[38;5;245m  // no read syscalls - the OS pages in on demand[0m
+[38;5;245m  [0m
+[38;5;245m  munmap((void*)data, st.st_size);[0m
+
+[1m[38;5;110mTIP[0m
+  For read-mostly large files (assets, datasets, tokenizers), [38;5;215m`mmap`[0m is faster
+  and uses less RAM than reading: pages load on access and the OS reuses them
+  across processes. For small files or sequential streaming, [38;5;215m`fread`[0m is simpler
+  with no measurable cost.
+
+[1mErrors and [38;5;215m`errno`[0m[0m
+
+[38;5;245m  #include <errno.h>[0m
+[38;5;245m  #include <string.h>[0m
+[38;5;245m  [0m
+[38;5;245m  FILE *f = fopen(path, "r");[0m
+[38;5;245m  if (!f) {[0m
+[38;5;245m      fprintf(stderr, "open %s: %s\n", path, strerror(errno));[0m
+[38;5;245m      return -1;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;176mRULE[0m
+  [38;5;215m`errno`[0m is only meaningful immediately after a libc call has failed. Reading
+  it later (after a [38;5;215m`printf`[0m, even) gives stale data. Capture into a local
+  variable on the failure path.
+
+[1mPractice[0m
+
+Write [38;5;215m`uint8_t *slurp(const char *path, size_t *out_len)`[0m that reads a whole
+file into a malloc'd buffer (caller frees). Use it to count lines in a 10 MB log
+file. Verify against [38;5;215m`wc -l`[0m.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m20 Bit Manipulation[0m
+[38;5;215m-------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Five idioms cover the 80%: SET ([38;5;215m`|=`[0m), CLEAR ([38;5;215m`&= ~`[0m), TOGGLE ([38;5;215m`^=`[0m), TEST
+  ([38;5;215m`&`[0m), ASSIGN. Always use unsigned types - signed shifts and overflow are UB.
+
+Bits are how computers really store everything. C exposes them directly. Bit
+manipulation is unavoidable for flag sets, packed formats, hardware registers,
+fast lookup tables, hash mixers, and protocol headers.
+
+[1mThe operators[0m
+
+Op    [2m|[0m Meaning                                       [2m|[0m Example (8-bit)       
+[2m----  [2m+[0m --------------------------------------------  [2m+[0m ----------------------[0m
+[38;5;215m`&`[0m   [2m|[0m AND                                           [2m|[0m `0b1100 & 0b1010 = 0b…
+[38;5;215m`|`[0m   [2m|[0m OR                                            [2m|[0m `0b1100 | 0b1010 = 0b…
+[38;5;215m`^`[0m   [2m|[0m XOR                                           [2m|[0m `0b1100 ^ 0b1010 = 0b…
+[38;5;215m`~`[0m   [2m|[0m NOT                                           [2m|[0m [38;5;215m`~0b1100 = 0b...0011`[0m 
+[38;5;215m`<<`[0m  [2m|[0m shift left (zero-fill)                        [2m|[0m [38;5;215m`1 << 3 = 0b1000`[0m     
+[38;5;215m`>>`[0m  [2m|[0m shift right (signed: arithmetic; unsigned: …  [2m|[0m [38;5;215m`0b1000 >> 2 = 0b0010`[0m
+
+[1mThe five idioms you actually use[0m
+
+[38;5;245m  uint32_t x = 0;[0m
+[38;5;245m  uint32_t bit = 1u << 5;        // pick which bit (5 = position)[0m
+[38;5;245m  [0m
+[38;5;245m  x |=  bit;                       // SET[0m
+[38;5;245m  x &= ~bit;                       // CLEAR[0m
+[38;5;245m  x ^=  bit;                       // TOGGLE[0m
+[38;5;245m  if (x & bit) { /* set */ }       // TEST[0m
+[38;5;245m  [0m
+[38;5;245m  x = (x & ~bit) | (val ? bit : 0);  // ASSIGN to value of `val`[0m
+
+[1m[38;5;176mRULE[0m
+  Always use [1munsigned[22m for bit work. Signed shifts of negative values are
+  implementation-defined; signed overflow is UB. [38;5;215m`uint32_t`[0m, [38;5;215m`uint64_t`[0m,
+  [38;5;215m`uintptr_t`[0m are your friends here.
+
+[1mMasks and packing[0m
+
+[38;5;245m  // Pack r,g,b,a into a single 32-bit word[0m
+[38;5;245m  uint32_t rgba = ((uint32_t)r << 24)[0m
+[38;5;245m                | ((uint32_t)g << 16)[0m
+[38;5;245m                | ((uint32_t)b <<  8)[0m
+[38;5;245m                | ((uint32_t)a);[0m
+[38;5;245m  [0m
+[38;5;245m  // Unpack[0m
+[38;5;245m  uint8_t rr = (rgba >> 24) & 0xFF;[0m
+[38;5;245m  uint8_t gg = (rgba >> 16) & 0xFF;[0m
+[38;5;245m  uint8_t bb = (rgba >>  8) & 0xFF;[0m
+[38;5;245m  uint8_t aa =  rgba        & 0xFF;[0m
+
+[1m[38;5;110mTIP[0m
+  Cast to the wide type [3mbefore[23m shifting. [38;5;215m`r << 24`[0m shifts a [38;5;215m`uint8_t`[0m, which has
+  been promoted to [38;5;215m`int`[0m; on a 32-bit [38;5;215m`int`[0m platform with [38;5;215m`r >= 0x80`[0m this
+  becomes signed-overflow UB. [38;5;215m`(uint32_t)r << 24`[0m is always safe.
+
+[1mPower-of-two tricks[0m
+
+[38;5;245m  // Is x a power of two? (also true for 0 - usually want to exclude)[0m
+[38;5;245m  int is_pow2(uint64_t x) { return x && !(x & (x - 1)); }[0m
+[38;5;245m  [0m
+[38;5;245m  // Round up to next power of two (x must be > 0 and fit)[0m
+[38;5;245m  uint64_t next_pow2(uint64_t x) {[0m
+[38;5;245m      x--;[0m
+[38;5;245m      x |= x >>  1; x |= x >>  2; x |= x >>  4;[0m
+[38;5;245m      x |= x >>  8; x |= x >> 16; x |= x >> 32;[0m
+[38;5;245m      return x + 1;[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  // Modulo by a power-of-two: cheap mask, no division[0m
+[38;5;245m  uint64_t idx = hash & (cap - 1);    // only correct when cap is a power of 2[0m
+[38;5;245m  [0m
+[38;5;245m  // Align UP to power-of-two boundary[0m
+[38;5;245m  uintptr_t aligned = (addr + (align - 1)) & ~(align - 1);[0m
+
+[1mBuiltins (gcc / clang)[0m
+
+[38;5;245m  __builtin_popcountll(x);   // number of 1 bits[0m
+[38;5;245m  __builtin_clzll(x);         // count leading zeros (UB for x==0!)[0m
+[38;5;245m  __builtin_ctzll(x);         // count trailing zeros (UB for x==0!)[0m
+[38;5;245m  __builtin_bswap64(x);       // byte-reverse (endian flip)[0m
+
+C23 standardizes these as [38;5;215m`stdc_popcount`[0m, [38;5;215m`stdc_leading_zeros`[0m, etc., in
+[38;5;215m`<stdbit.h>`[0m. Until C23 lands everywhere, the [38;5;215m`__builtin_`[0m versions are the
+portable-enough form for gcc and clang.
+
+[1mEndianness[0m
+
+[38;5;245m  // Read a big-endian (network order) 32-bit value safely - no aliasing tricks[0m
+[38;5;245m  uint32_t read_be32(const uint8_t *p) {[0m
+[38;5;245m      return ((uint32_t)p[0] << 24)[0m
+[38;5;245m           | ((uint32_t)p[1] << 16)[0m
+[38;5;245m           | ((uint32_t)p[2] <<  8)[0m
+[38;5;245m           | ((uint32_t)p[3]);[0m
+[38;5;245m  }[0m
+
+[1m[38;5;203mWARN[0m
+  Do not [38;5;215m`memcpy`[0m a [38;5;215m`uint32_t`[0m from a buffer and assume host order matches
+  file/network order. Always parse byte-by-byte (above) or use explicit
+  byte-swap. Both x86 and ARM default to little-endian today, but disk formats
+  and protocols are often big-endian.
+
+[1m[38;5;176mRULE[0m
+  Bit fields ([38;5;215m`uint32_t flags : 4;`[0m inside structs) are tempting for protocol
+  headers but their layout is implementation-defined - bit order, padding,
+  signedness all vary. Do the masking by hand for portability.
+
+[1mPractice[0m
+
+Write [38;5;215m`set_bit`[0m, [38;5;215m`clear_bit`[0m, [38;5;215m`toggle_bit`[0m, [38;5;215m`test_bit`[0m for [38;5;215m`uint32_t`[0m. Then
+write [38;5;215m`pack_rgba(r,g,b,a) -> uint32_t`[0m and [38;5;215m`unpack_rgba(u, *r,*g,*b,*a)`[0m.
+Round-trip 5 random pixels and assert equality.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m21 Standard Library Survival Kit[0m
+[38;5;215m--------------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Small but uneven. Five headers cover 90%: [38;5;215m`stdint`[0m, [38;5;215m`stddef`[0m, [38;5;215m`stdbool`[0m,
+  [38;5;215m`string`[0m, [38;5;215m`stdio`[0m. Use [38;5;215m`snprintf`[0m/[38;5;215m`fgets`[0m/[38;5;215m`strtol`[0m; avoid
+  [38;5;215m`sprintf`[0m/[38;5;215m`gets`[0m/[38;5;215m`atoi`[0m.
+
+The C standard library is small but uneven. Some functions are essential, some
+are obsolete, a few are actively dangerous. This is a per-header guide to what's
+worth using.
+
+[1m[38;5;215m`<stdio.h>`[0m - I/O[0m
+
+Use                        [2m|[0m Avoid  [2m|[0m Why                                   
+[2m-------------------------  [2m+[0m -----  [2m+[0m --------------------------------------[0m
+[38;5;215m`printf`[0m / [38;5;215m`fprintf`[0m       [2m|[0m -      [2m|[0m Always with [38;5;215m`-Wformat=2`[0m.             
+[38;5;215m`snprintf`[0m                 [2m|[0m `spr…  [2m|[0m `sprintf` cannot bound its output - c…
+[38;5;215m`fgets`[0m                    [2m|[0m `get…  [2m|[0m `gets` was removed from C11 - it cann…
+`fopen` / `fread` / `fwr…  [2m|[0m -      [2m|[0m The 80% file API.                     
+`perror` / `strerror(err…  [2m|[0m -      [2m|[0m Human-readable error from libc.       
+
+[1m[38;5;215m`<stdlib.h>`[0m - allocation, conversion, exit[0m
+
+Use                     [2m|[0m Avoid        [2m|[0m Why                                
+[2m----------------------  [2m+[0m -----------  [2m+[0m -----------------------------------[0m
+`malloc` / `calloc` /…  [2m|[0m -            [2m|[0m Always check the return.           
+`strtol` / `strtoll` …  [2m|[0m `atoi` / `…  [2m|[0m `atoi` has no error reporting and …
+[38;5;215m`qsort`[0m / [38;5;215m`bsearch`[0m     [2m|[0m -            [2m|[0m Slow but portable; for hot loops, …
+`exit` / `EXIT_SUCCES…  [2m|[0m `abort` in…  [2m|[0m `abort` skips destructors / atexit…
+[38;5;215m`getenv`[0m                [2m|[0m -            [2m|[0m Read-only env access; do not modif…
+
+[1m[38;5;215m`<string.h>`[0m - bytes and C strings[0m
+
+Use                    [2m|[0m Avoid             [2m|[0m Why                             
+[2m---------------------  [2m+[0m ----------------  [2m+[0m --------------------------------[0m
+`memcpy` / `memmove`…  [2m|[0m -                 [2m|[0m Foundational. `memmove` for ove…
+`strlen` / `strcmp` …  [2m|[0m -                 [2m|[0m Read-only string ops, well beha…
+[38;5;215m`snprintf`[0m             [2m|[0m `strcpy` / `str…  [2m|[0m `strncpy` does NOT NUL-terminat…
+[38;5;215m`strerror`[0m             [2m|[0m `strerror_r` po…  [2m|[0m `strerror_r` has two incompatib…
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`strncpy`[0m looks safe but is not a string function: it is a fixed-width field
+  copier. If [38;5;215m`src`[0m is longer than [38;5;215m`n`[0m there is no NUL terminator; if [38;5;215m`src`[0m is
+  shorter, the entire remaining buffer is filled with NULs. Use [38;5;215m`snprintf(dst,
+  n, "%s", src)`[0m instead.
+
+[1m[38;5;215m`<math.h>`[0m[0m
+
+[38;5;215m`sqrt`[0m, [38;5;215m`sin`[0m, [38;5;215m`cos`[0m, [38;5;215m`fabs`[0m, [38;5;215m`floor`[0m, [38;5;215m`ceil`[0m, [38;5;215m`pow`[0m, [38;5;215m`fmod`[0m. Plus [38;5;215m`INFINITY`[0m,
+[38;5;215m`NAN`[0m, [38;5;215m`M_PI`[0m (POSIX). Add [38;5;215m`-lm`[0m to the link line on Linux.
+
+[38;5;245m  double r = sqrt(x);[0m
+[38;5;245m  if (isnan(r) || isinf(r)) { /* handle bad input */ }[0m
+
+[1m[38;5;215m`<time.h>`[0m[0m
+
+Use                                  [2m|[0m Why                                  
+[2m-----------------------------------  [2m+[0m -------------------------------------[0m
+`clock_gettime(CLOCK_MONOTONIC, &t…  [2m|[0m Wall-clock-immune timing for benchma…
+[38;5;215m`time(NULL)`[0m                         [2m|[0m Seconds since epoch. Cheap timestamp…
+[38;5;215m`strftime`[0m                           [2m|[0m Format a struct tm into a string.    
+
+[38;5;245m  struct timespec a, b;[0m
+[38;5;245m  clock_gettime(CLOCK_MONOTONIC, &a);[0m
+[38;5;245m  work();[0m
+[38;5;245m  clock_gettime(CLOCK_MONOTONIC, &b);[0m
+[38;5;245m  double ms = (b.tv_sec - a.tv_sec) * 1e3[0m
+[38;5;245m            + (b.tv_nsec - a.tv_nsec) / 1e6;[0m
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`clock()`[0m measures CPU time, not wall time. It is rarely what you want for
+  benchmarks. [38;5;215m`time()`[0m has 1-second resolution. [38;5;215m`clock_gettime(CLOCK_MONOTONIC,
+  ...)`[0m is the right answer 95% of the time.
+
+[1m[38;5;215m`<ctype.h>`[0m - single-byte character predicates[0m
+
+[38;5;215m`isspace`[0m, [38;5;215m`isdigit`[0m, [38;5;215m`isalpha`[0m, [38;5;215m`isalnum`[0m, [38;5;215m`tolower`[0m, [38;5;215m`toupper`[0m. All take an
+[38;5;215m`int`[0m; pass [38;5;215m`(unsigned char)c`[0m, never a raw [38;5;215m`char`[0m:
+
+[38;5;245m  if (isspace((unsigned char)c)) { /* ... */ }   // avoid sign-extension UB[0m
+
+[1m[38;5;215m`<errno.h>`[0m[0m
+
+Just [38;5;215m`errno`[0m + the [38;5;215m`E*`[0m error codes. Use [38;5;215m`strerror(errno)`[0m for messages. See
+File I/O for usage rules.
+
+[1mWhat to skip[0m
+
+  - [38;5;215m`setjmp`[0m / [38;5;215m`longjmp`[0m - non-local goto, bypasses cleanup, almost never the
+    right answer
+  - [38;5;215m`signal()`[0m - older, less reliable than POSIX [38;5;215m`sigaction`[0m
+  - [38;5;215m`rand`[0m / [38;5;215m`srand`[0m - low quality; use a real PRNG (xoshiro, PCG, etc.)
+  - [38;5;215m`tmpnam`[0m / [38;5;215m`mktemp`[0m - race conditions; use [38;5;215m`mkstemp`[0m instead
+  - Wide-char functions ([38;5;215m`wcsxxx`[0m, [38;5;215m`mbstowcs`[0m) unless you know you need them
+
+[1m[38;5;176mRULE[0m
+  Five headers cover 90% of real C code: [38;5;215m`stdint.h`[0m, [38;5;215m`stddef.h`[0m, [38;5;215m`stdbool.h`[0m,
+  [38;5;215m`string.h`[0m, [38;5;215m`stdio.h`[0m. Pull in [38;5;215m`stdlib.h`[0m when you allocate, [38;5;215m`math.h`[0m when you
+  compute, [38;5;215m`time.h`[0m when you measure.
+
+[1mPractice[0m
+
+Take a string [38;5;215m`"  -42abc"`[0m. Parse it with [38;5;215m`strtol`[0m, check [38;5;215m`endptr`[0m and [38;5;215m`errno`[0m
+to detect partial-parse and overflow. Print the parsed number, the remaining
+string, and an OK/error verdict.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m22 main / argv / signals[0m
+[38;5;215m------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Two valid [38;5;215m`main`[0m signatures. [38;5;215m`argv[argc]`[0m is [38;5;215m`NULL`[0m (you can iterate without
+  [38;5;215m`argc`[0m). Exit code 0 = success, 1-255 = failure. Signal handlers only set
+  [38;5;215m`volatile sig_atomic_t`[0m flags.
+
+Every C program starts at [38;5;215m`main`[0m. The OS hands you arguments, an environment,
+and a way to send the program signals. This section is the survival kit for
+entry points.
+
+[1mThe two valid signatures[0m
+
+[38;5;245m  int main(void);                              // no args needed[0m
+[38;5;245m  int main(int argc, char **argv);             // or argv[][0m
+[38;5;245m  [0m
+[38;5;245m  // Some platforms also accept env as a third arg, but it is non-standard:[0m
+[38;5;245m  // int main(int argc, char **argv, char **envp);[0m
+
+[38;5;215m`argv[0]`[0m is the program name (often the path used to invoke). [38;5;215m`argv[argc]`[0m is
+guaranteed to be [38;5;215m`NULL`[0m - you can iterate without a counter.
+
+[38;5;245m  int main(int argc, char **argv) {[0m
+[38;5;245m      for (int i = 1; i < argc; i++) {[0m
+[38;5;245m          printf("arg %d: %s\n", i, argv[i]);[0m
+[38;5;245m      }[0m
+[38;5;245m      return EXIT_SUCCESS;   // 0 = ok, non-zero = failure[0m
+[38;5;245m  }[0m
+
+[1mExit codes[0m
+
+  - [38;5;215m`0`[0m / [38;5;215m`EXIT_SUCCESS`[0m - success
+  - [38;5;215m`1`[0m / [38;5;215m`EXIT_FAILURE`[0m - generic failure
+  - [38;5;215m`2`[0m - usage error (convention used by many CLI tools)
+  - [38;5;215m`64-78`[0m - [38;5;215m`sysexits.h`[0m conventions on BSD/macOS
+  - Shells truncate to 8 bits - exit codes 0-255 are portable; outside is
+    platform-defined
+
+[1mArgument parsing - hand rolled[0m
+
+[38;5;245m  typedef struct {[0m
+[38;5;245m      const char *input;[0m
+[38;5;245m      int32_t     workers;[0m
+[38;5;245m      bool        verbose;[0m
+[38;5;245m  } Args;[0m
+[38;5;245m  [0m
+[38;5;245m  bool parse_args(int argc, char **argv, Args *out) {[0m
+[38;5;245m      *out = (Args){ .workers = 1 };[0m
+[38;5;245m      for (int i = 1; i < argc; i++) {[0m
+[38;5;245m          const char *a = argv[i];[0m
+[38;5;245m          if      (strcmp(a, "-v") == 0) out->verbose = true;[0m
+[38;5;245m          else if (strcmp(a, "-w") == 0 && i + 1 < argc)[0m
+[38;5;245m              out->workers = atoi(argv[++i]);     // strtol in real code[0m
+[38;5;245m          else if (a[0] != '-') out->input = a;[0m
+[38;5;245m          else    return false;[0m
+[38;5;245m      }[0m
+[38;5;245m      return out->input != NULL;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;110mTIP[0m
+  For anything more complex than a flag and a path, use [38;5;215m`getopt`[0m (POSIX) or
+  vendor a small parser. Hand-rolled is fine until you need [38;5;215m`--long`[0m options or
+  argument bundling like [38;5;215m`-vvv`[0m.
+
+[1m[38;5;215m`getopt`[0m - the POSIX standard[0m
+
+[38;5;245m  #include <unistd.h>[0m
+[38;5;245m  [0m
+[38;5;245m  int opt;[0m
+[38;5;245m  while ((opt = getopt(argc, argv, "vw:o:")) != -1) {[0m
+[38;5;245m      switch (opt) {[0m
+[38;5;245m      case 'v': verbose = true;             break;[0m
+[38;5;245m      case 'w': workers = atoi(optarg);     break;     // "w:" means takes arg[0m
+[38;5;245m      case 'o': output  = optarg;            break;[0m
+[38;5;245m      default: return 2;                    // usage error[0m
+[38;5;245m      }[0m
+[38;5;245m  }[0m
+[38;5;245m  // argv[optind .. argc-1] are the positional args[0m
+
+[1mEnvironment variables[0m
+
+[38;5;245m  const char *home = getenv("HOME");   // NULL if unset[0m
+[38;5;245m  if (!home) home = "/tmp";[0m
+
+[1m[38;5;203mWARN[0m
+  [38;5;215m`getenv`[0m returns a pointer into a process-wide buffer. Do not free it. Do not
+  assume it survives a [38;5;215m`setenv`[0m call. If you need it long-term, copy the string.
+
+[1mSignals (the 80%)[0m
+
+[38;5;245m  #include <signal.h>[0m
+[38;5;245m  [0m
+[38;5;245m  static volatile sig_atomic_t g_stop = 0;[0m
+[38;5;245m  [0m
+[38;5;245m  static void on_sigint(int sig) {[0m
+[38;5;245m      (void)sig;[0m
+[38;5;245m      g_stop = 1;        // only async-signal-safe ops allowed here[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  int main(void) {[0m
+[38;5;245m      signal(SIGINT,  on_sigint);[0m
+[38;5;245m      signal(SIGTERM, on_sigint);[0m
+[38;5;245m  [0m
+[38;5;245m      while (!g_stop) {[0m
+[38;5;245m          // main loop - polls flag[0m
+[38;5;245m      }[0m
+[38;5;245m      return EXIT_SUCCESS;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;176mRULE[0m
+  Inside a signal handler you may only set [38;5;215m`volatile sig_atomic_t`[0m flags and
+  call a tiny set of "async-signal-safe" functions. [38;5;215m`printf`[0m, [38;5;215m`malloc`[0m,
+  [38;5;215m`fprintf`[0m are not safe. The portable design is "set a flag, return; the main
+  loop checks it".
+
+[1mThe signals you'll meet[0m
+
+Signal     [2m|[0m When                             [2m|[0m Default                
+[2m---------  [2m+[0m -------------------------------  [2m+[0m -----------------------[0m
+[38;5;215m`SIGINT`[0m   [2m|[0m Ctrl-C                           [2m|[0m Terminate              
+[38;5;215m`SIGTERM`[0m  [2m|[0m [38;5;215m`kill pid`[0m from a script         [2m|[0m Terminate              
+[38;5;215m`SIGSEGV`[0m  [2m|[0m Bad memory access                [2m|[0m Core dump              
+[38;5;215m`SIGABRT`[0m  [2m|[0m From [38;5;215m`abort()`[0m / failed assert   [2m|[0m Core dump              
+[38;5;215m`SIGPIPE`[0m  [2m|[0m Write to a closed pipe / socket  [2m|[0m Terminate              
+[38;5;215m`SIGKILL`[0m  [2m|[0m [38;5;215m`kill -9`[0m                        [2m|[0m Terminate (uncatchable)
+
+[1m[38;5;110mTIP[0m
+  Long-running daemons usually catch [38;5;215m`SIGINT`[0m+[38;5;215m`SIGTERM`[0m for clean shutdown and
+  ignore [38;5;215m`SIGPIPE`[0m (set the disposition to [38;5;215m`SIG_IGN`[0m) so a closed connection
+  returns [38;5;215m`EPIPE`[0m from [38;5;215m`write()`[0m instead of killing the process.
+
+[1mPractice[0m
+
+Write a tiny [38;5;215m`cat`[0m that takes filenames in argv and prints each file's contents.
+Install a [38;5;215m`SIGINT`[0m handler that sets a [38;5;215m`volatile sig_atomic_t stop = 1`[0m flag;
+check it between files and break out cleanly with [38;5;215m`"got SIGINT, exiting\n"`[0m.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m23 Concurrency Primer[0m
+[38;5;215m---------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Spawn threads with [38;5;215m`pthread_create`[0m, join with [38;5;215m`pthread_join`[0m. Protect shared
+  state with a mutex, use atomics for flags and counters. Build with
+  [38;5;215m`-fsanitize=thread`[0m.
+
+Threads let independent work run on independent cores. The C11 standard provides
+[38;5;215m`<threads.h>`[0m; in practice most code targets POSIX [38;5;215m`pthread.h`[0m on Linux/macOS
+and Win32 threads on Windows. The 80% you need is: spawn a thread, join it,
+protect shared state with a mutex, communicate small flags with atomics.
+
+[1mPOSIX threads (the de-facto standard)[0m
+
+[38;5;245m  #include <pthread.h>[0m
+[38;5;245m  [0m
+[38;5;245m  static void *worker(void *arg) {[0m
+[38;5;245m      int32_t id = *(int32_t*)arg;[0m
+[38;5;245m      printf("hello from %d\n", id);[0m
+[38;5;245m      return NULL;       // or any void* you want join() to receive[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  int main(void) {[0m
+[38;5;245m      enum { N = 4 };[0m
+[38;5;245m      pthread_t th[N];[0m
+[38;5;245m      int32_t   ids[N];[0m
+[38;5;245m  [0m
+[38;5;245m      for (int32_t i = 0; i < N; i++) {[0m
+[38;5;245m          ids[i] = i;[0m
+[38;5;245m          pthread_create(&th[i], NULL, worker, &ids[i]);[0m
+[38;5;245m      }[0m
+[38;5;245m      for (int32_t i = 0; i < N; i++) {[0m
+[38;5;245m          pthread_join(th[i], NULL);[0m
+[38;5;245m      }[0m
+[38;5;245m  }[0m
+[38;5;245m  // link with -lpthread (Linux); built-in on macOS[0m
+
+[1m[38;5;203mWARN[0m
+  Each thread argument must be valid for the lifetime of the thread. Passing
+  [38;5;215m`&i`[0m from a loop counter to multiple threads is a classic bug - by the time
+  the thread reads [38;5;215m`i`[0m, it has been incremented. Pass distinct addresses
+  ([38;5;215m`&ids[i]`[0m) or copy by value into a small struct per thread.
+
+[1mMutex - protect shared state[0m
+
+[38;5;245m  static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;[0m
+[38;5;245m  static int64_t          g_total = 0;[0m
+[38;5;245m  [0m
+[38;5;245m  static void *add_some(void *arg) {[0m
+[38;5;245m      for (int i = 0; i < 10000; i++) {[0m
+[38;5;245m          pthread_mutex_lock(&g_mu);[0m
+[38;5;245m          g_total += 1;[0m
+[38;5;245m          pthread_mutex_unlock(&g_mu);[0m
+[38;5;245m      }[0m
+[38;5;245m      (void)arg; return NULL;[0m
+[38;5;245m  }[0m
+
+[1m[38;5;176mRULE[0m
+  Lock the smallest possible region. Hold a mutex while computing a slow result
+  and you have serialized your program. Compute first, lock just to publish the
+  result.
+
+[1mAtomics (C11) - lock-free flags and counters[0m
+
+[38;5;245m  #include <stdatomic.h>[0m
+[38;5;245m  [0m
+[38;5;245m  static atomic_int g_running = 1;[0m
+[38;5;245m  [0m
+[38;5;245m  while (atomic_load(&g_running)) {[0m
+[38;5;245m      // hot loop reads the flag[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  // Another thread:[0m
+[38;5;245m  atomic_store(&g_running, 0);[0m
+[38;5;245m  [0m
+[38;5;245m  // Atomic counters[0m
+[38;5;245m  static atomic_uint64 g_count = 0;[0m
+[38;5;245m  atomic_fetch_add(&g_count, 1);   // returns previous value[0m
+
+Atomics give you small thread-safe values without the overhead of a mutex. They
+are the right tool for "running" flags, reference counts, ID generators, and
+similar shared scalars.
+
+[1m[38;5;203mWARN[0m
+  Atomic does [3mnot[23m mean "thread-safe by magic". Atomics protect a single
+  load/store; correctness still depends on getting the algorithm right. [38;5;215m`v++`[0m on
+  a non-atomic shared int is a data race even if you "expect it to be fast
+  enough" - data races are undefined behaviour.
+
+[1mMemory order, briefly[0m
+
+[38;5;215m`atomic_load(p)`[0m defaults to [38;5;215m`memory_order_seq_cst`[0m - the strongest, most
+expensive ordering. It is also the only ordering you should use until you have
+benchmarked, profiled, and decided the lock-free pattern is worth the
+complexity.
+
+[1m[38;5;176mRULE[0m
+  Default to mutexes for shared state, [38;5;215m`memory_order_seq_cst`[0m atomics for shared
+  flags and counters, and message passing (one writer per queue) for everything
+  else. Lock-free queues, RCU, hazard pointers, weakly ordered atomics - all
+  real, all out of scope for the 80%.
+
+[1mThread-local storage[0m
+
+[38;5;245m  // C11 keyword - per-thread copy of the variable[0m
+[38;5;245m  static _Thread_local char g_buf[256];   // or `thread_local` from <threads.h>[0m
+
+Useful for per-thread scratch buffers, RNG state, profiling counters - anything
+you want zero-contention access to.
+
+[1mCommon bugs[0m
+
+  - [1mData race[22m: two threads access the same memory, one writes, no
+    synchronization. UB. Use a mutex or atomic.
+  - [1mDeadlock[22m: A locks [38;5;215m`x`[0m, B locks [38;5;215m`y`[0m, A waits on [38;5;215m`y`[0m, B waits on [38;5;215m`x`[0m. Always
+    lock multiple mutexes in a fixed global order.
+  - [1mForgot to join[22m: returning from [38;5;215m`main`[0m with non-detached threads still
+    running is UB. [38;5;215m`pthread_join`[0m all of them or call [38;5;215m`pthread_detach`[0m if you
+    don't care about the result.
+  - [1mStack-passed pointers[22m: passing [38;5;215m`&local`[0m to a thread that outlives the
+    function is a use-after-return.
+
+[1m[38;5;110mTIP[0m
+  Build threaded code with [38;5;215m`-fsanitize=thread`[0m (ThreadSanitizer). It instruments
+  every load and store and reports data races at runtime with both stacks. Like
+  ASan for memory bugs, but for races - completely worth the slowdown during
+  development.
+
+[1mPractice[0m
+
+Spawn 4 threads each incrementing a shared [38;5;215m`int64_t total`[0m 250,000 times
+(target: 1,000,000). Run once unprotected under [38;5;215m`-fsanitize=thread`[0m (TSan
+reports a data race), then with a [38;5;215m`pthread_mutex_t`[0m (clean run, total ==
+1,000,000).
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m24 Testing[0m
+[38;5;215m----------[0m
+
+[1m[38;5;215mTL;DR[0m
+  A C test binary returns 0 on pass, non-zero on fail. [38;5;215m`assert.h`[0m plus
+  sanitizers covers 80%. Add a 40-line test helper ([38;5;215m`EXPECT_EQ`[0m/[38;5;215m`RUN`[0m/[38;5;215m`REPORT`[0m)
+  before reaching for any framework.
+
+C has no built-in test framework. The good news is you don't need one for the
+80%: a single [38;5;215m`tests.c`[0m file plus [38;5;215m`assert.h`[0m plus the sanitizers from §02 covers
+most of what you actually want. Frameworks like CMocka, Unity, and Criterion
+exist for the remaining 20%.
+
+[1mThe minimum viable test[0m
+
+[38;5;245m  // tests.c[0m
+[38;5;245m  #include <assert.h>[0m
+[38;5;245m  #include <stdio.h>[0m
+[38;5;245m  #include "mylib.h"[0m
+[38;5;245m  [0m
+[38;5;245m  static void test_add(void) {[0m
+[38;5;245m      assert(add(2, 3) == 5);[0m
+[38;5;245m      assert(add(-1, 1) == 0);[0m
+[38;5;245m      assert(add(0, 0) == 0);[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  static void test_strings(void) {[0m
+[38;5;245m      assert(strcmp("hi", "hi") == 0);[0m
+[38;5;245m      assert(strcmp("a",  "b")  < 0);[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  int main(void) {[0m
+[38;5;245m      test_add();[0m
+[38;5;245m      test_strings();[0m
+[38;5;245m      printf("all tests passed\n");[0m
+[38;5;245m      return 0;[0m
+[38;5;245m  }[0m
+
+Build it with the same flags as production plus the sanitizers:
+
+[38;5;245m  clang -std=c99 -g -O0 -Wall -Wextra -Werror \[0m
+[38;5;245m        -fsanitize=address,undefined \[0m
+[38;5;245m        tests.c mylib.c -o tests[0m
+[38;5;245m  ./tests   # exits 0 on success, non-zero on failure[0m
+
+[1m[38;5;176mRULE[0m
+  A C test binary is just a program that returns [38;5;215m`0`[0m on success and non-zero on
+  failure. There is nothing to install. [38;5;215m`make test`[0m is "build it and run it" -
+  any CI knows how to handle that.
+
+[1mA small in-house test runner[0m
+
+[38;5;245m  // test_helper.h - drop in any project[0m
+[38;5;245m  #pragma once[0m
+[38;5;245m  #include <stdio.h>[0m
+[38;5;245m  #include <stdlib.h>[0m
+[38;5;245m  [0m
+[38;5;245m  static int32_t g_pass = 0, g_fail = 0;[0m
+[38;5;245m  [0m
+[38;5;245m  #define EXPECT(cond) do {                                       \[0m
+[38;5;245m      if (cond) g_pass++;                                         \[0m
+[38;5;245m      else { g_fail++; fprintf(stderr,                            \[0m
+[38;5;245m          "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); }       \[0m
+[38;5;245m  } while (0)[0m
+[38;5;245m  [0m
+[38;5;245m  #define EXPECT_EQ(a, b) EXPECT((a) == (b))[0m
+[38;5;245m  #define EXPECT_NE(a, b) EXPECT((a) != (b))[0m
+[38;5;245m  #define EXPECT_STR_EQ(a, b) EXPECT(strcmp((a), (b)) == 0)[0m
+[38;5;245m  [0m
+[38;5;245m  #define RUN(name) do { fprintf(stderr, "running %s\n", #name); name(); } while (0)[0m
+[38;5;245m  [0m
+[38;5;245m  #define REPORT() do {                                           \[0m
+[38;5;245m      fprintf(stderr, "%d passed, %d failed\n", g_pass, g_fail);  \[0m
+[38;5;245m      return g_fail ? 1 : 0;                                      \[0m
+[38;5;245m  } while (0)[0m
+
+[38;5;245m  // tests.c[0m
+[38;5;245m  #include "test_helper.h"[0m
+[38;5;245m  #include "mylib.h"[0m
+[38;5;245m  [0m
+[38;5;245m  static void test_add(void) {[0m
+[38;5;245m      EXPECT_EQ(add(2, 3), 5);[0m
+[38;5;245m      EXPECT_EQ(add(-1, 1), 0);[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  int main(void) {[0m
+[38;5;245m      RUN(test_add);[0m
+[38;5;245m      REPORT();[0m
+[38;5;245m  }[0m
+
+Forty lines of header gives you per-line failure reporting, a pass/fail summary,
+and a sensible exit code. No dependency, no install, no framework lock-in.
+
+[1mSanitizers ARE the test suite[0m
+
+For pure-C code, the most valuable test is "did anything trip ASan or UBSan?" A
+test that exercises a code path under sanitizers catches:
+
+  - Heap and stack out-of-bounds reads/writes
+  - Use-after-free, double-free, leaks (ASan)
+  - Signed overflow, shift overflow, alignment violations (UBSan)
+  - NULL pointer dereferences in instrumented code
+
+[1m[38;5;176mRULE[0m
+  Run your test binary under [38;5;215m`ASAN_OPTIONS=detect_leaks=1
+  UBSAN_OPTIONS=halt_on_error=1 ./tests`[0m. A passing test under sanitizers is
+  dramatically stronger than the same test run on a plain release build.
+
+[1m[38;5;215m`assert`[0m in production code[0m
+
+[38;5;245m  #include <assert.h>[0m
+[38;5;245m  [0m
+[38;5;245m  void draw_pixel(Image *img, int32_t x, int32_t y) {[0m
+[38;5;245m      assert(img != NULL);[0m
+[38;5;245m      assert(x >= 0 && x < img->w);[0m
+[38;5;245m      assert(y >= 0 && y < img->h);[0m
+[38;5;245m      // ... safe to access[0m
+[38;5;245m  }[0m
+
+[38;5;215m`assert`[0m aborts the program on failure with a useful message and stack. In
+release builds ([38;5;215m`-DNDEBUG`[0m) it disappears entirely - zero cost. Sprinkle it
+through any function that has invariants. Tests are how you make sure asserts
+don't fire on real input.
+
+[1m[38;5;203mWARN[0m
+  An [38;5;215m`assert`[0m with a side effect disappears in release: [38;5;215m`assert(do_thing() ==
+  0)`[0m stops calling [38;5;215m`do_thing`[0m. Always put pure expressions inside [38;5;215m`assert`[0m.
+
+[1mProperty-based / fuzz testing[0m
+
+Property tests assert relationships rather than exact outputs ("for any input,
+parsing then serializing returns the original"). Fuzzers automate finding inputs
+that violate those properties.
+
+[38;5;245m  // fuzz_target.c - libFuzzer entry point (clang -fsanitize=fuzzer,address)[0m
+[38;5;245m  #include <stdint.h>[0m
+[38;5;245m  #include <stddef.h>[0m
+[38;5;245m  [0m
+[38;5;245m  int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {[0m
+[38;5;245m      // Feed `data` into the parser. Return 0 if the input was processed[0m
+[38;5;245m      // (whether successfully or with a graceful error). Crashes / sanitizer[0m
+[38;5;245m      // trips are reported by the harness.[0m
+[38;5;245m      parse_protocol(data, size);[0m
+[38;5;245m      return 0;[0m
+[38;5;245m  }[0m
+
+Build and run:
+
+[38;5;245m  clang -g -fsanitize=fuzzer,address,undefined fuzz_target.c parser.c -o fuzz[0m
+[38;5;245m  ./fuzz -max_total_time=60     # run for 60 seconds[0m
+
+The fuzzer generates random inputs, observes coverage, and minimizes any
+crashing input it finds into a single byte file you can replay
+deterministically. For network parsers, file format readers, anything that
+ingests untrusted input - this is the highest-leverage testing you can write.
+See [4mPattern: Fuzz Harness[24m[2m (#fuzz)[0m.
+
+[1mSnapshot / golden tests[0m
+
+For functions whose output is awkward to spell out (formatted strings, generated
+tables, layout coordinates), write a "golden" file with the expected output and
+have the test diff against it.
+
+[38;5;245m  char *render(const Doc *d);                // returns malloc'd string[0m
+[38;5;245m  static void test_render_golden(void) {[0m
+[38;5;245m      Doc d  = make_doc();[0m
+[38;5;245m      char *got = render(&d);[0m
+[38;5;245m      char *want;[0m
+[38;5;245m      size_t n;[0m
+[38;5;245m      want = (char*)slurp("testdata/render.golden", &n);[0m
+[38;5;245m      EXPECT_STR_EQ(got, want);[0m
+[38;5;245m      free(got); free(want);[0m
+[38;5;245m  }[0m
+
+[1m[38;5;110mTIP[0m
+  Run the test once with [38;5;215m`UPDATE=1`[0m to write the file, then commit it.
+  Subsequent runs diff against the committed version. Cheap and surprisingly
+  effective for parsers and formatters.
+
+[1mWhat about test frameworks?[0m
+
+Framework           [2m|[0m Headline                                              
+[2m------------------  [2m+[0m ------------------------------------------------------[0m
+None (asserts + a…  [2m|[0m What this section showed. Zero deps. Best for < 10k L…
+Unity               [2m|[0m Header + one .c file. Embedded-friendly. Discovers te…
+CMocka              [2m|[0m Mocking, setup/teardown, stack-trace on fail. Heavier…
+Criterion           [2m|[0m Auto test discovery, parallel execution, isolated pro…
+greatest / utest.h  [2m|[0m Single-header, drop in. Tiny.                         
+
+[1m[38;5;176mRULE[0m
+  Start with hand-rolled tests. Add a framework only when you outgrow them. The
+  first thing you outgrow is "I want test isolation so a crashing test doesn't
+  kill the rest" - at that point Criterion or running each test as its own
+  binary is the answer.
+
+[1mHooking into [38;5;215m`make`[0m / CMake[0m
+
+[38;5;245m  # Makefile[0m
+[38;5;245m  test: tests[0m
+[38;5;245m  	./tests[0m
+[38;5;245m  [0m
+[38;5;245m  tests: tests.c mylib.c[0m
+[38;5;245m  	$(CC) -std=c99 -g -O0 -Wall -Wextra -Werror \[0m
+[38;5;245m  	    -fsanitize=address,undefined \[0m
+[38;5;245m  	    $^ -o $@[0m
+
+[38;5;245m  # CMakeLists.txt[0m
+[38;5;245m  add_executable(tests tests.c mylib.c)[0m
+[38;5;245m  target_compile_options(tests PRIVATE -fsanitize=address,undefined)[0m
+[38;5;245m  target_link_options(tests PRIVATE -fsanitize=address,undefined)[0m
+[38;5;245m  add_test(NAME unit COMMAND tests)[0m
+
+CTest then runs the binary as part of [38;5;215m`ctest`[0m and surfaces non-zero exit codes
+as failures. That is enough to plug into any CI.
+
+[1mPractice[0m
+
+Add [38;5;215m`tests.c`[0m to your project asserting 5 invariants of one existing function.
+Build under [38;5;215m`-fsanitize=address,undefined -Wall -Werror`[0m. Run, see all-pass.
+Then break one assertion on purpose, confirm the binary exits non-zero and the
+failing line is printed.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m25 Common Rookie Traps[0m
+[38;5;215m----------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  90% of "weird C bugs" are on this list. If your code misbehaves, scan here
+  first.
+
+[1msizeof on a decayed array[0m
+
+[38;5;245m  void bad(int arr[]) {[0m
+[38;5;245m      size_t n = sizeof(arr) / sizeof(arr[0]);  // WRONG: sizeof(int*)/sizeof(int)[0m
+[38;5;245m  }[0m
+[38;5;245m  void good(int *arr, size_t n) { /* take length */ }[0m
+
+[1mString literals are read-only[0m
+
+[38;5;245m  char *s = "hello";[0m
+[38;5;245m  s[0] = 'H';            // SEGFAULT: writes to .rodata[0m
+[38;5;245m  [0m
+[38;5;245m  char a[] = "hello";    // OK: a is a char[6] on the stack, mutable[0m
+[38;5;245m  a[0] = 'H';[0m
+
+[1mComparing strings with ==[0m
+
+[38;5;245m  if (s == "hello")              // compares pointers, NOT contents[0m
+[38;5;245m  if (strcmp(s, "hello") == 0)   // correct[0m
+
+[1mgets and scanf("%s", ...)[0m
+
+[38;5;245m  char buf[16];[0m
+[38;5;245m  gets(buf);                      // GONE FROM C11. Don't even mention it.[0m
+[38;5;245m  scanf("%s", buf);               // unbounded - same problem[0m
+[38;5;245m  fgets(buf, sizeof buf, stdin);  // bounded - correct[0m
+
+[1mOff-by-one on the null terminator[0m
+
+[38;5;245m  char buf[5];[0m
+[38;5;245m  strcpy(buf, "hello");   // 6 bytes (5 + '\0') into 5 - corrupts the stack[0m
+
+[1mInteger overflow in size math[0m
+
+[38;5;245m  size_t n = user_input;[0m
+[38;5;245m  char *p = malloc(n * 32);   // wraps to small if n is huge - tiny alloc, huge memcpy[0m
+
+[1mSigned/unsigned compare[0m
+
+[38;5;245m  size_t len = ...;[0m
+[38;5;245m  for (int i = 0; i < len; i++) { ... }       // i signed, len unsigned - warning[0m
+[38;5;245m  for (size_t i = 0; i < len; i++) { ... }    // correct[0m
+
+[1mReturning a pointer to a local[0m
+
+[38;5;245m  char *make_msg(int x) {[0m
+[38;5;245m      char buf[64];[0m
+[38;5;245m      snprintf(buf, sizeof buf, "%d", x);[0m
+[38;5;245m      return buf;        // UB: buf dies when function returns[0m
+[38;5;245m  }[0m
+
+[1mUsing == with floats[0m
+
+[38;5;245m  if (a == b) { ... }                    // brittle[0m
+[38;5;245m  if (fabs(a - b) < 1e-9) { ... }        // tolerance-based[0m
+
+[1mForgetting [38;5;215m`void`[0m in zero-arg declarations[0m
+
+[38;5;245m  int f();         // historic: "any args, unchecked"[0m
+[38;5;245m  int f(void);     // explicit: "no args" - prefer this[0m
+
+[1mMacro arg evaluated twice[0m
+
+[38;5;245m  #define MAX(a, b) ((a) > (b) ? (a) : (b))[0m
+[38;5;245m  int x = MAX(i++, j);    // i++ evaluated twice when i > j - bug[0m
+
+Use a [38;5;215m`static inline`[0m function instead.
+
+[1mFree + reuse[0m
+
+[38;5;245m  free(p);[0m
+[38;5;245m  p->next = NULL;        // use after free - UB[0m
+[38;5;245m  free(p);               // double free - UB[0m
+
+Always: [38;5;215m`free(p); p = NULL;`[0m.
+
+[1mUnchecked malloc[0m
+
+[38;5;245m  char *buf = malloc(n);[0m
+[38;5;245m  buf[0] = 'x';      // segfault if n was huge or system was OOM[0m
+
+[1mprintf format mismatch[0m
+
+[38;5;245m  size_t n = 5;[0m
+[38;5;245m  printf("%d\n", n);     // %d expects int; size_t is usually larger - UB[0m
+[38;5;245m  printf("%zu\n", n);    // correct[0m
+
+[1mReturning -1 from an unsigned[0m
+
+[38;5;245m  size_t find(const char *s, char c) {[0m
+[38;5;245m      for (size_t i = 0; s[i]; i++) if (s[i] == c) return i;[0m
+[38;5;245m      return -1;     // becomes SIZE_MAX - caller's `< n` check accidentally passes[0m
+[38;5;245m  }[0m
+
+Use a sentinel ([38;5;215m`SIZE_MAX`[0m) explicitly, or return [38;5;215m`(bool found, size_t out)`[0m as
+a struct.
+
+[1mPractice[0m
+
+Open any 1000+ line C file from an open-source project (e.g., SQLite [38;5;215m`shell.c`[0m,
+Redis [38;5;215m`networking.c`[0m). Scan for at least 3 of the 15 patterns above (sizeof on a
+parameter, signed/unsigned compare, unchecked malloc, format mismatch, returning
+-1 from unsigned). Note file:line for each find.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m26 Undefined Behavior Catalog[0m
+[38;5;215m-----------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  UB = the standard imposes no requirement; the compiler may delete your code.
+  Sanitizers catch most runtime UB; warnings catch most compile-time UB. Use
+  unsigned for wrap, [38;5;215m`memcpy`[0m for type pun, initialize all variables.
+
+Undefined behaviour (UB) is the C standard's term for "anything can happen,
+including looking like it works". The compiler is allowed to assume your code
+never triggers UB and optimize on that basis. This is the source of the "but it
+worked on my machine" class of bugs. Knowing the common UB shapes lets you spot
+them before the optimizer punishes you.
+
+[1mSigned integer overflow[0m
+
+[38;5;245m  int32_t a = INT32_MAX;[0m
+[38;5;245m  int32_t b = a + 1;          // UB: signed overflow[0m
+[38;5;245m  [0m
+[38;5;245m  // Compiler may assume a + 1 > a always - which deletes overflow checks like:[0m
+[38;5;245m  if (a + 1 < a) { /* overflowed */ }    // dead code at -O2[0m
+
+[1m[38;5;176mRULE[0m
+  Use [1munsigned[22m integer types when you want defined wrap-around. Unsigned
+  overflow is fully defined: it wraps modulo 2^N. Signed overflow is UB. The
+  compiler exploits this difference for optimizations.
+
+[1mStrict aliasing[0m
+
+[38;5;245m  float     f = 3.14f;[0m
+[38;5;245m  uint32_t *p = (uint32_t*)&f;     // UB: pointer to one type, accessed as another[0m
+[38;5;245m  uint32_t  bits = *p;             // undefined[0m
+[38;5;245m  [0m
+[38;5;245m  // Defined alternative:[0m
+[38;5;245m  uint32_t bits;[0m
+[38;5;245m  memcpy(&bits, &f, sizeof(bits));    // optimizes to a register move[0m
+
+Two pointers of unrelated types may not legally read or write the same object.
+The compiler relies on this to keep things in registers across function calls.
+[38;5;215m`memcpy`[0m is the escape hatch and it generates the same machine code at any
+optimization level.
+
+[1m[38;5;203mWARN[0m
+  The exception: [38;5;215m`char*`[0m, [38;5;215m`signed char*`[0m, [38;5;215m`unsigned char*`[0m may alias anything.
+  That is why [38;5;215m`memcpy`[0m is implemented in terms of [38;5;215m`unsigned char*`[0m and is safe.
+
+[1mNULL dereference[0m
+
+[38;5;245m  int32_t *p = NULL;[0m
+[38;5;245m  int32_t  v = *p;                // UB - usually segfault on modern OSes[0m
+[38;5;245m  [0m
+[38;5;245m  // More subtle: dereference happens BEFORE the if-check[0m
+[38;5;245m  int32_t v2 = p->x;[0m
+[38;5;245m  if (p) { /* useless check - the deref already happened */ }[0m
+[38;5;245m  // At -O2, gcc may delete the if-check entirely. Yes really.[0m
+
+[1m[38;5;176mRULE[0m
+  Once the compiler proves a pointer is dereferenced, it assumes the pointer is
+  non-NULL afterwards and may eliminate later NULL checks as dead code. Always
+  check [3mbefore[23m the deref.
+
+[1mOut-of-bounds access[0m
+
+[38;5;245m  int32_t arr[4];[0m
+[38;5;245m  arr[4] = 99;          // UB: one past the end[0m
+[38;5;245m  arr[-1] = 99;         // UB: before the start[0m
+[38;5;245m  [0m
+[38;5;245m  // Even taking the address is UB beyond one past the end:[0m
+[38;5;245m  int32_t *p = &arr[5];   // UB: arr+4 is OK, arr+5 is not[0m
+
+[1mUse after free / use after scope[0m
+
+[38;5;245m  int32_t *leak(void) {[0m
+[38;5;245m      int32_t local = 42;[0m
+[38;5;245m      return &local;            // UB: returning address of automatic var[0m
+[38;5;245m  }[0m
+[38;5;245m  [0m
+[38;5;245m  void *p = malloc(100);[0m
+[38;5;245m  free(p);[0m
+[38;5;245m  memcpy(p, src, 10);          // UB: p is no longer a valid pointer[0m
+
+[1m[38;5;110mTIP[0m
+  Set freed pointers to [38;5;215m`NULL`[0m as a habit. The next use becomes a clean NULL
+  deref (segfault) instead of silent reuse of recycled memory.
+
+[1mShifting too far / by negative[0m
+
+[38;5;245m  uint32_t x = 1;[0m
+[38;5;245m  uint32_t y = x << 32;       // UB: shift by >= width of type[0m
+[38;5;245m  uint32_t z = x << -1;       // UB: negative shift[0m
+
+Shifting a 32-bit value by 32 or more bits is UB even though the obvious answer
+"0" feels right. ARM hardware actually does that; x86 silently masks the shift
+count. The C standard says: undefined.
+
+[1mReading uninitialized memory[0m
+
+[38;5;245m  int32_t x;            // indeterminate value[0m
+[38;5;245m  if (x) { /* UB: reading x before any write */ }[0m
+[38;5;245m  [0m
+[38;5;245m  // Designated init or memset to zero:[0m
+[38;5;245m  int32_t y = 0;[0m
+[38;5;245m  struct Big b = {0};   // zeroes everything, including padding[0m
+
+[1mSequencing and side effects[0m
+
+[38;5;245m  int32_t i = 0;[0m
+[38;5;245m  int32_t arr[] = { i++, i++, i++ };   // UB: order between i++s undefined[0m
+[38;5;245m  [0m
+[38;5;245m  int32_t j = 0;[0m
+[38;5;245m  printf("%d %d\n", j++, j);          // UB: j read and j++ unsequenced[0m
+[38;5;245m  [0m
+[38;5;245m  int32_t k = 0;[0m
+[38;5;245m  k = k++ + 1;                          // UB: two writes, no sequencing[0m
+
+[1m[38;5;176mRULE[0m
+  If the same scalar is read and written, or written twice, in the same
+  expression with no sequence point between them, it is UB. Split into separate
+  statements.
+
+[1mMisaligned access[0m
+
+[38;5;245m  uint8_t buf[16] = {0};[0m
+[38;5;245m  uint32_t *p = (uint32_t*)(buf + 1);   // likely misaligned[0m
+[38;5;245m  uint32_t v = *p;                       // UB on architectures requiring alignment[0m
+[38;5;245m  [0m
+[38;5;245m  // Use memcpy from any byte offset[0m
+[38;5;245m  uint32_t v2;[0m
+[38;5;245m  memcpy(&v2, buf + 1, sizeof(v2));      // always defined[0m
+
+x86 tolerates misaligned scalar loads (with a slight perf hit). ARM, MIPS,
+RISC-V and others may trap. Even on x86, vector instructions require alignment.
+[38;5;215m`memcpy`[0m handles arbitrary alignment portably.
+
+[1mUndefined and implementation-defined are different[0m
+
+  - [1mImplementation-defined[22m: behaviour is consistent on a platform but varies
+    across platforms (e.g., right-shift of negative integers). Document and
+    isolate it.
+  - [1mUnspecified[22m: behaviour comes from a fixed set, but the spec doesn't pick
+    (e.g., evaluation order of function arguments). Don't depend on it.
+  - [1mUndefined[22m: anything is allowed, including time travel. Avoid at all costs.
+
+[1mDefenses, in order[0m
+
+   1. [1mRun with sanitizers in dev.[22m [38;5;215m`-fsanitize=address,undefined`[0m catches the
+      bulk: OOB, UAF, alignment, signed overflow, shifts, NULL deref.
+   2. [1mEnable warnings.[22m [38;5;215m`-Wall -Wextra -Wpedantic -Werror`[0m, plus
+      [38;5;215m`-Wstrict-aliasing`[0m, [38;5;215m`-Wnull-dereference`[0m, [38;5;215m`-Wshift-overflow`[0m.
+   3. [1mPrefer unsigned for arithmetic that may wrap.[22m Use [38;5;215m`memcpy`[0m for type
+      punning. Initialize all variables. Always check pointers before deref.
+   4. [1mBuild production with [38;5;215m`-D_FORTIFY_SOURCE=2`[0m[22m for runtime libc bounds checks
+      on the most common functions.
+
+[1m[38;5;203mWARN[0m
+  Cross-link: most testing frameworks run their suites under sanitizers - see
+  the [4mTesting[24m[2m (#testing)[0m section. Sanitizers turn UB from "silently miscompiled"
+  into "crashes at the bad line", which is exactly what tests want.
+
+[1mPractice[0m
+
+Write a program with three deliberate UBs: signed overflow ([38;5;215m`INT32_MAX + 1`[0m),
+shift overflow ([38;5;215m`1u << 32`[0m), and reading uninitialized memory. Compile with
+[38;5;215m`-fsanitize=undefined`[0m. Confirm UBSan reports each one with the exact line. Then
+fix all three.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m27 CPU Performance Foundations[0m
+[38;5;215m------------------------------[0m
+
+[1m[38;5;215mTL;DR[0m
+  Cache line is 64 B. L1 ~3 cy, L2 ~20, L3 ~100, DRAM ~200-300. Pack data tight,
+  do work in bulk, pre-compute, use multiple cores. The cache, not big-O, is
+  your real bottleneck.
+
+A game frame, an HTTP request, an animation tick - these are real-time systems.
+Input plus state in, output out, within a deadline (16 ms for 60 fps). The CPU
+is the bottleneck more often than the GPU these days. Single-threaded
+performance has plateaued; slow CPU code stays slow on next year's hardware. The
+good news: 80% of CPU performance comes from a small set of mechanical habits.
+
+[1mThe kitchen analogy[0m
+
+Borrowed from Nic Barker's CPU performance talk. The mental model holds
+remarkably well.
+
+Kitchen                                   [2m|[0m Computer          
+[2m----------------------------------------  [2m+[0m ------------------[0m
+Chef                                      [2m|[0m CPU core          
+Knives, pans, boards                      [2m|[0m Instructions      
+Ingredients                               [2m|[0m Data              
+Chopping board (only place work happens)  [2m|[0m Registers         
+Box on the bench                          [2m|[0m L1 cache          
+Shelves                                   [2m|[0m L2 cache          
+Storage room                              [2m|[0m L3 cache          
+Supermarket run                           [2m|[0m Main memory (DRAM)
+Farm delivery                             [2m|[0m Disk / SSD        
+
+[1mCache hierarchy: the headline numbers[0m
+
+Storage            [2m|[0m Size    [2m|[0m Latency (cycles)
+[2m-----------------  [2m+[0m ------  [2m+[0m ----------------[0m
+Register           [2m|[0m 8 B     [2m|[0m 0               
+L1                 [2m|[0m ~64 KB  [2m|[0m ~3              
+L2                 [2m|[0m ~2 MB   [2m|[0m ~20             
+L3                 [2m|[0m ~32 MB  [2m|[0m ~100            
+DRAM               [2m|[0m GB      [2m|[0m 200-300         
+SSD (random read)  [2m|[0m TB      [2m|[0m ~300,000        
+
+[1m[38;5;176mRULE[0m
+  Cache line = [1m64 bytes[22m. Every memory fetch brings 64 bytes whether you wanted
+  them or not. Carmack's Quake-3 fast inverse square root saved 30 cycles per
+  call. A single cache miss costs 200-300. One miss is 7-10x more expensive than
+  the most famous optimization in game-dev history.
+
+Each core has its own L1 and L2. Single-core code throws away the rest. With 8
+cores you have 8x the L1 you'd think.
+
+[1mThe four rules of thumb[0m
+
+   1. [1mPack data tight.[22m Smallest types that fit. Group fields by locality of use.
+      Don't waste the cache line.
+   2. [1mDo work in bulk.[22m Functions take [3marrays[23m of things, not one thing at a time.
+      Amortize setup cost.
+   3. [1mPre-compute at startup, not at runtime.[22m Why do you think it's called
+      [3mbaking[23m? Lighting, lookup tables, parsed configs, sorted indices. Anything
+      stable before the frame loop should be ready at frame zero.
+   4. [1mUse multiple cores.[22m Independent streams of work, cheap join at the end.
+      Avoid synchronization in the inner loops.
+
+[1mThe silent killer[0m
+
+When you access [38;5;215m`enemy.hp`[0m, the cache line you paid 200+ cycles for also
+contains the [3mnext 60 bytes after [38;5;215m`hp`[0m[23m. Was that next 60 bytes useful? If yes,
+the next access is free. If no, you wasted the trip. This is invisible in
+source. Big-O notation does not capture it.
+
+[1m[38;5;110mTIP[0m
+  When in doubt, lay out struct fields from largest to smallest. Compilers pack
+  in declaration order; mis-ordering wastes bytes via alignment padding. Order
+  matters.
+
+[1m[38;5;203mWARN[0m
+  An O(n) walk over a packed array beats an O(log n) traversal of a
+  pointer-chained tree at most realistic sizes. The tree's pointers each cost a
+  cache miss; the array streams in 64-byte gulps.
+
+[1mPractice[0m
+
+Build two versions of "sum field [38;5;215m`x`[0m from N=1,000,000 entities". Version A:
+array of structs ([38;5;215m`{float x, y, z; int32_t id;}`[0m, 16 B each). Version B: struct
+of arrays (separate [38;5;215m`float xs[N]`[0m). Time each with
+[38;5;215m`clock_gettime(CLOCK_MONOTONIC, ...)`[0m. Note the ratio - SoA should win by 2-4x.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m★ Patterns[0m
+[38;5;215m----------[0m
+
+Reference cards, not lessons. Each pattern is a self-contained recipe for a
+recurring situation. Skim once for vocabulary; come back when you hit the
+situation.
+
+[1m[38;5;215mPattern  -  Unity Build (single translation unit)[0m
+[38;5;215m=================================================[0m
+
+  Classic C splits .h and .c, links objects, and people end up in "include
+  hell". It's mostly convention, not language requirement. The
+  single-translation-unit (or "unity") build sidesteps the whole mess.
+
+  Trick: [38;5;215m`#include`[0m every [38;5;215m`.c`[0m from [38;5;215m`main.c`[0m. One compilation unit. One [38;5;215m`clang
+  main.c -o app`[0m. No build system needed for projects up to thousands of lines.
+
+  [38;5;245m  // main.c[0m
+  [38;5;245m  #include "math_utils.c"[0m
+  [38;5;245m  #include "render.c"[0m
+  [38;5;245m  #include "audio.c"[0m
+  [38;5;245m  [0m
+  [38;5;245m  int main(void) {[0m
+  [38;5;245m      // ... use functions from any of the above ...[0m
+  [38;5;245m      return 0;[0m
+  [38;5;245m  }[0m
+
+  [38;5;245m  # Build the whole project[0m
+  [38;5;245m  clang -std=c99 -Wall -Wextra -fsanitize=address main.c -o app[0m
+
+  [1mWins[0m
+
+    - Compiler sees everything at once - whole-program optimization is
+      automatic.
+    - No symbol-leak surprises across translation units.
+    - No need for separate header guards on every .c (each is included once).
+    - Build = one command. No Makefile, no CMake, no meson.
+
+  [1m[38;5;176mRULE[0m
+    Don't fight C's build model. Embrace one TU until it actually hurts (rare
+    under ~50k lines). When you outgrow it, shard into a few TUs and a tiny
+    script - by then you'll know exactly where the boundaries should fall.
+
+[1m[38;5;215mPattern  -  Arena Allocator[0m
+[38;5;215m===========================[0m
+
+  The single most useful pattern in systems C. An arena (also called a bump
+  allocator or linear allocator) is a block of memory you carve forward-only.
+  [1mFree everything at once[22m by resetting the offset to 0. No fragmentation, no
+  double-frees, no tracking individual lifetimes.
+
+  Use it for: per-frame data in games, per-request in servers, scratch memory
+  for parsers, temp strings.
+
+  [38;5;245m  #include <stdint.h>[0m
+  [38;5;245m  #include <stddef.h>[0m
+  [38;5;245m  #include <stdlib.h>[0m
+  [38;5;245m  #include <string.h>[0m
+  [38;5;245m  #include <assert.h>[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      uint8_t *data;[0m
+  [38;5;245m      size_t   pos;   // next free byte[0m
+  [38;5;245m      size_t   cap;   // total size[0m
+  [38;5;245m  } Arena;[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Create an arena backed by a heap allocation[0m
+  [38;5;245m  Arena arena_make(size_t cap) {[0m
+  [38;5;245m      return (Arena){ .data = malloc(cap), .cap = cap };[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Allocate n bytes, aligned to 'align' bytes (usually 8 or 16)[0m
+  [38;5;245m  void *arena_alloc(Arena *a, size_t n, size_t align) {[0m
+  [38;5;245m      size_t pos  = (a->pos + align - 1) & ~(align - 1); // align up[0m
+  [38;5;245m      size_t next = pos + n;[0m
+  [38;5;245m      if (next > a->cap) return NULL;  // out of space[0m
+  [38;5;245m      a->pos = next;[0m
+  [38;5;245m      return a->data + pos;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Convenience macro: alloc + zero + type-safe[0m
+  [38;5;245m  #define ARENA_ALLOC(a, T)    ((T*)arena_alloc(a, sizeof(T),    _Alignof(T)))[0m
+  [38;5;245m  #define ARENA_ALLOC_N(a,T,n) ((T*)arena_alloc(a, sizeof(T)*n,  _Alignof(T)))[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Free ALL at once - O(1), trivial[0m
+  [38;5;245m  void arena_reset(Arena *a)   { a->pos = 0; }[0m
+  [38;5;245m  void arena_destroy(Arena *a) { free(a->data); *a = (Arena){0}; }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // ── Usage ──────────────────────────────────────────────────────[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct { float x, y; int32_t id; } Entity;[0m
+  [38;5;245m  [0m
+  [38;5;245m  void game_frame(void) {[0m
+  [38;5;245m      Arena frame = arena_make(4 * 1024 * 1024);  // 4 MB scratch[0m
+  [38;5;245m  [0m
+  [38;5;245m      // Allocate as much as you want - no individual frees needed[0m
+  [38;5;245m      Entity  *player  = ARENA_ALLOC(&frame, Entity);[0m
+  [38;5;245m      Entity  *enemies = ARENA_ALLOC_N(&frame, Entity, 128);[0m
+  [38;5;245m      char    *buf     = ARENA_ALLOC_N(&frame, char, 4096);[0m
+  [38;5;245m  [0m
+  [38;5;245m      player->x = 100.0f;[0m
+  [38;5;245m      // ... do game work ...[0m
+  [38;5;245m  [0m
+  [38;5;245m      arena_destroy(&frame);  // one free, everything gone[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Or for permanent + per-frame arenas:[0m
+  [38;5;245m  static Arena g_perm;    // program lifetime, never reset[0m
+  [38;5;245m  static Arena g_frame;   // reset every frame[0m
+
+  [1m[38;5;110mTIP[0m
+    Use two arenas: a [1mpermanent[22m arena for the game's lifetime and a [1mscratch[22m
+    arena you reset each frame. This eliminates almost all malloc/free
+    bookkeeping.
+
+[1m[38;5;215mPattern  -  Stretchy Buffer / Dynamic Array[0m
+[38;5;215m===========================================[0m
+
+  The [38;5;215m`std::vector`[0m of C: an owned array that grows on demand. The trick: a
+  small [3mheader[23m with [38;5;215m`len`[0m and [38;5;215m`cap`[0m sits just before the data. The user holds a
+  normal [38;5;215m`T*`[0m, indexes it like a regular array, and metadata is reachable via
+  [38;5;215m`(header*)ptr - 1`[0m. Sean Barrett's [38;5;215m`stb_ds.h`[0m popularized this style.
+
+  [38;5;245m  #include <stdlib.h>[0m
+  [38;5;245m  #include <string.h>[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      size_t len;[0m
+  [38;5;245m      size_t cap;[0m
+  [38;5;245m      // data follows in memory[0m
+  [38;5;245m  } DAHeader;[0m
+  [38;5;245m  [0m
+  [38;5;245m  #define da_header(a)  ((DAHeader*)((char*)(a) - sizeof(DAHeader)))[0m
+  [38;5;245m  #define da_len(a)     ((a) ? da_header(a)->len : (size_t)0)[0m
+  [38;5;245m  #define da_cap(a)     ((a) ? da_header(a)->cap : (size_t)0)[0m
+  [38;5;245m  #define da_free(a)    ((a) ? (free(da_header(a)), (a) = NULL) : 0)[0m
+  [38;5;245m  [0m
+  [38;5;245m  #define da_push(a, v)                                                \[0m
+  [38;5;245m      ((a) = da__maybe_grow((a), sizeof(*(a))),                        \[0m
+  [38;5;245m       (a)[da_header(a)->len++] = (v))[0m
+  [38;5;245m  [0m
+  [38;5;245m  static void *da__maybe_grow(void *a, size_t elem_size) {[0m
+  [38;5;245m      DAHeader *h = a ? da_header(a) : NULL;[0m
+  [38;5;245m      size_t    cap = h ? h->cap : 0;[0m
+  [38;5;245m      size_t    len = h ? h->len : 0;[0m
+  [38;5;245m      if (len + 1 <= cap) return a;[0m
+  [38;5;245m  [0m
+  [38;5;245m      size_t new_cap = cap ? cap * 2 : 8;[0m
+  [38;5;245m      h = realloc(h, sizeof(DAHeader) + new_cap * elem_size);[0m
+  [38;5;245m      h->cap = new_cap;[0m
+  [38;5;245m      h->len = len;[0m
+  [38;5;245m      return (char*)h + sizeof(DAHeader);[0m
+  [38;5;245m  }[0m
+
+  Usage feels like a real array:
+
+  [38;5;245m  int32_t *nums = NULL;          // no malloc yet - NULL is the empty array[0m
+  [38;5;245m  [0m
+  [38;5;245m  da_push(nums, 10);[0m
+  [38;5;245m  da_push(nums, 20);[0m
+  [38;5;245m  da_push(nums, 30);[0m
+  [38;5;245m  [0m
+  [38;5;245m  for (size_t i = 0; i < da_len(nums); i++) {[0m
+  [38;5;245m      printf("%d\n", nums[i]);   // straight indexing[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  da_free(nums);                  // frees both header and data[0m
+
+  [1mWins[0m
+
+    - User code reads like a normal C array - [38;5;215m`nums[i]`[0m, no wrapper struct
+    - Zero-cost when empty: a [38;5;215m`NULL`[0m pointer represents the empty buffer
+    - Geometric growth (cap *= 2) gives amortized O(1) push
+    - Single contiguous allocation for header + data: cache friendly, one [38;5;215m`free`[0m
+    - Type generic without templates: macros use [38;5;215m`sizeof(*(a))`[0m
+
+  [1m[38;5;203mWARN[0m
+    Macros evaluate [38;5;215m`a`[0m multiple times. [38;5;215m`da_push(arr_for(idx++), val)`[0m
+    increments [38;5;215m`idx`[0m twice. Stick to side-effect-free pointer expressions inside
+    the macros.
+
+  [1mvs Slice[0m
+
+  A [4mSlice[24m[2m (#slices)[0m is a non-owning view ([38;5;215m`{ptr, len}`[0m by value, no growth). A
+  stretchy buffer owns its memory and resizes. Pass slices around to functions
+  that just [3mread[23m; pass the stretchy buffer pointer to functions that [3mappend[23m.
+
+  [1m[38;5;110mTIP[0m
+    If you don't want the macro hygiene risk, write a per-type explicit struct:
+    [38;5;215m`struct U32Vec { uint32_t *data; size_t len, cap; }`[0m. The header trick is
+    clever; the explicit struct is boring and correct. For 80% of code, both are
+    fine - pick the one that matches your team's taste.
+
+[1m[38;5;215mPattern  -  Typed Slices (Fat Pointers)[0m
+[38;5;215m=======================================[0m
+
+  A raw pointer tells you nothing about how many items it holds. Bundle the
+  pointer with its length into a [1mslice[22m. Functions pass these by value - cheap,
+  safe, self-describing.
+
+  [38;5;245m  // Generic macro to define slice types[0m
+  [38;5;245m  #define SLICE(T) struct { T *data; size_t len; }[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef SLICE(int32_t) I32Slice;[0m
+  [38;5;245m  typedef SLICE(float)   F32Slice;[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct { float x, y; } Vec2;[0m
+  [38;5;245m  typedef SLICE(Vec2) Vec2Slice;[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Allocate a slice from an arena[0m
+  [38;5;245m  Vec2Slice make_positions(Arena *a, size_t count) {[0m
+  [38;5;245m      return (Vec2Slice){[0m
+  [38;5;245m          .data = ARENA_ALLOC_N(a, Vec2, count),[0m
+  [38;5;245m          .len  = count,[0m
+  [38;5;245m      };[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Iterate safely - no out-of-bounds by accident[0m
+  [38;5;245m  void print_positions(Vec2Slice s) {[0m
+  [38;5;245m      for (size_t i = 0; i < s.len; i++) {[0m
+  [38;5;245m          printf("(%.2f, %.2f)\n", s.data[i].x, s.data[i].y);[0m
+  [38;5;245m      }[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Get a sub-slice - no copy, no alloc[0m
+  [38;5;245m  Vec2Slice slice_range(Vec2Slice s, size_t start, size_t end) {[0m
+  [38;5;245m      return (Vec2Slice){ s.data + start, end - start };[0m
+  [38;5;245m  }[0m
+
+[1m[38;5;215mPattern  -  Handle Arrays (Pool)[0m
+[38;5;215m================================[0m
+
+  Instead of pointers to heap-allocated objects (bad for cache, fragmentation,
+  dangling pointers), store all objects in a flat array and hand out [1minteger
+  handles[22m. Handles can be validated, versioned, and never dangle.
+
+  [38;5;245m  #define MAX_ENTITIES 1024[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      float   x, y;[0m
+  [38;5;245m      float   speed;[0m
+  [38;5;245m      bool    active;[0m
+  [38;5;245m      uint32_t generation;  // version counter[0m
+  [38;5;245m  } Entity;[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      uint32_t index;[0m
+  [38;5;245m      uint32_t generation;  // must match slot's generation[0m
+  [38;5;245m  } EntityHandle;[0m
+  [38;5;245m  [0m
+  [38;5;245m  static Entity   g_entities[MAX_ENTITIES];[0m
+  [38;5;245m  static uint32_t g_count = 0;[0m
+  [38;5;245m  [0m
+  [38;5;245m  EntityHandle entity_create(void) {[0m
+  [38;5;245m      for (uint32_t i = 0; i < MAX_ENTITIES; i++) {[0m
+  [38;5;245m          if (!g_entities[i].active) {[0m
+  [38;5;245m              g_entities[i].active = true;[0m
+  [38;5;245m              g_entities[i].generation++;[0m
+  [38;5;245m              return (EntityHandle){ i, g_entities[i].generation };[0m
+  [38;5;245m          }[0m
+  [38;5;245m      }[0m
+  [38;5;245m      return (EntityHandle){ 0, 0 }; // null handle[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Returns NULL if handle is stale or invalid[0m
+  [38;5;245m  Entity *entity_get(EntityHandle h) {[0m
+  [38;5;245m      if (h.index >= MAX_ENTITIES) return NULL;[0m
+  [38;5;245m      Entity *e = &g_entities[h.index];[0m
+  [38;5;245m      if (!e->active || e->generation != h.generation) return NULL;[0m
+  [38;5;245m      return e;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  void entity_destroy(EntityHandle h) {[0m
+  [38;5;245m      Entity *e = entity_get(h);[0m
+  [38;5;245m      if (e) { *e = (Entity){0}; }  // zero = inactive[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Update all - tight loop, cache-friendly[0m
+  [38;5;245m  void entities_update(float dt) {[0m
+  [38;5;245m      for (int i = 0; i < MAX_ENTITIES; i++) {[0m
+  [38;5;245m          if (!g_entities[i].active) continue;[0m
+  [38;5;245m          g_entities[i].x += g_entities[i].speed * dt;[0m
+  [38;5;245m      }[0m
+  [38;5;245m  }[0m
+
+  [1m[38;5;110mTIP[0m
+    Iterating a flat array of structs is dramatically faster than following
+    pointers to scattered heap objects. This is the core of data-oriented
+    design.
+
+[1m[38;5;215mPattern  -  Hash Map (open addressing)[0m
+[38;5;215m======================================[0m
+
+  The second-most-used data structure after the dynamic array. Open addressing
+  with linear probing on a power-of-two capacity is what most production C code
+  uses: cache-friendly, branchless lookup in the hot path, no per-entry
+  allocation.
+
+  [38;5;245m  #include <stdint.h>[0m
+  [38;5;245m  #include <stdlib.h>[0m
+  [38;5;245m  #include <string.h>[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      uint64_t key;       // 0 = empty, anything else = present[0m
+  [38;5;245m      uint64_t val;[0m
+  [38;5;245m  } MapEntry;[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      MapEntry *entries;[0m
+  [38;5;245m      size_t    cap;       // always a power of two[0m
+  [38;5;245m      size_t    len;[0m
+  [38;5;245m  } Map;[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Mix bits so adjacent keys don't all land in the same bucket[0m
+  [38;5;245m  static inline uint64_t mix(uint64_t x) {[0m
+  [38;5;245m      x ^= x >> 33;[0m
+  [38;5;245m      x *= 0xff51afd7ed558ccdULL;[0m
+  [38;5;245m      x ^= x >> 33;[0m
+  [38;5;245m      x *= 0xc4ceb9fe1a85ec53ULL;[0m
+  [38;5;245m      x ^= x >> 33;[0m
+  [38;5;245m      return x;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  void map_init(Map *m, size_t cap_pow2) {[0m
+  [38;5;245m      m->entries = calloc(cap_pow2, sizeof(MapEntry));[0m
+  [38;5;245m      m->cap     = cap_pow2;[0m
+  [38;5;245m      m->len     = 0;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  static size_t map_probe(const Map *m, uint64_t key) {[0m
+  [38;5;245m      size_t mask = m->cap - 1;     // pow2 capacity -> mask is cheap modulo[0m
+  [38;5;245m      size_t i = mix(key) & mask;[0m
+  [38;5;245m      while (m->entries[i].key != 0 && m->entries[i].key != key) {[0m
+  [38;5;245m          i = (i + 1) & mask;       // linear probe[0m
+  [38;5;245m      }[0m
+  [38;5;245m      return i;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  void map_put(Map *m, uint64_t key, uint64_t val) {[0m
+  [38;5;245m      // 0 is the sentinel "empty" value - real users wrap or remap key==0[0m
+  [38;5;245m      if ((m->len + 1) * 2 > m->cap) map_grow(m);[0m
+  [38;5;245m      size_t i = map_probe(m, key);[0m
+  [38;5;245m      if (m->entries[i].key == 0) m->len++;[0m
+  [38;5;245m      m->entries[i] = (MapEntry){ key, val };[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  int map_get(const Map *m, uint64_t key, uint64_t *out) {[0m
+  [38;5;245m      size_t i = map_probe(m, key);[0m
+  [38;5;245m      if (m->entries[i].key != key) return 0;[0m
+  [38;5;245m      *out = m->entries[i].val;[0m
+  [38;5;245m      return 1;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  void map_grow(Map *m) {[0m
+  [38;5;245m      Map bigger = {0};[0m
+  [38;5;245m      map_init(&bigger, m->cap * 2);[0m
+  [38;5;245m      for (size_t i = 0; i < m->cap; i++) {[0m
+  [38;5;245m          if (m->entries[i].key) map_put(&bigger, m->entries[i].key, m->entries[i].val);[0m
+  [38;5;245m      }[0m
+  [38;5;245m      free(m->entries);[0m
+  [38;5;245m      *m = bigger;[0m
+  [38;5;245m  }[0m
+
+  Usage:
+
+  [38;5;245m  Map m;[0m
+  [38;5;245m  map_init(&m, 16);          // must be power of 2[0m
+  [38;5;245m  map_put(&m, 42, 100);[0m
+  [38;5;245m  map_put(&m, 99, 200);[0m
+  [38;5;245m  [0m
+  [38;5;245m  uint64_t v;[0m
+  [38;5;245m  if (map_get(&m, 42, &v)) printf("%llu\n", v);[0m
+  [38;5;245m  [0m
+  [38;5;245m  free(m.entries);[0m
+
+  [1mWins[0m
+
+    - One contiguous allocation - no per-entry malloc, no pointer chasing
+    - Linear probing keeps cache misses to a minimum on lookup
+    - Power-of-two capacity gives [38;5;215m`x & (cap-1)`[0m instead of [38;5;215m`x % cap`[0m
+    - Load factor 50% chosen for stability; 75% trades memory for speed
+    - No iterator invalidation surprises - the table either fits or grows once
+
+  [1mCaveats[0m
+
+    - Sentinel [38;5;215m`key == 0`[0m means real-world users either remap zero (e.g., XOR
+      with a salt) or store an explicit "occupied" tag byte
+    - Deletion needs [3mtombstones[23m (a third state) or full rehash on remove -
+      skipped here for brevity
+    - String keys: hash to a [38;5;215m`uint64_t`[0m first (FNV-1a, xxhash, SipHash). Store
+      the original string in a side table or heap.
+    - For untrusted input, use a keyed hash (SipHash) - linear probing is
+      vulnerable to hash-flooding DoS otherwise
+
+  [1m[38;5;110mTIP[0m
+    When entries are larger than ~32 bytes, switch to "Robin Hood" probing or
+    split keys and values into two parallel arrays. The naive linear-probe map
+    shown here is the right starting point; profile before chasing the next
+    variant.
+
+[1m[38;5;215mPattern  -  Indexes Over Pointers[0m
+[38;5;215m=================================[0m
+
+  When one object references another that lives in an array, store the [1mindex[22m,
+  not a pointer. Resolve through a getter that bounds-checks. This is the same
+  idea as Handle Arrays but for plain references.
+
+  [1mWhy a raw pointer is worse[0m
+
+    - If the target's array resizes, every pointer into it dangles.
+    - Pointers bypass any bounds-checking machinery you wrote.
+    - Pointers are 8 bytes on 64-bit. [38;5;215m`uint32_t`[0m indexes are 4. Half the memory,
+      twice the density in cache lines.
+    - Pointers can't be serialized. ASLR randomizes addresses on every run;
+      indexes are stable across processes.
+
+  [38;5;245m  typedef struct { float x, y; } Vec2;[0m
+  [38;5;245m  typedef struct { Vec2 *data; size_t len, cap; } Vec2Arr;[0m
+  [38;5;245m  [0m
+  [38;5;245m  static Vec2 g_zero = {0};[0m
+  [38;5;245m  [0m
+  [38;5;245m  Vec2 *vec2arr_get(Vec2Arr *a, size_t i) {[0m
+  [38;5;245m      if (i >= a->len) {[0m
+  [38;5;245m          // breakpoint here in dev; logs/crashes catch the bug[0m
+  [38;5;245m          return &g_zero;[0m
+  [38;5;245m      }[0m
+  [38;5;245m      return &a->data[i];[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Reference by index instead of pointer[0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      uint32_t owner_idx;       // index into player array[0m
+  [38;5;245m      uint32_t target_idx;      // index into enemy array[0m
+  [38;5;245m  } Bullet;[0m
+
+  [1mGenerational indexes[0m
+
+  For safe deletion, pair the index with a generation counter (see the [3mHandle
+  Arrays[23m pattern). Stale handles return [38;5;215m`NULL`[0m instead of dangling.
+
+  [1mThe bounds check is free in release[0m
+
+  In a tight [38;5;215m`for (i = 0; i < a->len; i++)`[0m loop, modern compilers prove the
+  check always passes and elide it. The branch predictor handles any leftover.
+  Stop worrying.
+
+  [1mSerialization for free[0m
+
+  Dump [38;5;215m`Vec2Arr.data[]`[0m plus the indexes straight to disk. Restore: indexes
+  still valid. With pointers: every reference broken, every pointer needs
+  fix-up.
+
+  [1m[38;5;110mTIP[0m
+    Use [38;5;215m`uint32_t`[0m indexes by default. 4 billion is more than your program will
+    ever address in one array, and you save 4 bytes per reference vs a pointer.
+
+[1m[38;5;215mPattern  -  Error Handling Without Exceptions[0m
+[38;5;215m=============================================[0m
+
+  C has no exceptions. The modern pattern is to return a [1mresult type[22m - a struct
+  containing either a value or an error.
+
+  [38;5;245m  typedef enum {[0m
+  [38;5;245m      ERR_OK       = 0,[0m
+  [38;5;245m      ERR_OOM,      // out of memory[0m
+  [38;5;245m      ERR_NOT_FOUND,[0m
+  [38;5;245m      ERR_INVALID,[0m
+  [38;5;245m  } Error;[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      int32_t value;[0m
+  [38;5;245m      Error   err;[0m
+  [38;5;245m  } I32Result;[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Constructor helpers[0m
+  [38;5;245m  static inline I32Result i32_ok(int32_t v) { return (I32Result){v, ERR_OK}; }[0m
+  [38;5;245m  static inline I32Result i32_err(Error e) { return (I32Result){0, e}; }[0m
+  [38;5;245m  [0m
+  [38;5;245m  I32Result parse_int(const char *s) {[0m
+  [38;5;245m      if (!s || !*s) return i32_err(ERR_INVALID);[0m
+  [38;5;245m      char *end;[0m
+  [38;5;245m      long v = strtol(s, &end, 10);[0m
+  [38;5;245m      if (*end != '\0') return i32_err(ERR_INVALID);[0m
+  [38;5;245m      return i32_ok((int32_t)v);[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Usage - you MUST check before using the value[0m
+  [38;5;245m  I32Result r = parse_int("123");[0m
+  [38;5;245m  if (r.err) {[0m
+  [38;5;245m      fprintf(stderr, "parse failed: %d\n", r.err);[0m
+  [38;5;245m  } else {[0m
+  [38;5;245m      printf("got: %d\n", r.value);[0m
+  [38;5;245m  }[0m
+
+  [1m[38;5;110mTIP[0m
+    For simple functions, returning [38;5;215m`NULL`[0m on failure is fine. Reserve result
+    types for places where you need to distinguish [3mwhy[23m something failed.
+
+[1m[38;5;215mPattern  -  Cleanup / Defer with goto[0m
+[38;5;215m=====================================[0m
+
+  When a function acquires multiple resources, the [38;5;215m`goto cleanup`[0m pattern gives
+  you structured cleanup without nesting hell. It's the idiomatic C way to get
+  Go/Zig-style [38;5;215m`defer`[0m.
+
+  [38;5;245m  int32_t load_and_process(const char *path) {[0m
+  [38;5;245m      int32_t  result = -1;[0m
+  [38;5;245m      FILE    *f      = NULL;[0m
+  [38;5;245m      uint8_t *buf    = NULL;[0m
+  [38;5;245m  [0m
+  [38;5;245m      f = fopen(path, "rb");[0m
+  [38;5;245m      if (!f) goto cleanup;[0m
+  [38;5;245m  [0m
+  [38;5;245m      buf = malloc(4096);[0m
+  [38;5;245m      if (!buf) goto cleanup;[0m
+  [38;5;245m  [0m
+  [38;5;245m      size_t n = fread(buf, 1, 4096, f);[0m
+  [38;5;245m      if (n == 0) goto cleanup;[0m
+  [38;5;245m  [0m
+  [38;5;245m      // ... process buf ...[0m
+  [38;5;245m      result = (int32_t)n;  // success[0m
+  [38;5;245m  [0m
+  [38;5;245m  cleanup:[0m
+  [38;5;245m      free(buf);    // free(NULL) is safe in C[0m
+  [38;5;245m      if (f) fclose(f);[0m
+  [38;5;245m      return result;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  // No matter how we exit, cleanup always runs.[0m
+  [38;5;245m  // No nested ifs. No leaked resources.[0m
+
+  [1m[38;5;176mRULE[0m
+    Always initialize resources to [38;5;215m`NULL`[0m at the top. [38;5;215m`free(NULL)`[0m is a no-op in
+    C, so your cleanup block is always safe to call unconditionally.
+
+[1m[38;5;215mPattern  -  Logging[0m
+[38;5;215m===================[0m
+
+  Production code needs leveled logging that compiles out below a chosen
+  threshold. The whole pattern fits in one short header. Anything bigger and
+  you're paying for a feature you almost certainly don't need.
+
+  [38;5;245m  // log.h[0m
+  [38;5;245m  #pragma once[0m
+  [38;5;245m  #include <stdio.h>[0m
+  [38;5;245m  #include <time.h>[0m
+  [38;5;245m  [0m
+  [38;5;245m  enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_OFF };[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Compile-time threshold - everything below disappears in release.[0m
+  [38;5;245m  #ifndef LOG_LEVEL[0m
+  [38;5;245m  #  ifdef NDEBUG[0m
+  [38;5;245m  #    define LOG_LEVEL LOG_INFO[0m
+  [38;5;245m  #  else[0m
+  [38;5;245m  #    define LOG_LEVEL LOG_DEBUG[0m
+  [38;5;245m  #  endif[0m
+  [38;5;245m  #endif[0m
+  [38;5;245m  [0m
+  [38;5;245m  static inline void log_emit(int level, const char *file, int line,[0m
+  [38;5;245m                              const char *fmt, ...) {[0m
+  [38;5;245m      static const char *labels[] = {"TRC","DBG","INF","WRN","ERR"};[0m
+  [38;5;245m      struct timespec ts;[0m
+  [38;5;245m      clock_gettime(CLOCK_REALTIME, &ts);[0m
+  [38;5;245m      fprintf(stderr, "%lld.%03ld %s %s:%d ",[0m
+  [38;5;245m          (long long)ts.tv_sec, ts.tv_nsec / 1000000,[0m
+  [38;5;245m          labels[level], file, line);[0m
+  [38;5;245m  [0m
+  [38;5;245m      va_list ap;[0m
+  [38;5;245m      va_start(ap, fmt);[0m
+  [38;5;245m      vfprintf(stderr, fmt, ap);[0m
+  [38;5;245m      va_end(ap);[0m
+  [38;5;245m  [0m
+  [38;5;245m      fputc('\n', stderr);[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  #define LOG_AT(lv, ...) \[0m
+  [38;5;245m      do { if ((lv) >= LOG_LEVEL) log_emit((lv), __FILE__, __LINE__, __VA_ARGS__); } while (0)[0m
+  [38;5;245m  [0m
+  [38;5;245m  #define LOG_TRACE(...) LOG_AT(LOG_TRACE, __VA_ARGS__)[0m
+  [38;5;245m  #define LOG_DEBUG(...) LOG_AT(LOG_DEBUG, __VA_ARGS__)[0m
+  [38;5;245m  #define LOG_INFO(...)  LOG_AT(LOG_INFO,  __VA_ARGS__)[0m
+  [38;5;245m  #define LOG_WARN(...)  LOG_AT(LOG_WARN,  __VA_ARGS__)[0m
+  [38;5;245m  #define LOG_ERROR(...) LOG_AT(LOG_ERROR, __VA_ARGS__)[0m
+
+  Usage:
+
+  [38;5;245m  LOG_INFO("server listening on port %d", port);[0m
+  [38;5;245m  LOG_WARN("slow request %.2f ms from %s", ms, addr);[0m
+  [38;5;245m  LOG_ERROR("open %s: %s", path, strerror(errno));[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Build with -DLOG_LEVEL=LOG_WARN to silence INFO and below.[0m
+
+  [1mWins[0m
+
+    - [1mCompiles out:[22m the [38;5;215m`if ((lv) >= LOG_LEVEL)`[0m is a constant, so the optimizer
+      deletes the entire call
+    - [1mFile and line:[22m automatic via [38;5;215m`__FILE__`[0m / [38;5;215m`__LINE__`[0m - no per-call
+      boilerplate
+    - [1mprintf semantics:[22m existing format-string knowledge transfers; [38;5;215m`-Wformat=2`[0m
+      still works if you add [38;5;215m`__attribute__((format(printf, 4, 5)))`[0m to
+      [38;5;215m`log_emit`[0m
+    - [1mOne sink:[22m [38;5;215m`stderr`[0m. Your terminal handles colors; [38;5;215m`systemd`[0m / Docker
+      capture it; redirect to a file when you need to. No layered "appender"
+      abstraction.
+
+  [1mMulti-threaded[0m
+
+  [38;5;245m  // Add a single mutex around the whole emit. stderr is line-buffered by[0m
+  [38;5;245m  // default, so individual lines stay intact, but interleaving across[0m
+  [38;5;245m  // fields is possible without the lock.[0m
+  [38;5;245m  static pthread_mutex_t g_log_mu = PTHREAD_MUTEX_INITIALIZER;[0m
+  [38;5;245m  [0m
+  [38;5;245m  static inline void log_emit(...) {[0m
+  [38;5;245m      pthread_mutex_lock(&g_log_mu);[0m
+  [38;5;245m      // ... existing body ...[0m
+  [38;5;245m      pthread_mutex_unlock(&g_log_mu);[0m
+  [38;5;245m  }[0m
+
+  [1m[38;5;203mWARN[0m
+    Do not call [38;5;215m`LOG_*`[0m from a signal handler. [38;5;215m`vfprintf`[0m, [38;5;215m`fprintf`[0m,
+    [38;5;215m`clock_gettime`[0m are not async-signal-safe. Set a flag in the handler and let
+    the main loop log.
+
+  [1m[38;5;110mTIP[0m
+    For structured logging (JSON, key-value), keep the same threshold trick but
+    write a [38;5;215m`LOG_KV(level, "msg", "key", val, ...)`[0m macro that emits a JSON
+    line. Don't pull in a 50k-line "logging framework" just for that.
+
+[1m[38;5;215mPattern  -  Fuzz Harness[0m
+[38;5;215m========================[0m
+
+  A fuzzer feeds random byte sequences to a function in a tight loop, watching
+  for sanitizer trips and crashes. Five extra lines around an existing parser
+  turns it into a fuzz target. This is the highest-leverage testing you can
+  write for any code that ingests untrusted input.
+
+  [38;5;245m  // fuzz_target.c[0m
+  [38;5;245m  #include <stdint.h>[0m
+  [38;5;245m  #include <stddef.h>[0m
+  [38;5;245m  #include "parser.h"[0m
+  [38;5;245m  [0m
+  [38;5;245m  // libFuzzer entry point. Returning 0 means "input was processed";[0m
+  [38;5;245m  // crashes / sanitizer trips are surfaced by the harness.[0m
+  [38;5;245m  int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {[0m
+  [38;5;245m      Parsed p;[0m
+  [38;5;245m      if (parse(data, size, &p) == PARSE_OK) {[0m
+  [38;5;245m          parsed_free(&p);[0m
+  [38;5;245m      }[0m
+  [38;5;245m      return 0;[0m
+  [38;5;245m  }[0m
+
+  [1mBuild and run[0m
+
+  [38;5;245m  clang -g -O1 -fsanitize=fuzzer,address,undefined \[0m
+  [38;5;245m        fuzz_target.c parser.c -o fuzz[0m
+  [38;5;245m  [0m
+  [38;5;245m  mkdir -p corpus crashes[0m
+  [38;5;245m  ./fuzz corpus/ -max_total_time=60            # 60 s campaign[0m
+  [38;5;245m  ./fuzz corpus/ -max_total_time=3600 -jobs=4   # overnight + 4 cores[0m
+  [38;5;245m  [0m
+  [38;5;245m  # Reproduce a saved crash deterministically:[0m
+  [38;5;245m  ./fuzz crashes/crash-abc123[0m
+
+  The fuzzer instruments coverage at compile time, generates random inputs, and
+  minimizes any crashing input down to the smallest reproducer it can find. Drop
+  the corpus into your CI as a regression suite.
+
+  [1mWins[0m
+
+    - [1mFinds bugs you never thought of:[22m coverage-guided generation explores edge
+      cases hand-written tests miss
+    - [1mReproducible:[22m every crash is saved as a single-byte file you can replay
+      with [38;5;215m`./fuzz path`[0m
+    - [1mComposable with sanitizers:[22m ASan + UBSan + MSan all stack inside the
+      fuzzer; a "harmless" overflow surfaces immediately
+    - [1mCI-friendly:[22m a 60-second smoke test in CI plus longer overnight runs
+      catches almost everything
+
+  [1mWriting a good harness[0m
+
+     1. [1mBe deterministic.[22m No globals, no time-based logic. Two runs with the
+        same input must do the same thing.
+     2. [1mFree everything.[22m The harness reruns millions of times. A leak in the
+        parser becomes an OOM in 10 seconds. ASan with [38;5;215m`detect_leaks=1`[0m reports
+        it.
+     3. [1mBound work.[22m If the parser can be told to allocate gigabytes from a
+        1-byte input, your fuzzer will find that path immediately. Cap
+        allocations.
+     4. [1mSeed the corpus.[22m Drop a few real, valid inputs into [38;5;215m`corpus/`[0m before
+        starting. The fuzzer mutates from those - blank corpus means slow start.
+
+  [1mProperties beyond "doesn't crash"[0m
+
+  [38;5;245m  int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {[0m
+  [38;5;245m      Parsed p;[0m
+  [38;5;245m      if (parse(data, size, &p) != PARSE_OK) return 0;[0m
+  [38;5;245m  [0m
+  [38;5;245m      // Round-trip property: parse -> serialize -> parse must give same result[0m
+  [38;5;245m      uint8_t *re;[0m
+  [38;5;245m      size_t  re_len;[0m
+  [38;5;245m      serialize(&p, &re, &re_len);[0m
+  [38;5;245m  [0m
+  [38;5;245m      Parsed q;[0m
+  [38;5;245m      int ok = parse(re, re_len, &q) == PARSE_OK && parsed_eq(&p, &q);[0m
+  [38;5;245m      assert(ok);   // fuzzer treats assert failures as crashes[0m
+  [38;5;245m  [0m
+  [38;5;245m      free(re); parsed_free(&p); parsed_free(&q);[0m
+  [38;5;245m      return 0;[0m
+  [38;5;245m  }[0m
+
+  [1m[38;5;110mTIP[0m
+    If clang's libFuzzer isn't an option, AFL++ takes the same harness with a
+    tiny shim - the function name changes but the body is identical. Both
+    fuzzers feed bytes to a function and expect a non-crashing return;
+    everything else is plumbing.
+
+  [1m[38;5;203mWARN[0m
+    Do not commit a 100 MB fuzzing corpus to your main repo. Use [38;5;215m`git lfs`[0m,
+    store it in a sibling repo, or download it on demand in CI. Tests that take
+    10 minutes to clone are tests that nobody runs.
+
+[1m[38;5;215mPattern  -  Optimization Journey[0m
+[38;5;215m================================[0m
+
+  A worked example from Nic Barker's CPU performance talk. Start with a typical
+  OO enemy update loop. Apply twelve mechanical changes. End up ~40x faster.
+  Each step is small. The cumulative effect is large because cache pressure
+  makes the gains [3mmultiplicative[23m, not additive.
+
+  [1mBaseline (slow)[0m
+
+  [38;5;245m  // What you'd write in your first year of programming[0m
+  [38;5;245m  class Enemy {[0m
+  [38;5;245m      bool           dead;[0m
+  [38;5;245m      string         id;[0m
+  [38;5;245m      bool           frenzy;[0m
+  [38;5;245m      function       onDeath;     // callback / delegate[0m
+  [38;5;245m  [0m
+  [38;5;245m      void Update(float dt) {[0m
+  [38;5;245m          if (dead) { onDeath(id); return; }[0m
+  [38;5;245m          if (frenzy || config.global_frenzy) { /* fast path */ }[0m
+  [38;5;245m          else { /* normal path */ }[0m
+  [38;5;245m      }[0m
+  [38;5;245m  }[0m
+  [38;5;245m  // foreach (e in enemies) e.Update(dt);    // ~309 ms baseline[0m
+
+  [1mTwelve mechanical optimizations[0m
+
+  #     [2m|[0m Change                                              [2m|[0m Effect          
+  [2m----  [2m+[0m --------------------------------------------------  [2m+[0m ----------------[0m
+  1     [2m|[0m Bulk processing: `process_enemies(EnemyArray *)` …  [2m|[0m ~285 ms         
+  2     [2m|[0m Inline the callback (kill `onDeath` indirection -…  [2m|[0m stable          
+  3     [2m|[0m Hoist invariants: `bool g_frenzy = config.global_…  [2m|[0m ~284 ms         
+  4     [2m|[0m `class` -> `struct`: pack contiguously, not array…  [2m|[0m ~190 ms (~30% f…
+  5     [2m|[0m Reorder fields, largest first: 24 B -> 16 B struct  [2m|[0m ~170 ms         
+  6     [2m|[0m Two booleans -> single enum: kills impossible "de…  [2m|[0m same size, fewe…
+  7     [2m|[0m `enum : uint8_t`: 4 B -> 1 B (no win standalone, …  [2m|[0m same            
+  8     [2m|[0m Drop string ID for `uint32_t`: 8 B -> 4 B, struct…  [2m|[0m ~153 ms (~50% b…
+  9     [2m|[0m Bulk delete instead of `RemoveAt` per item (list …  [2m|[0m ~3x on heavy-de…
+  10    [2m|[0m Swap-back array: `arr[i] = arr[--len]` - no order…  [2m|[0m ~4x again       
+  11    [2m|[0m Avoid last-minute decisions: split into `normals`…  [2m|[0m ~2x again       
+  12    [2m|[0m Information out of band: enum disappears - array …  [2m|[0m same speed, sim…
+
+  [1mFinal code[0m
+
+  [38;5;245m  typedef struct { float x, y; uint32_t id; } Enemy;[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct {[0m
+  [38;5;245m      Enemy *data;[0m
+  [38;5;245m      size_t len, cap;[0m
+  [38;5;245m  } EnemyArray;[0m
+  [38;5;245m  [0m
+  [38;5;245m  void update_normals(EnemyArray *e, float dt) {[0m
+  [38;5;245m      for (size_t i = 0; i < e->len; i++) {[0m
+  [38;5;245m          e->data[i].x += 1.0f * dt;   // no branch, no callback, no alloc[0m
+  [38;5;245m      }[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  void update_frenzies(EnemyArray *e, float dt) {[0m
+  [38;5;245m      for (size_t i = 0; i < e->len; i++) {[0m
+  [38;5;245m          e->data[i].x += 3.0f * dt;[0m
+  [38;5;245m      }[0m
+  [38;5;245m  }[0m
+  [38;5;245m  [0m
+  [38;5;245m  // Swap-back deletion - O(1), order not preserved[0m
+  [38;5;245m  void enemy_remove(EnemyArray *e, size_t i) {[0m
+  [38;5;245m      e->data[i] = e->data[--e->len];[0m
+  [38;5;245m  }[0m
+
+  [1m[38;5;110mTIP[0m
+    Each individual change looks like a "pointless micro-opt" in isolation. They
+    compound because they all reduce pressure on the same contested resource
+    (the cache). Same way road traffic gridlocks non-linearly: once you're past
+    the throughput cliff, every car you remove helps disproportionately.
+
+  [1m[38;5;203mWARN[0m
+    "Information out of band" (Andrew Kelley): if a function only takes [3mfrenzy[23m
+    enemies, you don't need a frenzy flag on the struct. Array membership
+    encodes the state. This deletes whole categories of bugs ("forgot to clear
+    the flag on death") and shrinks the struct.
+
+[1m[38;5;215mPattern  -  Barker's Way (Clay-style C)[0m
+[38;5;215m=======================================[0m
+
+  Lessons from Nic Barker's Clay - a ~6 KB layout library written in pure C99.
+  Distillation of the rules he applies in the Clay source and his "How to write
+  better C" talk.
+
+  [1mThe rules[0m
+
+     1. [1mSingle-header distribution.[22m One [38;5;215m`.h`[0m. [38;5;215m`#ifdef LIB_IMPLEMENTATION`[0m
+        reveals function bodies once; user includes elsewhere for declarations
+        only.
+     2. [1mNo malloc inside the library.[22m Caller hands you a buffer; you
+        arena-allocate inside it. Deterministic memory.
+     3. [1mCustom string type.[22m [38;5;215m`{ const char *chars; int32_t len; }`[0m. Drop
+        null-termination - it's a footgun.
+     4. [1mCompile-time IDs.[22m Hash literal IDs at compile time via macros
+        ([38;5;215m`LIB_ID("foo")`[0m). No runtime string construction in hot loops.
+     5. [1mDeclarative macro DSL.[22m [38;5;215m`LIB_BLOCK(config) { children }`[0m reads
+        tree-shaped, compiles imperative.
+     6. [1mPrefix everything.[22m [38;5;215m`Lib_*`[0m public types, [38;5;215m`LIB_*`[0m public macros, [38;5;215m`Lib__*`[0m
+        private (double underscore = "do not touch").
+     7. [1mRenderer-agnostic output.[22m Emit sorted command structs; let the caller
+        draw.
+     8. [1mNo hidden state.[22m All context passed by pointer. No globals.
+     9. [1mC99 + [38;5;215m`-Wall -Werror -fsanitize=address`[0m[22m. Non-negotiable build flags.
+      10. [1mUnity-build friendly.[22m Library is one file; user's program is one file.
+
+  [1mSingle-header library skeleton[0m
+
+  [38;5;245m  // tinylib.h[0m
+  [38;5;245m  #ifndef TINYLIB_H[0m
+  [38;5;245m  #define TINYLIB_H[0m
+  [38;5;245m  #include <stdint.h>[0m
+  [38;5;245m  #include <stddef.h>[0m
+  [38;5;245m  [0m
+  [38;5;245m  typedef struct { uint8_t *data; size_t pos, cap; } Tiny_Arena;[0m
+  [38;5;245m  typedef struct { const char *chars; int32_t len; } Tiny_String;[0m
+  [38;5;245m  [0m
+  [38;5;245m  void  Tiny_Init(Tiny_Arena *a, void *mem, size_t cap);[0m
+  [38;5;245m  void *Tiny__Alloc(Tiny_Arena *a, size_t n, size_t align);[0m
+  [38;5;245m  [0m
+  [38;5;245m  #define TINY_PUSH(a, T) ((T*)Tiny__Alloc((a), sizeof(T), _Alignof(T)))[0m
+  [38;5;245m  [0m
+  [38;5;245m  #ifdef TINYLIB_IMPLEMENTATION[0m
+  [38;5;245m  void Tiny_Init(Tiny_Arena *a, void *mem, size_t cap) {[0m
+  [38;5;245m      a->data = mem; a->pos = 0; a->cap = cap;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  void *Tiny__Alloc(Tiny_Arena *a, size_t n, size_t align) {[0m
+  [38;5;245m      size_t p = (a->pos + align - 1) & ~(align - 1);[0m
+  [38;5;245m      if (p + n > a->cap) return 0;[0m
+  [38;5;245m      a->pos = p + n;[0m
+  [38;5;245m      return a->data + p;[0m
+  [38;5;245m  }[0m
+  [38;5;245m  #endif[0m
+  [38;5;245m  #endif[0m
+
+  [1mUsage[0m
+
+  [38;5;245m  #define TINYLIB_IMPLEMENTATION[0m
+  [38;5;245m  #include "tinylib.h"[0m
+  [38;5;245m  [0m
+  [38;5;245m  int main(void) {[0m
+  [38;5;245m      static uint8_t mem[1 << 20];   // 1 MB static buffer, no malloc[0m
+  [38;5;245m      Tiny_Arena a;[0m
+  [38;5;245m      Tiny_Init(&a, mem, sizeof mem);[0m
+  [38;5;245m      int32_t *x = TINY_PUSH(&a, int32_t);[0m
+  [38;5;245m      *x = 42;[0m
+  [38;5;245m  }[0m
+
+  [1m[38;5;110mTIP[0m
+    Read [38;5;215m`clay.h`[0m itself - it's a single file, ~3000 lines, and the best living
+    example of every rule above. [4mgithub.com/nicbarker/clay[24m[2m
+    (https://github.com/nicbarker/clay)[0m
+
+[1mPractice[0m
+
+Open this repo in Helix. Run [38;5;215m`hx --health c`[0m and confirm clangd is found. In any
+[38;5;215m`.c`[0m file: hover with [38;5;215m`K`[0m (hover info), [38;5;215m`gd`[0m on a function name (jump to
+definition), [38;5;215m`gr`[0m (find references). Set a breakpoint and start a debug session
+with [38;5;215m`:debug-start binary ./your-binary`[0m.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m28 Drills[0m
+[38;5;215m---------[0m
+
+[1m[38;5;215mTL;DR[0m
+  reading alone gets you nowhere. Each drill has a hidden answer; try first,
+  then expand.
+
+[1mPointers[0m
+
+[1mD-1.[22m What does this print? Why?
+
+[38;5;245m  int x = 5;[0m
+[38;5;245m  int *p = &x;[0m
+[38;5;245m  int **pp = &p;[0m
+[38;5;245m  **pp = 10;[0m
+[38;5;245m  printf("%d\n", x);[0m
+
+[38;5;215m`10`[0m. [38;5;215m`pp`[0m points to [38;5;215m`p`[0m; [38;5;215m`*pp`[0m is [38;5;215m`p`[0m; [38;5;215m`**pp`[0m reads/writes through [38;5;215m`p`[0m, which
+targets [38;5;215m`x`[0m.
+
+[1mD-2.[22m Spot the bug:
+
+[38;5;245m  char *make(void) {[0m
+[38;5;245m      char s[] = "hello";[0m
+[38;5;245m      return s;[0m
+[38;5;245m  }[0m
+
+[38;5;215m`s`[0m is on the stack; the pointer dangles after return. Fix: [38;5;215m`return
+strdup("hello");`[0m (caller must free) or use a static buffer.
+
+[1mD-3.[22m Why is [38;5;215m`int *a, b;`[0m rarely what you want?
+
+[38;5;215m`a`[0m is [38;5;215m`int*`[0m, but [38;5;215m`b`[0m is just [38;5;215m`int`[0m. [38;5;215m`*`[0m binds to the variable, not the type.
+Always declare on separate lines, or write [38;5;215m`int *a, *b;`[0m.
+
+[1mArrays & decay[0m
+
+[1mD-4.[22m Inside [38;5;215m`void f(int a[100])`[0m, what is [38;5;215m`sizeof(a)`[0m?
+
+[38;5;215m`sizeof(int*)`[0m (8 on 64-bit). [38;5;215m`[100]`[0m is a hint for humans; the compiler ignores
+it on parameters. [38;5;215m`a`[0m is just a pointer.
+
+[1mD-5.[22m Here's a wrong read; what's the smallest fix?
+
+[38;5;245m  char buf[8];[0m
+[38;5;245m  fread(buf, 1, 10, f);   // wrong: writes 10 bytes into 8-byte buffer[0m
+
+Make the buffer big enough ([38;5;215m`char buf[10];`[0m) or read at most [38;5;215m`sizeof buf`[0m:
+[38;5;215m`fread(buf, 1, sizeof buf, f);`[0m. Both, ideally.
+
+[1mStructs & memory[0m
+
+[1mD-6.[22m What does [38;5;215m`sizeof(S)`[0m give you?
+
+[38;5;245m  struct S { char a; int32_t b; char c; };[0m
+
+12 on most platforms. Padding: [38;5;215m`a`[0m (1) + 3 pad + [38;5;215m`b`[0m (4) + [38;5;215m`c`[0m (1) + 3 trailing
+pad = 12. Reorder largest-first to shrink: [38;5;215m`{ int32_t b; char a; char c; }`[0m -> 8
+bytes.
+
+[1mD-7.[22m Allocate a struct and an array of doubles in one shot:
+
+[38;5;245m  typedef struct { size_t n; double data[]; } Vec;[0m
+[38;5;245m  Vec *v = malloc(sizeof(Vec) + n * sizeof(double));[0m
+[38;5;245m  v->n = n;[0m
+[38;5;245m  // v->data[i] is contiguous with the struct - one alloc, one free[0m
+
+This is the "flexible array member" trick.
+
+[1mStrings[0m
+
+[1mD-8.[22m Why is [38;5;215m`strncpy`[0m [3mnot[23m a safe [38;5;215m`strcpy`[0m?
+
+[38;5;215m`strncpy`[0m does not null-terminate if the source is at least [38;5;215m`n`[0m bytes. The
+result might not be a C string. Use [38;5;215m`snprintf(dst, sizeof dst, "%s", src)`[0m for
+safe bounded copy.
+
+[1mMemory management[0m
+
+[1mD-9.[22m Spot the leak:
+
+[38;5;245m  char *buf = malloc(1024);[0m
+[38;5;245m  buf = realloc(buf, 4096);[0m
+[38;5;245m  if (!buf) return -1;[0m
+
+If [38;5;215m`realloc`[0m returns NULL, the original [38;5;215m`buf`[0m still points to a live block but
+you've overwritten the variable -> leak. Always: [38;5;215m`tmp = realloc(buf, n); if
+(!tmp) { free(buf); return -1; } buf = tmp;`[0m.
+
+[1mD-10.[22m Which of these is/are UB?
+
+[38;5;245m  char *p = malloc(8);[0m
+[38;5;245m  free(p);[0m
+[38;5;245m  free(p);             // (a)[0m
+[38;5;245m  p[0] = 'x';          // (b)[0m
+[38;5;245m  free(NULL);          // (c)[0m
+[38;5;245m  char *q = NULL;[0m
+[38;5;245m  *q = 'x';            // (d)[0m
+
+[38;5;215m`(a)`[0m, [38;5;215m`(b)`[0m, [38;5;215m`(d)`[0m are UB. [38;5;215m`(c)`[0m is defined as a no-op.
+
+[1mBit twiddling[0m
+
+[1mD-11.[22m Set bit 3 of [38;5;215m`x`[0m. Clear bit 5. Toggle bit 7. Test bit 0.
+
+[38;5;245m  x |=  (1u << 3);          // set[0m
+[38;5;245m  x &= ~(1u << 5);          // clear[0m
+[38;5;245m  x ^=  (1u << 7);          // toggle[0m
+[38;5;245m  bool b = x & (1u << 0);   // test[0m
+
+[1mBuild & safety[0m
+
+[1mD-12.[22m What flags would catch the most C bugs at zero cost?
+
+[38;5;215m`-Wall -Wextra -Werror`[0m for warnings-as-errors, plus
+[38;5;215m`-fsanitize=address,undefined`[0m for runtime. Optional: [38;5;215m`-Wpedantic`[0m,
+[38;5;215m`-Wconversion`[0m.
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m29 Glossary[0m
+[38;5;215m-----------[0m
+
+[1m[38;5;215mTL;DR[0m
+  shorthand C developers throw around. Skim once.
+
+Term     [2m|[0m Meaning                                                          
+[2m-------  [2m+[0m -----------------------------------------------------------------[0m
+[1mUB[22m       [2m|[0m Undefined Behavior. The standard imposes no requirement; the com…
+[1mIB[22m       [2m|[0m Implementation-defined Behavior. The standard lets each compiler…
+[1mTU[22m       [2m|[0m Translation Unit. One `.c` file plus all its `#include`d content…
+[1mODR[22m      [2m|[0m One Definition Rule. Each non-`static` function or global must h…
+[1mlvalue[22m   [2m|[0m Expression with an address you can take. `x`, `*p`, `arr[i]`. Ca…
+[1mrvalue[22m   [2m|[0m Expression without an address. `42`, `a + b`, function return. R…
+[1mLinkage[22m  [2m|[0m Visibility across TUs. `static` = internal (this TU only). Defau…
+Storag…  [2m|[0m How long an object lives. Automatic (stack), Static (process lif…
+Sequen…  [2m|[0m Boundary in evaluation order. Between full expressions, after `&…
+Strict…  [2m|[0m The rule that says you can't read a `T*` through a `U*` (with ex…
+[1mVLA[22m      [2m|[0m Variable Length Array. `int a[n]` where `n` isn't a constant. St…
+[1mPOD[22m      [2m|[0m Plain Old Data. A struct with no constructors/destructors (a C-o…
+[1mABI[22m      [2m|[0m Application Binary Interface. The contract between compiled bina…
+[1mTLS[22m      [2m|[0m Thread-Local Storage. Per-thread copies of a variable. C11: `_Th…
+[1mMMU[22m      [2m|[0m Memory Management Unit. CPU hardware that translates virtual add…
+Cache …  [2m|[0m Unit of memory the CPU loads from RAM. 64 bytes on x86/ARM. Writ…
+
+[2m--------------------------------------------------------------------------------[0m
+
+[1m[38;5;215m∑ Quick Reference[0m
+[38;5;215m-----------------[0m
+
+[1m[38;5;110mAlways do[0m
+    - Use [38;5;215m`stdint.h`[0m fixed-width types
+    - Check every malloc/fopen for NULL
+    - Use [38;5;215m`snprintf`[0m not [38;5;215m`sprintf`[0m
+    - Use [38;5;215m`strcmp`[0m not [38;5;215m`==`[0m for strings
+    - NULL pointers after free
+    - Use arenas for short-lived data
+    - [38;5;215m`#pragma once`[0m in every header
+    - Mark file-local helpers [38;5;215m`static`[0m
+    - [38;5;215m`assert()`[0m invariants in code
+    - Run tests under sanitizers
+    - Use [38;5;215m`memcpy`[0m for type punning
+    - Build dev with [38;5;215m`-std=c99 -Wall -Wextra -Werror
+      -fsanitize=address,undefined`[0m
+    - Use a debugger from day one
+    - Read [38;5;215m`clang -E`[0m when a macro misbehaves
+
+[1m[38;5;110mNever do[0m
+    - Large arrays on the stack (or VLAs)
+    - Ignore malloc return value
+    - Use [38;5;215m`gets()`[0m - it's deleted
+    - Use [38;5;215m`strncpy`[0m as a string copy
+    - Cast malloc in C (it's unnecessary)
+    - Write to string literals
+    - Compare strings with [38;5;215m`==`[0m
+    - Cast between pointer types (alias UB)
+    - Read uninitialized memory
+    - Signed overflow on purpose
+    - Forget to free heap memory
+    - Debug an optimized binary first
+    - Hide allocations inside library APIs
+    - [38;5;215m`printf`[0m from a signal handler
+
+[1m[38;5;110mCore patterns[0m
+    - Arena allocator for lifetimes
+    - Stretchy buffer for growing arrays
+    - Slice structs (ptr + len)
+    - Handle arrays for objects
+    - Hash map (open addressing)
+    - Tagged unions for sum types
+    - Indexes, not pointers, between objects
+    - Unity build until it hurts
+    - Result structs for errors
+    - goto cleanup for resources
+    - Leveled logger that compiles out
+
+[1m[38;5;110mKey headers[0m
+    - [38;5;215m`stdint.h`[0m - fixed types
+    - [38;5;215m`stddef.h`[0m - size_t, NULL
+    - [38;5;215m`stdbool.h`[0m - bool
+    - [38;5;215m`string.h`[0m - mem/str ops
+    - [38;5;215m`stdlib.h`[0m - malloc/free
+    - [38;5;215m`stdio.h`[0m - printf/fopen
+    - [38;5;215m`assert.h`[0m - assert()
+
+[1m[38;5;110mBuild flags[0m
+    - [38;5;215m`-std=c99`[0m always
+    - [38;5;215m`-Wall -Wextra -Wpedantic -Werror`[0m
+    - [38;5;215m`-fsanitize=address,undefined`[0m (dev)
+    - [38;5;215m`-g -O0`[0m debug, [38;5;215m`-O2 -DNDEBUG`[0m release
+    - [38;5;215m`-fstack-protector-strong`[0m release
+    - [38;5;215m`-D_FORTIFY_SOURCE=2`[0m release
+
+[1m[38;5;110mCache & perf[0m
+    - 64 B cache line - pack tight
+    - L1 ~3 cy, L2 ~20, L3 ~100, DRAM 200-300
+    - Bulk processing > per-object
+    - Pre-compute > runtime
+    - Order struct fields largest -> smallest
+    - Each core has its own L1/L2
+
+[1m[38;5;110mDebug & tools[0m
+    - gdb: [38;5;215m`b main; r; bt; p var`[0m
+    - lldb: same commands, mostly
+    - [38;5;215m`ulimit -c unlimited`[0m for cores
+    - valgrind / rr fallbacks
+    - Helix: [38;5;215m`hx --health c`[0m
+    - RemedyBG / RAD Debugger for GUI
+
+[1m[38;5;110mBarker rules[0m
+    - Single-header + [38;5;215m`#ifdef IMPL`[0m
+    - Caller-owned arenas
+    - String = ptr + len
+    - Indexes, not pointers
+    - Unity build first
+    - No globals, no hidden malloc
+    - C99 + ASan, non-negotiable
+
+[1m[38;5;110mTesting[0m
+    - [38;5;215m`tests.c`[0m + [38;5;215m`assert.h`[0m + sanitizers = 80%
+    - Exit 0 = pass, non-zero = fail
+    - Run under [38;5;215m`-fsanitize=address,undefined`[0m
+    - One test binary per module is fine
+    - [38;5;215m`EXPECT_EQ`[0m macros, not a framework
+    - Fuzz any parser of untrusted input
+    - Snapshot/golden for formatters
+
+[1m[38;5;110mUB to avoid[0m
+    - Signed integer overflow
+    - NULL or wild pointer deref
+    - Out-of-bounds (even by 1)
+    - Strict aliasing violations
+    - Misaligned scalar access
+    - Shift >= type width
+    - Reading uninitialized memory
+    - Use after free / scope
+    - Unsequenced reads/writes ([38;5;215m`i = i++`[0m)
+
+[1m[38;5;110mConcurrency[0m
+    - Default to mutexes, not lock-free
+    - C11 atomics for flags / counters
+    - [38;5;215m`memory_order_seq_cst`[0m until profiled
+    - Lock multiple mutexes in fixed order
+    - Build with [38;5;215m`-fsanitize=thread`[0m
+    - Pass distinct addrs to each thread
+    - Always join (or detach)
+

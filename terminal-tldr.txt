@@ -1,0 +1,678 @@
+[1m[38;5;215mc-2080  -  TL;DR variant[0m
+[2mfull doc: curl -L https://kakkoidev.github.io/c-2080/terminal.txt[0m
+
+[1m[38;5;215m00 Study Roadmap[0m
+[38;5;215m----------------[0m
+[1m[38;5;215mTL;DR[0m
+  don't read this guide front-to-back. Pick a path below, write code as you go,
+  and treat the rest as reference.
+
+
+[1mTime-boxed paths[0m
+
+[1mProject ladder[0m
+
+[1m[38;5;215m01 Build System Minimum[0m
+[38;5;215m-----------------------[0m
+[1m[38;5;215mTL;DR[0m
+  copy these files, edit the SRCS line, you're shipping.
+
+
+[1mJust cc (one file, dev workflow)[0m
+
+[1mMinimum Makefile[0m
+
+[1mMinimum CMakeLists.txt[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m02 Building & Safety[0m
+[38;5;215m--------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Pick C99. Turn on [38;5;215m`-Wall -Wextra -Werror -fsanitize=address,undefined`[0m for
+  dev. Two build modes: dev (max safety, slow, readable) and release (fast,
+  hardened with [38;5;215m`-D_FORTIFY_SOURCE=2`[0m).
+
+
+[1mC99: the version to pick[0m
+
+[1mAlways-on warning flags[0m
+
+[1mSanitizers[0m
+
+[1mRelease hardening[0m
+
+[1mTwo build modes[0m
+
+[1mWhat is a segfault, really[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m03 C in Helix Editor[0m
+[38;5;215m--------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Helix has built-in LSP and DAP. Install [38;5;215m`clangd`[0m plus [38;5;215m`lldb-dap`[0m, drop a
+  [38;5;215m`.clangd`[0m and [38;5;215m`compile_commands.json`[0m in the repo, wire the debugger in
+  [38;5;215m`~/.config/helix/languages.toml`[0m. [38;5;215m`hx --health c`[0m confirms the toolchain.
+
+
+[1mInstall[0m
+
+[1mProject file: ./.clangd[0m
+
+[1mProject file: ./compile_commands.json[0m
+
+[1mProject file: ./.clang-format[0m
+
+[1mUser config: ~/.config/helix/languages.toml[0m
+
+[1mUseful keybinds for C[0m
+
+[1m[38;5;215m04 Debugger Tips[0m
+[38;5;215m----------------[0m
+[1m[38;5;215mTL;DR[0m
+  gdb and lldb cover 90% of C debugging with the same dozen commands: [38;5;215m`b`[0m, [38;5;215m`r`[0m,
+  [38;5;215m`n`[0m, [38;5;215m`s`[0m, [38;5;215m`c`[0m, [38;5;215m`bt`[0m, [38;5;215m`p`[0m, [38;5;215m`info locals`[0m, [38;5;215m`watch`[0m, [38;5;215m`q`[0m. Build with [38;5;215m`-g -O0`[0m for
+  clean info.
+
+
+[1mgdb cheat sheet[0m
+
+[1mlldb equivalents[0m
+
+[1mCore dumps (post-mortem)[0m
+
+[1mOptional ~/.gdbinit[0m
+
+[1mWhen ASan isn't available: valgrind[0m
+
+[1mTime-travel debugging: rr (Linux)[0m
+
+[1mStandalone GUI debuggers[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m05 Types & the Memory Model[0m
+[38;5;215m---------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  C has no runtime. Every variable lives on the stack (auto-freed) or the heap
+  (manual). Use [38;5;215m`<stdint.h>`[0m fixed-width types and never plain [38;5;215m`int`[0m/[38;5;215m`long`[0m.
+
+
+[1mThe types you'll actually use[0m
+
+[1mStack vs Heap at a glance[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m06 Pointers (demystified)[0m
+[38;5;215m-------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  A pointer is just an integer holding a memory address. [38;5;215m`&x`[0m reads the address;
+  [38;5;215m`*p`[0m reads (or writes) through it. Everything else is variations on that
+  theme.
+
+
+[1mThe three faces of *[0m
+
+[1m& - address-of[0m
+
+[1mWhy pointers exist[0m
+
+[1mPointer arithmetic[0m
+
+[1mPointer to pointer **[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m07 Visual Memory Models[0m
+[38;5;215m-----------------------[0m
+[1m[38;5;215mTL;DR[0m
+  when in doubt, draw boxes and arrows. Most C bugs are spatial, not logical.
+
+
+[1mProcess memory layout[0m
+
+[1mA pointer in pictures[0m
+
+[1mPointer to pointer (argv)[0m
+
+[1mA struct in memory[0m
+
+[1mArray decay[0m
+
+[1mStack frame layout[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m08 Arrays & Decay[0m
+[38;5;215m-----------------[0m
+[1m[38;5;215mTL;DR[0m
+  Arrays know their size; pointers do not. The moment you pass an array to a
+  function, it decays to a pointer and [38;5;215m`sizeof`[0m lies. Always pass length
+  explicitly.
+
+
+[1mDeclaration vs decay[0m
+
+[1mThe decay rule[0m
+
+[1mArray as a function parameter[0m
+
+[1mThe C99 static hint[0m
+
+[1mIterating safely[0m
+
+[1mVLAs - skip them[0m
+
+[1mMulti-dimensional arrays[0m
+
+[1mOut-of-bounds is undefined[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m09 Strings[0m
+[38;5;215m----------[0m
+[1m[38;5;215mTL;DR[0m
+  C strings are null-terminated [38;5;215m`char`[0m arrays. Never use [38;5;215m`strcpy`[0m/[38;5;215m`strcat`[0m/[38;5;215m`==`[0m.
+  Use [38;5;215m`snprintf`[0m for building strings and [38;5;215m`strcmp`[0m for comparing them.
+
+
+[1mModern: String View (non-owning slice)[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m10 Structs & Composition[0m
+[38;5;215m------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  C has no classes. Structs are your objects. Use designated initializers
+  ([38;5;215m`.field = v`[0m); pass a [38;5;215m`Self *self`[0m as the first arg of "method" functions.
+
+
+[1mFunction "methods" on structs[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m11 Enums & Tagged Unions[0m
+[38;5;215m------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Enum gives names to integer constants. Union holds one of several payloads in
+  the same memory. Together they encode "this is exactly one of N variants".
+
+
+[1mPlain enums[0m
+
+[1mBit flags[0m
+
+[1mTagged unions (sum types)[0m
+
+[1mMemory size[0m
+
+[1mAnonymous unions and structs (C11)[0m
+
+[1mType punning - do this with memcpy[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m12 Memory Management[0m
+[38;5;215m--------------------[0m
+[1m[38;5;215mTL;DR[0m
+  malloc takes memory, free returns it. Lose the pointer and you've leaked. Free
+  twice and you've corrupted the heap. Use arenas to make ownership obvious.
+
+
+[1mThe four allocators[0m
+
+[1mComing from Python/JS[0m
+
+[1mOwnership[0m
+
+[1mArenas (the lifetime trick)[0m
+
+[1mDetecting leaks[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m13 Error Handling Idioms[0m
+[38;5;215m------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  C has no exceptions. Pick one error convention per project and hold the line.
+  Cleanup goes through [38;5;215m`goto`[0m.
+
+
+[1mThe three conventions[0m
+
+[1merrno[0m
+
+[1mCleanup with goto[0m
+
+[1mAsserts vs returns[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m14 Functions & Headers[0m
+[38;5;215m----------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Headers declare; [38;5;215m`.c`[0m files define. [38;5;215m`#pragma once`[0m at the top. Only
+  declarations, typedefs, and [38;5;215m`static inline`[0m helpers belong in headers.
+
+
+[1mPractice[0m
+
+[1m[38;5;215m15 Function Pointers[0m
+[38;5;215m--------------------[0m
+[1m[38;5;215mTL;DR[0m
+  A function pointer holds the address of code, letting you pick which function
+  to call at runtime. [38;5;215m`typedef`[0m non-trivial signatures. Always pass a trailing
+  [38;5;215m`void *user`[0m for state.
+
+
+[1mThe syntax[0m
+
+[1mCallbacks: qsort[0m
+
+[1mThe "context pointer" idiom[0m
+
+[1mDispatch table (poor man's vtable)[0m
+
+[1mNULL function pointers[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m16 Linkage & Storage[0m
+[38;5;215m--------------------[0m
+[1m[38;5;215mTL;DR[0m
+  [38;5;215m`static`[0m at file scope = private to this TU. [38;5;215m`static`[0m inside a function =
+  lifetime of the program but local name. [38;5;215m`extern`[0m = declare without defining.
+  Mark every file-local helper [38;5;215m`static`[0m.
+
+
+[1mTranslation units[0m
+
+[1mThe four scopes[0m
+
+[1mextern: declaring something defined elsewhere[0m
+
+[1mstatic has three meanings[0m
+
+[1minline: hint, not contract[0m
+
+[1mStorage durations[0m
+
+[1mThe header rules in one box[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m17 The Preprocessor & #define[0m
+[38;5;215m-----------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Textual phase before compilation. [38;5;215m`#include`[0m pastes, [38;5;215m`#define`[0m substitutes,
+  [38;5;215m`#ifdef`[0m gates. No types, no scope, no surprises once you remember it's just
+  text.
+
+
+[1m#include[0m
+
+[1m#define constants[0m
+
+[1mFunction-like macros[0m
+
+[1mConditional compilation[0m
+
+[1mBuilt-in macros[0m
+
+[1mStringify # and token paste ##[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m18 Variadic Functions[0m
+[38;5;215m---------------------[0m
+[1m[38;5;215mTL;DR[0m
+  [38;5;215m`...`[0m takes a variable arg list, read with [38;5;215m`va_list`[0m. The function cannot tell
+  how many were passed. Wrap [38;5;215m`vprintf`[0m/[38;5;215m`vsnprintf`[0m; pass a count or sentinel.
+
+
+[1mCalling variadic functions[0m
+
+[1mWriting a wrapper[0m
+
+[1mFormat-string attribute (gcc / clang)[0m
+
+[1mReading a va_list directly[0m
+
+[1mPromotion rules (the gotcha)[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m19 File I/O[0m
+[38;5;215m-----------[0m
+[1m[38;5;215mTL;DR[0m
+  [38;5;215m`fopen`[0m/[38;5;215m`fread`[0m/[38;5;215m`fwrite`[0m/[38;5;215m`fclose`[0m is 80% of C file I/O. Use [38;5;215m`"rb"`[0m/[38;5;215m`"wb"`[0m for
+  binary, especially on Windows. [38;5;215m`mmap`[0m only when you need zero-copy on big
+  files.
+
+
+[1mOpen, read, close[0m
+
+[1mSlurp a whole file (the helper everyone re-writes)[0m
+
+[1mWriting[0m
+
+[1mLine-oriented text[0m
+
+[1mMemory-mapped files (POSIX)[0m
+
+[1mErrors and errno[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m20 Bit Manipulation[0m
+[38;5;215m-------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Five idioms cover the 80%: SET ([38;5;215m`|=`[0m), CLEAR ([38;5;215m`&= ~`[0m), TOGGLE ([38;5;215m`^=`[0m), TEST
+  ([38;5;215m`&`[0m), ASSIGN. Always use unsigned types - signed shifts and overflow are UB.
+
+
+[1mThe operators[0m
+
+[1mThe five idioms you actually use[0m
+
+[1mMasks and packing[0m
+
+[1mPower-of-two tricks[0m
+
+[1mBuiltins (gcc / clang)[0m
+
+[1mEndianness[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m21 Standard Library Survival Kit[0m
+[38;5;215m--------------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Small but uneven. Five headers cover 90%: [38;5;215m`stdint`[0m, [38;5;215m`stddef`[0m, [38;5;215m`stdbool`[0m,
+  [38;5;215m`string`[0m, [38;5;215m`stdio`[0m. Use [38;5;215m`snprintf`[0m/[38;5;215m`fgets`[0m/[38;5;215m`strtol`[0m; avoid
+  [38;5;215m`sprintf`[0m/[38;5;215m`gets`[0m/[38;5;215m`atoi`[0m.
+
+
+[1m<stdio.h> - I/O[0m
+
+[1m<stdlib.h> - allocation, conversion, exit[0m
+
+[1m<string.h> - bytes and C strings[0m
+
+[1m<math.h>[0m
+
+[1m<time.h>[0m
+
+[1m<ctype.h> - single-byte character predicates[0m
+
+[1m<errno.h>[0m
+
+[1mWhat to skip[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m22 main / argv / signals[0m
+[38;5;215m------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Two valid [38;5;215m`main`[0m signatures. [38;5;215m`argv[argc]`[0m is [38;5;215m`NULL`[0m (you can iterate without
+  [38;5;215m`argc`[0m). Exit code 0 = success, 1-255 = failure. Signal handlers only set
+  [38;5;215m`volatile sig_atomic_t`[0m flags.
+
+
+[1mThe two valid signatures[0m
+
+[1mExit codes[0m
+
+[1mArgument parsing - hand rolled[0m
+
+[1mgetopt - the POSIX standard[0m
+
+[1mEnvironment variables[0m
+
+[1mSignals (the 80%)[0m
+
+[1mThe signals you'll meet[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m23 Concurrency Primer[0m
+[38;5;215m---------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Spawn threads with [38;5;215m`pthread_create`[0m, join with [38;5;215m`pthread_join`[0m. Protect shared
+  state with a mutex, use atomics for flags and counters. Build with
+  [38;5;215m`-fsanitize=thread`[0m.
+
+
+[1mPOSIX threads (the de-facto standard)[0m
+
+[1mMutex - protect shared state[0m
+
+[1mAtomics (C11) - lock-free flags and counters[0m
+
+[1mMemory order, briefly[0m
+
+[1mThread-local storage[0m
+
+[1mCommon bugs[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m24 Testing[0m
+[38;5;215m----------[0m
+[1m[38;5;215mTL;DR[0m
+  A C test binary returns 0 on pass, non-zero on fail. [38;5;215m`assert.h`[0m plus
+  sanitizers covers 80%. Add a 40-line test helper ([38;5;215m`EXPECT_EQ`[0m/[38;5;215m`RUN`[0m/[38;5;215m`REPORT`[0m)
+  before reaching for any framework.
+
+
+[1mThe minimum viable test[0m
+
+[1mA small in-house test runner[0m
+
+[1mSanitizers ARE the test suite[0m
+
+[1massert in production code[0m
+
+[1mProperty-based / fuzz testing[0m
+
+[1mSnapshot / golden tests[0m
+
+[1mWhat about test frameworks?[0m
+
+[1mHooking into make / CMake[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m25 Common Rookie Traps[0m
+[38;5;215m----------------------[0m
+[1m[38;5;215mTL;DR[0m
+  90% of "weird C bugs" are on this list. If your code misbehaves, scan here
+  first.
+
+
+[1msizeof on a decayed array[0m
+
+[1mString literals are read-only[0m
+
+[1mComparing strings with ==[0m
+
+[1mgets and scanf("%s", ...)[0m
+
+[1mOff-by-one on the null terminator[0m
+
+[1mInteger overflow in size math[0m
+
+[1mSigned/unsigned compare[0m
+
+[1mReturning a pointer to a local[0m
+
+[1mUsing == with floats[0m
+
+[1mForgetting void in zero-arg declarations[0m
+
+[1mMacro arg evaluated twice[0m
+
+[1mFree + reuse[0m
+
+[1mUnchecked malloc[0m
+
+[1mprintf format mismatch[0m
+
+[1mReturning -1 from an unsigned[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m26 Undefined Behavior Catalog[0m
+[38;5;215m-----------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  UB = the standard imposes no requirement; the compiler may delete your code.
+  Sanitizers catch most runtime UB; warnings catch most compile-time UB. Use
+  unsigned for wrap, [38;5;215m`memcpy`[0m for type pun, initialize all variables.
+
+
+[1mSigned integer overflow[0m
+
+[1mStrict aliasing[0m
+
+[1mNULL dereference[0m
+
+[1mOut-of-bounds access[0m
+
+[1mUse after free / use after scope[0m
+
+[1mShifting too far / by negative[0m
+
+[1mReading uninitialized memory[0m
+
+[1mSequencing and side effects[0m
+
+[1mMisaligned access[0m
+
+[1mUndefined and implementation-defined are different[0m
+
+[1mDefenses, in order[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m27 CPU Performance Foundations[0m
+[38;5;215m------------------------------[0m
+[1m[38;5;215mTL;DR[0m
+  Cache line is 64 B. L1 ~3 cy, L2 ~20, L3 ~100, DRAM ~200-300. Pack data tight,
+  do work in bulk, pre-compute, use multiple cores. The cache, not big-O, is
+  your real bottleneck.
+
+
+[1mThe kitchen analogy[0m
+
+[1mCache hierarchy: the headline numbers[0m
+
+[1mThe four rules of thumb[0m
+
+[1mThe silent killer[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m★ Patterns[0m
+[38;5;215m----------[0m
+
+[1m[38;5;215mPattern  -  Unity Build (single translation unit)[0m
+
+[1mWins[0m
+
+[1m[38;5;215mPattern  -  Arena Allocator[0m
+
+[1m[38;5;215mPattern  -  Stretchy Buffer / Dynamic Array[0m
+
+[1mWins[0m
+
+[1mvs Slice[0m
+
+[1m[38;5;215mPattern  -  Typed Slices (Fat Pointers)[0m
+
+[1m[38;5;215mPattern  -  Handle Arrays (Pool)[0m
+
+[1m[38;5;215mPattern  -  Hash Map (open addressing)[0m
+
+[1mWins[0m
+
+[1mCaveats[0m
+
+[1m[38;5;215mPattern  -  Indexes Over Pointers[0m
+
+[1mWhy a raw pointer is worse[0m
+
+[1mGenerational indexes[0m
+
+[1mThe bounds check is free in release[0m
+
+[1mSerialization for free[0m
+
+[1m[38;5;215mPattern  -  Error Handling Without Exceptions[0m
+
+[1m[38;5;215mPattern  -  Cleanup / Defer with goto[0m
+
+[1m[38;5;215mPattern  -  Logging[0m
+
+[1mWins[0m
+
+[1mMulti-threaded[0m
+
+[1m[38;5;215mPattern  -  Fuzz Harness[0m
+
+[1mBuild and run[0m
+
+[1mWins[0m
+
+[1mWriting a good harness[0m
+
+[1mProperties beyond "doesn't crash"[0m
+
+[1m[38;5;215mPattern  -  Optimization Journey[0m
+
+[1mBaseline (slow)[0m
+
+[1mTwelve mechanical optimizations[0m
+
+[1mFinal code[0m
+
+[1m[38;5;215mPattern  -  Barker's Way (Clay-style C)[0m
+
+[1mThe rules[0m
+
+[1mSingle-header library skeleton[0m
+
+[1mUsage[0m
+
+[1mPractice[0m
+
+[1m[38;5;215m28 Drills[0m
+[38;5;215m---------[0m
+[1m[38;5;215mTL;DR[0m
+  reading alone gets you nowhere. Each drill has a hidden answer; try first,
+  then expand.
+
+
+[1mPointers[0m
+
+[1mArrays & decay[0m
+
+[1mStructs & memory[0m
+
+[1mStrings[0m
+
+[1mMemory management[0m
+
+[1mBit twiddling[0m
+
+[1mBuild & safety[0m
+
+[1m[38;5;215m29 Glossary[0m
+[38;5;215m-----------[0m
+[1m[38;5;215mTL;DR[0m
+  shorthand C developers throw around. Skim once.
+
+
+[1m[38;5;215m∑ Quick Reference[0m
+[38;5;215m-----------------[0m
