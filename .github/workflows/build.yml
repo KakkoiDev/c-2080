@@ -16,9 +16,9 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run build
-      - name: Verify committed index.html matches build
+      - name: Verify committed build outputs match source
         run: |
-          if ! git diff --exit-code -- index.html; then
-            echo "::error::index.html is out of date. Run 'npm run build' and commit the result."
+          if ! git diff --exit-code -- index.html terminal.txt terminal-tldr.txt; then
+            echo "::error::Build outputs are out of date. Run 'npm run build' and commit the result."
             exit 1
           fi
