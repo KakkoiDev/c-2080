@@ -8,23 +8,26 @@ don't read this guide front-to-back. Pick a path below, write code as you go, an
 
 **Day 1 (3-4 hours).** Read these only:
 
-- 01 Types & Memory Model
-- 02 Pointers
-- 03 Arrays & Decay
-- 06 Strings
-- 27 Build System Minimum
+- 01 Build System Minimum
+- 02 Building & Safety (warning flags + sanitizers)
+- 05 Types & the Memory Model
+- 06 Pointers
+- 08 Arrays & Decay
+- 09 Strings
 
 Then write a `wc` clone (counts lines, words, bytes from a file). That's enough to start writing C.
 
 **Week 1.** Day 1 plus:
 
-- 04 Structs & Composition
-- 05 Enums & Tagged Unions
-- 07 Functions & Headers
-- 17 Building & Safety (focus on the compile flags)
-- 23 Memory Management
-- 24 Error Handling Idioms
-- 26 Common Rookie Traps
+- 03 C in Helix Editor (skip if not using Helix)
+- 04 Debugger Tips
+- 07 Visual Memory Models
+- 10 Structs & Composition
+- 11 Enums & Tagged Unions
+- 12 Memory Management
+- 13 Error Handling Idioms
+- 14 Functions & Headers
+- 25 Common Rookie Traps
 
 Build: a hash table (open addressing) and a tiny JSON parser.
 
